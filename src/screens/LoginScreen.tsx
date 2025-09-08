@@ -8,6 +8,7 @@ import {
   Alert,
   Image,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import { login, getProfile } from '@react-native-seoul/kakao-login';
@@ -145,11 +146,17 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
     color: 'black',
     marginBottom: 8,
+    fontWeight: 'bold',
     textAlign: 'center',
-    fontFamily: Fonts.ssRock, // SSRockRegular 폰트 사용
+    // 커스텀 폰트 사용 (SSRockRegular)
+    // fontFamily: Platform.select({
+    //   ios: 'SangSangRock',     // iOS: PostScript Name
+    //   android: 'SSRockRegular', // Android: 파일명(확장자 제외)
+    // }),
+    // 기본 폰트 사용하려면 위의 fontFamily를 주석처리하고 아래 주석을 해제하세요
+    fontFamily: 'System', // 기본 시스템 폰트
   },
   subtitle: {
     fontSize: 16,
