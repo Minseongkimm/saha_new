@@ -50,8 +50,6 @@ function LoginScreen({ navigation }: LoginScreenProps) {
       
       if (error) {
         console.error('❌ === Supabase 로그인 에러 ===', error);
-        console.error('  - Error message:', error.message);
-        console.error('  - Error details:', JSON.stringify(error, null, 2));
         Alert.alert('로그인 실패', `Supabase 로그인에 실패했습니다: ${error.message}`);
         setIsLoading(false);
         return;
@@ -69,20 +67,10 @@ function LoginScreen({ navigation }: LoginScreenProps) {
         console.error('❌ === Supabase 로그인 성공했으나 사용자 데이터 없음 ===');
         Alert.alert('로그인 실패', '사용자 정보를 가져올 수 없습니다.');
       }
-      
       setIsLoading(false);
-      
     } catch (error) {
-      console.error('💥 === 카카오 로그인 예외 ===', error);
-      console.error('  - Exception message:', error instanceof Error ? error.message : 'Unknown exception');
-      console.error('  - Exception stack:', error instanceof Error ? error.stack : 'No stack trace');
-      
-      let errorMessage = '카카오 로그인에 실패했습니다.';
-      if (error instanceof Error) {
-        errorMessage += ` (${error.message})`;
-      }
-      
-      Alert.alert('로그인 실패', errorMessage);
+      console.error('💥 === 카카오 로그인 예외 ===', error);     
+      Alert.alert('로그인 실패', '카카오 로그인에 실패했습니다.');
       setIsLoading(false);
     }
   };
