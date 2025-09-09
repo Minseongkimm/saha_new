@@ -7,55 +7,83 @@ import {
   TouchableOpacity,
   Alert,
   Image,
-  Dimensions,
-  Platform,
 } from 'react-native';
-import { Colors } from '../constants/colors';
-import { login, getProfile } from '@react-native-seoul/kakao-login';
-import { Fonts } from '../constants/fonts';
+import { login } from '@react-native-seoul/kakao-login';
+import { supabase } from '../utils/supabaseClient';
 
 interface LoginScreenProps {
-  navigation: any;
+  navigation: {
+    replace: (screenName: string) => void;
+  };
 }
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
+function LoginScreen({ navigation }: LoginScreenProps) {
   const [isLoading, setIsLoading] = useState(false);
 
+  // 카카오 로그인 (Native SDK 방식)
   const handleKakaoLogin = async () => {
     setIsLoading(true);
-    
-    try {
-      // TODO: 실제 카카오 로그인 구현
-      console.log('카카오 로그인 시도');
-      
-      // 임시 로그인 성공 처리
-      setTimeout(() => {
-        setIsLoading(false);
-        navigation.replace('MainTabs');
-      }, 1000);
-      
-    } catch (error) {
-      setIsLoading(false);
-      Alert.alert('로그인 실패', '카카오 로그인에 실패했습니다.');
-    }
-  };
 
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    
     try {
-      // TODO: 구글 로그인 API 호출
-      console.log('구글 로그인 시도');
+      console.log('🚀 === 네이티브 카카오 로그인 시작 ===');
       
-      // 임시 로그인 성공 처리
-      setTimeout(() => {
+      // 네이티브 카카오 SDK로 로그인
+      const result = await login();
+      console.log('✅ === 카카오 로그인 성공 ===');
+      console.log('  - Result:', JSON.stringify(result, null, 2));
+      
+      if (!result.idToken) {
+        console.error('❌ === ID Token 없음 ===');
+        Alert.alert('로그인 실패', 'ID 토큰을 가져올 수 없습니다.');
         setIsLoading(false);
-        navigation.replace('MainTabs');
-      }, 1000);
+        return;
+      }
+      console.log('🔑 === ID Token 획득 성공 ===');
+      console.log('  - ID Token (처음 50자):', result.idToken.substring(0, 50) + '...');
+      
+      // Supabase Auth에 ID Token으로 로그인
+      console.log('🔄 === Supabase signInWithIdToken 시도 ===');
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'kakao',
+        token: result.idToken,
+      });
+      
+      if (error) {
+        console.error('❌ === Supabase 로그인 에러 ===', error);
+        console.error('  - Error message:', error.message);
+        console.error('  - Error details:', JSON.stringify(error, null, 2));
+        Alert.alert('로그인 실패', `Supabase 로그인에 실패했습니다: ${error.message}`);
+        setIsLoading(false);
+        return;
+      }
+      
+      if (data?.user) {
+        console.log('🎉 === Supabase 로그인 성공! ===');
+        console.log('  - Full User Data:', JSON.stringify(data.user, null, 2));
+        
+        if (data.user.user_metadata) {
+          console.log('🍃 === 카카오 유저 메타데이터 ===');
+          console.log('  - User Metadata:', JSON.stringify(data.user.user_metadata, null, 2));
+        }
+      } else {
+        console.error('❌ === Supabase 로그인 성공했으나 사용자 데이터 없음 ===');
+        Alert.alert('로그인 실패', '사용자 정보를 가져올 수 없습니다.');
+      }
+      
+      setIsLoading(false);
       
     } catch (error) {
+      console.error('💥 === 카카오 로그인 예외 ===', error);
+      console.error('  - Exception message:', error instanceof Error ? error.message : 'Unknown exception');
+      console.error('  - Exception stack:', error instanceof Error ? error.stack : 'No stack trace');
+      
+      let errorMessage = '카카오 로그인에 실패했습니다.';
+      if (error instanceof Error) {
+        errorMessage += ` (${error.message})`;
+      }
+      
+      Alert.alert('로그인 실패', errorMessage);
       setIsLoading(false);
-      Alert.alert('로그인 실패', '구글 로그인에 실패했습니다.');
     }
   };
 
@@ -100,22 +128,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.loginButton, styles.googleButton]}
-            onPress={handleGoogleLogin}
-            disabled={isLoading}
-          >
-            <View style={styles.buttonContent}>
-              <Image 
-                source={require('../../assets/icons/google_icon.png')} 
-                style={styles.iconImage}
-                resizeMode="contain"
-              />
-              <Text style={styles.googleButtonText}>
-                {isLoading ? '로그인 중' : '구글로 로그인'}
-              </Text>
-            </View>
-          </TouchableOpacity>
         </View>
       </View>
     </SafeAreaView>
@@ -150,12 +162,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     fontWeight: 'bold',
     textAlign: 'center',
-    // 커스텀 폰트 사용 (SSRockRegular)
-    // fontFamily: Platform.select({
-    //   ios: 'SangSangRock',     // iOS: PostScript Name
-    //   android: 'SSRockRegular', // Android: 파일명(확장자 제외)
-    // }),
-    // 기본 폰트 사용하려면 위의 fontFamily를 주석처리하고 아래 주석을 해제하세요
     fontFamily: 'System', // 기본 시스템 폰트
   },
   subtitle: {

@@ -49,6 +49,34 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>saha</string>
+		<string>kakaokompassauth</string>
+		<string>kakaolink</string>
+		<string>kakaoauth</string>
+	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>saha</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>saha</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>KAKAO</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>kakao8664599143dee6919c04f7b00e0a495d</string>
+			</array>
+		</dict>
+	</array>
+	<key>KAKAO_APP_KEY</key>
+	<string>8664599143dee6919c04f7b00e0a495d</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>AntDesign.ttf</string>

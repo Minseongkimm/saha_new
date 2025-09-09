@@ -10,6 +10,11 @@
       android:allowBackup="false"
       android:theme="@style/AppTheme"
       android:supportsRtl="true">
+      
+      <!-- 카카오 SDK 설정 -->
+      <meta-data
+        android:name="com.kakao.sdk.AppKey"
+        android:value="8664599143dee6919c04f7b00e0a495d" />
       <activity
         android:name=".MainActivity"
         android:label="@string/app_name"
@@ -20,6 +25,13 @@
         <intent-filter>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+        <!-- 딥 링크 설정 -->
+        <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="saha" />
         </intent-filter>
       </activity>
     </application>

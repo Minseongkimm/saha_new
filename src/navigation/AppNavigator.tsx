@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Image, TouchableOpacity, Text } from 'react-native';
-import { Colors } from '../constants/colors';
+import { Image } from 'react-native';
+import { Session } from '@supabase/supabase-js';
 
 import SplashScreen from '../screens/SplashScreen';
 import BottomTabNavigator from './BottomTabNavigator';
@@ -17,13 +17,22 @@ import LoginScreen from '../screens/LoginScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
-const AppNavigator: React.FC = () => {
+interface AppNavigatorProps {
+  session: Session | null;
+}
+
+const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const handleSplashFinish = () => {
     setIsLoading(false);
   };
+
+  console.log('🧭 === AppNavigator 렌더링 ===', {
+    hasSession: !!session,
+    isLoading,
+    sessionUserId: session?.user?.id || 'none'
+  });
 
   if (isLoading) {
     return <SplashScreen onFinish={handleSplashFinish} />;
@@ -32,7 +41,6 @@ const AppNavigator: React.FC = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName={isLoggedIn ? "MainTabs" : "Login"}
         screenOptions={{
           headerStyle: {
             backgroundColor: '#FFFFFFFF',
@@ -46,67 +54,72 @@ const AppNavigator: React.FC = () => {
           },
         }}
       >
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="MainTabs"
-          component={BottomTabNavigator}
-          options={{
-            headerTitle: () => (
-              <Image
-                source={require('../../assets/logo/logo_icon.png')}
-                style={{ width: 40, height: 40, resizeMode: 'contain', marginBottom: 7 }}
-              />
-            ),
-          }}
-        />
-        <Stack.Screen
-          name="BannerDetail"
-          component={BannerDetailScreen}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="ExpertDetail"
-          component={ExpertDetailScreen}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="ChatRoom"
-          component={ChatRoomScreen}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="SajuInfo"
-          component={SajuInfoScreen}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="NotificationSettings"
-          component={NotificationSettingsScreen}
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="Charge"
-          component={ChargeScreen}
-          options={{
-            headerShown: false,
-          }}
-        />
+        {!session ? (
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
+        ) : (
+          <>
+            <Stack.Screen
+              name="MainTabs"
+              component={BottomTabNavigator}
+              options={{
+                headerTitle: () => (
+                  <Image
+                    source={require('../../assets/logo/logo_icon.png')}
+                    style={{ width: 40, height: 40, resizeMode: 'contain', marginBottom: 7 }}
+                  />
+                ),
+              }}
+            />
+            <Stack.Screen
+              name="BannerDetail"
+              component={BannerDetailScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="ExpertDetail"
+              component={ExpertDetailScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="ChatRoom"
+              component={ChatRoomScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="SajuInfo"
+              component={SajuInfoScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="NotificationSettings"
+              component={NotificationSettingsScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="Charge"
+              component={ChargeScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+          </>
+        )}
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -8,6 +8,7 @@ export type RootStackParamList = {
   SajuInfo: undefined;
   NotificationSettings: undefined;
   Charge: undefined;
+  BirthInfo: { userId: string };
 };
 
 export type NavigationProps = {
