@@ -22,36 +22,18 @@ function App() {
   // 네이티브 SDK가 자동으로 처리하므로 추가 작업 불필요
   const handleDeepLink = async (url: string) => {
     if (url.includes('saha://')) {
-      console.log('✅ === 앱 딥링크 감지 ===');
     }
   };
   // 앱 초기화
   useEffect(() => {
-    console.log('🔥 === App.tsx useEffect 시작 ===');
-   
     // 앱이 처음 시작될 때 초기 세션 확인
     supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-      console.log('🚀 === 앱 시작 - 초기 세션 확인 ===');
-      
-      if (initialSession) {
-        console.log('✅ === 기존 세션 발견 ===');
-      } else {
-        console.log('❌ === 기존 세션 없음 - 로그인 필요 ===');
-      }
       setSession(initialSession);
       setLoading(false);
     });
 
     // 인증 상태 변경 리스너
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      console.log('🔄 === 인증 상태 변경 ===', _event);
-      
-      if (currentSession) {
-        console.log('✅ === 로그인 성공 ===');
-      } else {
-        console.log('❌ === 로그아웃 ===');
-      }
-      
       setSession(currentSession);
     });
 

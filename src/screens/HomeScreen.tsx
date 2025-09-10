@@ -12,6 +12,7 @@ import {
 import Card from '../components/Card';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../constants/colors';
+import { supabase, forceSignOut } from '../utils/supabaseClient';
 
 interface HomeScreenProps {
   navigation: any;
@@ -22,14 +23,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* 로그인 버튼 */}
+        {/* 로그아웃 테스트용 버튼 */}
         <TouchableOpacity 
           style={styles.loginButton}
-          onPress={() => navigation.navigate('Login')}
+          onPress={async () => {
+            await forceSignOut();
+            navigation.navigate('Login');
+          }}
           activeOpacity={0.8}
         >
-          <Icon name="person-outline" size={20} color="white" />
-          <Text style={styles.loginButtonText}>로그인</Text>
+          <Icon name="log-out-outline" size={20} color="white" />
+          <Text style={styles.loginButtonText}>로그아웃</Text>
         </TouchableOpacity>
 
         {/* 배너 섹션 */}

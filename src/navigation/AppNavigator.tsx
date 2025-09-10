@@ -29,12 +29,6 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
     setIsLoading(false);
   };
 
-  console.log('🧭 === AppNavigator 렌더링 ===', {
-    hasSession: !!session,
-    isLoading,
-    sessionUserId: session?.user?.id || 'none'
-  });
-
   if (isLoading) {
     return <SplashScreen onFinish={handleSplashFinish} />;
   }
@@ -64,6 +58,9 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
                 headerShown: false,
               }}
             />
+          </>
+        ) : (
+          <>
             <Stack.Screen
               name="BirthInfo"
               component={BirthInfoScreen}
@@ -71,9 +68,6 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
                 headerShown: false,
               }}
             />
-          </>
-        ) : (
-          <>
             <Stack.Screen
               name="MainTabs"
               component={BottomTabNavigator}

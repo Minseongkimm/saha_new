@@ -23,7 +23,21 @@ interface BirthInfoScreenProps {
 }
 
 function BirthInfoScreen({ navigation, route }: BirthInfoScreenProps) {
-  const { userId } = route.params;
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // 현재 로그인한 사용자의 ID 가져오기
+  useEffect(() => {
+    const getUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+      } else {
+        // 사용자 정보가 없으면 로그인 화면으로
+        navigation.replace('Login');
+      }
+    };
+    getUserId();
+  }, []);
   const [birthYear, setBirthYear] = useState('');
   const [birthMonth, setBirthMonth] = useState('');
   const [birthDay, setBirthDay] = useState('');
@@ -376,12 +390,12 @@ interface SajuResult {
           </View>
         )}
 
-        {/* <TouchableOpacity 
+        <TouchableOpacity 
           style={styles.skipButton}
           onPress={() => navigation.replace('MainTabs')}
         >
-          <Text style={styles.skipButtonText}>나중에 입력하기</Text>
-        </TouchableOpacity> */}
+          <Text style={styles.skipButtonText}>다음에 입력하기</Text>
+        </TouchableOpacity>
       </View>
 
     </SafeAreaView>
@@ -596,11 +610,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   skipButton: {
-    padding: 16,
+    padding: 8,
+    marginTop: 8,
   },
   skipButtonText: {
     color: '#666',
-    fontSize: 16,
+    fontSize: 14,
     textAlign: 'center',
   },
 });
