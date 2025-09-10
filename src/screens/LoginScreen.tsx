@@ -13,7 +13,7 @@ import { supabase } from '../utils/supabaseClient';
 
 interface LoginScreenProps {
   navigation: {
-    replace: (screenName: string) => void;
+    replace: (screenName: string, params?: any) => void;
   };
 }
 
@@ -25,24 +25,14 @@ function LoginScreen({ navigation }: LoginScreenProps) {
     setIsLoading(true);
 
     try {
-      console.log('🚀 === 네이티브 카카오 로그인 시작 ===');
-      
       // 네이티브 카카오 SDK로 로그인
       const result = await login();
-      console.log('✅ === 카카오 로그인 성공 ===');
-      console.log('  - Result:', JSON.stringify(result, null, 2));
-      
       if (!result.idToken) {
-        console.error('❌ === ID Token 없음 ===');
         Alert.alert('로그인 실패', 'ID 토큰을 가져올 수 없습니다.');
         setIsLoading(false);
         return;
       }
-      console.log('🔑 === ID Token 획득 성공 ===');
-      console.log('  - ID Token (처음 50자):', result.idToken.substring(0, 50) + '...');
-      
       // Supabase Auth에 ID Token으로 로그인
-      console.log('🔄 === Supabase signInWithIdToken 시도 ===');
       const { data, error } = await supabase.auth.signInWithIdToken({
         provider: 'kakao',
         token: result.idToken,
@@ -54,7 +44,6 @@ function LoginScreen({ navigation }: LoginScreenProps) {
         setIsLoading(false);
         return;
       }
-      
       if (data?.user) {
         console.log('🎉 === Supabase 로그인 성공! ===');
         console.log('  - Full User Data:', JSON.stringify(data.user, null, 2));
@@ -63,6 +52,10 @@ function LoginScreen({ navigation }: LoginScreenProps) {
           console.log('🍃 === 카카오 유저 메타데이터 ===');
           console.log('  - User Metadata:', JSON.stringify(data.user.user_metadata, null, 2));
         }
+        
+        // 생년월일 입력 페이지로 이동
+        console.log('📅 === 생년월일 입력 페이지로 이동 ===');
+        navigation.replace('BirthInfo', { userId: data.user.id });
       } else {
         console.error('❌ === Supabase 로그인 성공했으나 사용자 데이터 없음 ===');
         Alert.alert('로그인 실패', '사용자 정보를 가져올 수 없습니다.');
@@ -192,8 +185,11 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   kakaoButton: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E0E0E0',
+    // backgroundColor: '#FFFFFF',
+    // borderColor: '#E0E0E0',
+    // 카카오 색상
+    backgroundColor: '#FEE500',
+    borderColor: '#FEE500',
   },
   kakaoButtonText: {
     color: '#000000',

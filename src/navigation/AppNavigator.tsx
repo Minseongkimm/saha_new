@@ -12,6 +12,7 @@ import ChatRoomScreen from '../screens/ChatRoomScreen';
 import SajuInfoScreen from '../screens/SajuInfoScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import ChargeScreen from '../screens/ChargeScreen';
+import BirthInfoScreen from '../screens/BirthInfoScreen';
 import { RootStackParamList } from '../types/navigation';
 import LoginScreen from '../screens/LoginScreen';
 
@@ -56,13 +57,22 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
       >
         {/* 테스트용: 세션이 있어도 항상 로그인 화면 표시 */}
         {true ? (
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{
-              headerShown: false,
-            }}
-          />
+          <>
+            <Stack.Screen
+              name="Login"
+              component={LoginScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="BirthInfo"
+              component={BirthInfoScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+          </>
         ) : (
           <>
             <Stack.Screen

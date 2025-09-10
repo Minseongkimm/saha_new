@@ -19,13 +19,10 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   // 딥링크 처리 (네이티브 SDK용 - 간단한 처리)
+  // 네이티브 SDK가 자동으로 처리하므로 추가 작업 불필요
   const handleDeepLink = async (url: string) => {
-    console.log('🔗 === 딥링크 수신 ===', url);
-    
-    // 네이티브 SDK에서는 대부분 자동으로 처리되므로 간단한 로깅만
     if (url.includes('saha://')) {
       console.log('✅ === 앱 딥링크 감지 ===');
-      // 네이티브 SDK가 자동으로 처리하므로 추가 작업 불필요
     }
   };
   // 앱 초기화
@@ -38,13 +35,9 @@ function App() {
       
       if (initialSession) {
         console.log('✅ === 기존 세션 발견 ===');
-        console.log('  - User ID:', initialSession.user.id);
-        console.log('  - Email:', initialSession.user.email);
-        console.log('  - Provider:', initialSession.user.app_metadata?.provider);
       } else {
         console.log('❌ === 기존 세션 없음 - 로그인 필요 ===');
       }
-      
       setSession(initialSession);
       setLoading(false);
     });
@@ -55,9 +48,6 @@ function App() {
       
       if (currentSession) {
         console.log('✅ === 로그인 성공 ===');
-        console.log('  - User ID:', currentSession.user.id);
-        console.log('  - Email:', currentSession.user.email);
-        console.log('  - Provider:', currentSession.user.app_metadata?.provider);
       } else {
         console.log('❌ === 로그아웃 ===');
       }
