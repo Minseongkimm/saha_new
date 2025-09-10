@@ -45,17 +45,23 @@ function LoginScreen({ navigation }: LoginScreenProps) {
         return;
       }
       if (data?.user) {
-        console.log('🎉 === Supabase 로그인 성공! ===');
-        console.log('  - Full User Data:', JSON.stringify(data.user, null, 2));
-        
-        if (data.user.user_metadata) {
-          console.log('🍃 === 카카오 유저 메타데이터 ===');
-          console.log('  - User Metadata:', JSON.stringify(data.user.user_metadata, null, 2));
+        // 사용자의 birth_infos 데이터 확인
+        const { data: birthInfo, error: birthInfoError } = await supabase
+          .from('birth_infos')
+          .select('*')
+          .eq('user_id', data.user.id)
+          .single();
+
+        if (birthInfoError && birthInfoError.code !== 'PGRST116') { // PGRST116는 데이터가 없는 경우
+          throw birthInfoError;
         }
-        
-        // 생년월일 입력 페이지로 이동
-        console.log('📅 === 생년월일 입력 페이지로 이동 ===');
-        navigation.replace('BirthInfo', { userId: data.user.id });
+
+        // 이미 생년월일 정보가 있으면 MainTabs로, 없으면 BirthInfo 화면으로 이동
+        if (birthInfo) {
+          navigation.replace('MainTabs');
+        } else {
+          navigation.replace('BirthInfo', { userId: data.user.id });
+        }
       } else {
         console.error('❌ === Supabase 로그인 성공했으나 사용자 데이터 없음 ===');
         Alert.alert('로그인 실패', '사용자 정보를 가져올 수 없습니다.');
