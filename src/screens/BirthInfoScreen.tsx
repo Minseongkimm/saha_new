@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { supabase } from '../utils/supabaseClient';
+import { calculateSaju } from '../utils/saju/ganji_local';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';
 import { Colors } from '../constants/colors';
@@ -42,23 +44,21 @@ function BirthInfoScreen({ navigation, route }: BirthInfoScreenProps) {
   
 
   const handleSaveBirthInfo = async () => {
+    // 입력값 검증
     if (!birthYear || !birthMonth || !birthDay) {
       Alert.alert('오류', '생년월일을 모두 입력해주세요.');
       return;
     }
-
     if (!gender) {
       Alert.alert('오류', '성별을 선택해주세요.');
       return;
     }
-
-    // 시간 모름이 아닌 경우에만 시간 검증
     if (!isTimeUnknown && (!birthHour || !birthMinute)) {
       Alert.alert('오류', '시간을 입력해주세요.');
       return;
     }
 
-    // 유효성 검사
+    // 값 변환 및 유효성 검사
     const year = parseInt(birthYear);
     const month = parseInt(birthMonth);
     const day = parseInt(birthDay);
@@ -69,67 +69,84 @@ function BirthInfoScreen({ navigation, route }: BirthInfoScreenProps) {
       Alert.alert('오류', '올바른 년도를 입력해주세요.');
       return;
     }
-
     if (month < 1 || month > 12) {
       Alert.alert('오류', '올바른 월을 입력해주세요.');
       return;
     }
-
     if (day < 1 || day > 31) {
       Alert.alert('오류', '올바른 일을 입력해주세요.');
       return;
     }
-
-    // 시간 모름이 아닌 경우에만 시간 유효성 검사
     if (!isTimeUnknown && hour !== null && minute !== null) {
       if (hour < 0 || hour > 23) {
         Alert.alert('오류', '올바른 시간을 입력해주세요.');
         return;
       }
-
       if (minute < 0 || minute > 59) {
         Alert.alert('오류', '올바른 분을 입력해주세요.');
         return;
       }
     }
 
+    // 사주 계산
+    const sajuResult = calculateSaju({
+      year,
+      month,
+      day,
+      hour,
+      minute,
+      isLunar: calendarType === 'lunar',
+      isLeapMonth
+    });
+
+    // 바로 저장 진행
+    handleSaveWithSaju(sajuResult);
+  };
+
+interface SajuResult {
+  yearHangulGanji: string;   // 년주 한글 간지
+  monthHangulGanji: string;  // 월주 한글 간지
+  dayHangulGanji: string;    // 일주 한글 간지
+  timeHangulGanji: string;   // 시주 한글 간지
+  
+  stemSasin: string[];       // 천간 십신 [시, 일, 월, 년]
+  branchSasin: string[];     // 지지 십신 [시, 일, 월, 년]
+  sibun: string[];          // 십이운성 [시, 일, 월, 년]
+}
+
+
+  const handleSaveWithSaju = async (sajuResult: SajuResult) => {
     setIsLoading(true);
 
     try {
-      console.log('=== 생년월일 정보 저장 시작 ===');
-      
       const birthData = {
         user_id: userId,
-        year: year,
-        month: month,
-        day: day,
-        hour: hour,
-        minute: minute,
+        year: parseInt(birthYear),
+        month: parseInt(birthMonth),
+        day: parseInt(birthDay),
+        hour: isTimeUnknown ? null : parseInt(birthHour),
+        minute: isTimeUnknown ? null : parseInt(birthMinute),
         calendar_type: calendarType,
         is_leap_month: isLeapMonth,
         is_time_unknown: isTimeUnknown,
         gender: gender,
+        saju_data: sajuResult
       };
 
-      console.log('저장할 생년월일 데이터:', birthData);
-
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('birth_infos')
         .insert(birthData)
         .select();
 
       if (error) {
-        console.error('생년월일 정보 저장 에러:', error);
         Alert.alert('오류', '생년월일 정보 저장에 실패했습니다.');
-      } else {
-        console.log('=== 생년월일 정보 저장 성공 ===');
-        console.log('저장된 데이터:', data);
-        Alert.alert('성공', '생년월일 정보가 저장되었습니다.', [
-          { text: '확인', onPress: () => navigation.replace('MainTabs') }
-        ]);
+        return;
       }
+
+      // 저장 성공 시 MainTabs로 이동
+      navigation.replace('MainTabs');
+
     } catch (error) {
-      console.error('생년월일 정보 저장 예외:', error);
       Alert.alert('오류', '생년월일 정보 저장에 실패했습니다.');
     } finally {
       setIsLoading(false);
@@ -343,14 +360,21 @@ function BirthInfoScreen({ navigation, route }: BirthInfoScreenProps) {
 
 
         <TouchableOpacity 
-          style={[styles.saveButton, isLoading && styles.disabledButton]}
+          style={styles.saveButton}
           onPress={handleSaveBirthInfo}
           disabled={isLoading}
         >
-          <Text style={styles.saveButtonText}>
-            {isLoading ? '저장 중...' : '저장하기'}
-          </Text>
+          <Text style={styles.saveButtonText}>저장하기</Text>
         </TouchableOpacity>
+
+        {/* 로딩 오버레이 */}
+        {isLoading && (
+          <View style={styles.loadingOverlay}>
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={Colors.primaryColor} />
+            </View>
+          </View>
+        )}
 
         {/* <TouchableOpacity 
           style={styles.skipButton}
@@ -364,6 +388,7 @@ function BirthInfoScreen({ navigation, route }: BirthInfoScreenProps) {
   );
 }
 
+// 스타일 추가
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -534,6 +559,32 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 0,
   },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  loadingContainer: {
+    padding: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
   disabledButton: {
     backgroundColor: '#f5f5f5',
     borderColor: '#e0e0e0',
@@ -555,4 +606,3 @@ const styles = StyleSheet.create({
 });
 
 export default BirthInfoScreen;
-

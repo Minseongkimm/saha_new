@@ -55,8 +55,7 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
           },
         }}
       >
-        {/* 테스트용: 세션이 있어도 항상 로그인 화면 표시 */}
-        {true ? (
+        {!session ? (
           <>
             <Stack.Screen
               name="Login"
