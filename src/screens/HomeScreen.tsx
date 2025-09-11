@@ -75,7 +75,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               </View>
             ) : (
               <View style={styles.cardsGrid}>
-                {experts.map(expert => (
+                {experts.filter(expert => expert.is_online).map(expert => (
                   <ExpertCard
                     key={expert.id}
                     expert={expert}
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#000',
     marginTop: 5,
-    marginBottom: 4,
+    marginBottom: 10,
     marginLeft: 10,
     textAlign: 'left',
   },

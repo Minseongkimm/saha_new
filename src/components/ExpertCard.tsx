@@ -38,11 +38,9 @@ const ExpertCard: React.FC<ExpertCardProps> = ({ expert, onPress }) => {
           style={styles.image}
           resizeMode="cover"
         />
-        <View style={[styles.statusBadge, 
-          expert.status === 'online' ? styles.statusOnline :
-          expert.status === 'busy' ? styles.statusBusy :
-          styles.statusOffline
-        ]} />
+        {/* <View style={[styles.statusBadge, 
+          expert.is_online ? styles.statusOnline : styles.statusOffline
+        ]} /> */}
       </View>
       <View style={styles.content}>
         <Text style={styles.title}>{expert.name}</Text>
@@ -94,9 +92,6 @@ const styles = StyleSheet.create({
   },
   statusOnline: {
     backgroundColor: '#4CAF50',
-  },
-  statusBusy: {
-    backgroundColor: '#FFC107',
   },
   statusOffline: {
     backgroundColor: '#9E9E9E',

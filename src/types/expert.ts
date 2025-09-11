@@ -5,6 +5,6 @@ export interface Expert {
   title: string;
   description: string;
   image_name: string;
-  status: 'online' | 'offline' | 'busy';
+  is_online: boolean;
   created_at: string;
 }
