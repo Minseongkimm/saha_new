@@ -9,21 +9,12 @@ import {
 } from 'react-native';
 import { Expert } from '../types/expert';
 import { Colors } from '../constants/colors';
+import { getExpertImage } from '../utils/getExpertImage';
 
 interface ExpertCardProps {
   expert: Expert;
   onPress: (expert: Expert) => void;
 }
-
-const getExpertImage = (imageName: string) => {
-  const images: { [key: string]: any } = {
-    'hoosi_guy.jpg': require('../../assets/people/hoosi_guy.jpg'),
-    'yeonhwa_girl.jpg': require('../../assets/people/yeonhwa_girl.jpg'),
-    'cheongwang_guy.jpg': require('../../assets/people/cheongwang_guy.jpg'),
-    'sangtong_guy.jpg': require('../../assets/people/sangtong_guy.jpg'),
-  };
-  return images[imageName];
-};
 
 const ExpertCard: React.FC<ExpertCardProps> = ({ expert, onPress }) => {
   return (

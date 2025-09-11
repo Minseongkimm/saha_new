@@ -46,7 +46,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   };
 
   const handleExpertPress = (expert: Expert) => {
-    navigation.navigate('ExpertDetail', { expert });
+    navigation.navigate('ExpertDetail', { expertId: expert.id });
   };
 
   return (

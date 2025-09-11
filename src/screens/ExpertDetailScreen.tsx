@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,17 +6,68 @@ import {
   Image,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import CustomHeader from '../components/CustomHeader';
+import { supabase } from '../utils/supabaseClient';
+import { Expert } from '../types/expert';
+
+import { getExpertImage } from '../utils/getExpertImage';
 
 interface ExpertDetailScreenProps {
   navigation: any;
   route: any;
 }
 
+interface ExpertWithDetails extends Expert {
+  expert_details: {
+    message: string;
+    introduction: string;
+    ai_accuracy: number;
+    consultation_count: number;
+    satisfaction_rate: number;
+  };
+}
+
 const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, route }) => {
-  const { expert } = route.params;
+  const { expertId } = route.params;
+  const [loading, setLoading] = useState(true);
+  const [expert, setExpert] = useState<ExpertWithDetails | null>(null);
+
+  useEffect(() => {
+    fetchExpertDetails();
+  }, []);
+
+  const fetchExpertDetails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('experts')
+        .select(`
+          *,
+          expert_details(*)
+        `)
+        .eq('id', expertId)
+        .single();
+
+      if (error) throw error;
+      setExpert(data);
+    } catch (error) {
+      console.error('Error fetching expert details:', error);
+      Alert.alert('오류', '전문가 정보를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading || !expert) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={Colors.primaryColor} />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -30,14 +81,18 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
       <ScrollView style={styles.scrollView}>
         {/* 도사 이미지 */}
         <View style={styles.expertImageContainer}>
-          <Image source={expert.image} style={styles.expertImage} resizeMode="cover" />
+          <Image 
+            source={getExpertImage(expert.image_name)}
+            style={styles.expertImage} 
+            resizeMode="cover" 
+          />
         </View>
 
         {/* 도사 정보 */}
         <View style={styles.content}>
-          <Text style={styles.title}>{expert.title}</Text>
+          <Text style={styles.title}>{expert.name}</Text>
           <View style={styles.subtitleContainer}>
-            {expert.subtitle.split(',').map((tag: string, index: number) => (
+            {expert.title.split(',').map((tag: string, index: number) => (
               <View key={index} style={styles.tagItem}>
                 <Text style={styles.subtitle}>{tag.trim()}</Text>
               </View>
@@ -50,7 +105,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
               <Text style={styles.sectionIcon}>💬</Text>
               <Text style={styles.sectionTitle}>도사님 한마디</Text>
             </View>
-            <Text style={styles.messageText}>“사는 곳이 곧 운명입니다. 집터 하나가 삶의 기운을 바꾼다는 걸 사주를 통해 보여드리지요.”</Text>
+            <Text style={styles.messageText}>"{expert.expert_details.message}"</Text>
           </View>
 
           {/* 도사님 소개 섹션 */}
@@ -59,19 +114,28 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
               <Text style={styles.sectionIcon}>👨‍🏫</Text>
               <Text style={styles.sectionTitle}>도사님 소개</Text>
             </View>
-            <Text style={styles.introText}>
-              경북 산골에서 태어나 어린 시절부터 산천의 기운을 짚었다는 집안 내력이 이어진다. 나침반과 옛 지도를 들고 터를 살피던 그의 모습은 지금도 마을 어른들 사이에 전해진다.{'\n\n'}후시도령은 사람의 사주와 땅의 맥을 함께 맞춰보며 어디에 뿌리내려야 복이 드는지를 가르쳐준다. 허황된 말은 하지 않고 오직 현실적으로 도움이 되는 집터를 짚어내는 것으로 유명하다.
-            </Text>
+            <Text style={styles.introText}>{expert.expert_details.introduction}</Text>
           </View>
 
-          {/* 대화예시 섹션 (이미지 준비중) */}
+          {/* AI 정확도 및 상담 통계 섹션 */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionIcon}>💭</Text>
-              <Text style={styles.sectionTitle}>대화예시</Text>
+              <Text style={styles.sectionIcon}>📊</Text>
+              <Text style={styles.sectionTitle}>상담 통계</Text>
             </View>
-            <View style={styles.placeholderContainer}>
-              <Text style={styles.placeholderText}>이미지 준비중...</Text>
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{expert.expert_details.ai_accuracy}%</Text>
+                <Text style={styles.statLabel}>AI 정확도</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{expert.expert_details.consultation_count}</Text>
+                <Text style={styles.statLabel}>상담 건수</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{expert.expert_details.satisfaction_rate}</Text>
+                <Text style={styles.statLabel}>만족도</Text>
+              </View>
             </View>
           </View>
 
@@ -91,6 +155,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   scrollView: {
@@ -202,6 +270,24 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.primaryColor,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: '#666',
   },
 });
 
