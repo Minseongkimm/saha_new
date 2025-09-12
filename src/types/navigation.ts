@@ -4,7 +4,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   BannerDetail: undefined;
   ExpertDetail: { expert: any };
-  ChatRoom: { expert: any };
+  ChatRoom: { roomId: string; expert: any };
   SajuInfo: undefined;
   NotificationSettings: undefined;
   Charge: undefined;

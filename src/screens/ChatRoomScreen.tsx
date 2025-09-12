@@ -10,9 +10,15 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { ChatMessage } from '../types/chat';
+import { getExpertImage } from '../utils/getExpertImage';
+import { expertAIService, BirthInfo } from '../services/ai';
+import { supabase } from '../utils/supabaseClient';
 
 interface ChatRoomScreenProps {
   navigation: any;
@@ -28,70 +34,148 @@ interface Message {
 }
 
 const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
-  const { expert } = route.params;
+  const { roomId, expert } = route.params;
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList>(null);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      text: '안녕하세요! 저는 후시도령입니다. 당신의 사주를 먼저 살펴보지요.',
-      isUser: false,
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-  // 첫 메시지 후 이미지 표시
+  // 메시지 목록 가져오기
+  const fetchMessages = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('chat_room_id', roomId)
+        .order('created_at', { ascending: false })
+        .limit(30);  // 최근 30개만
+
+      if (error) throw error;
+      setMessages((data || []).reverse());  // 시간순 정렬
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 초기 메시지 로드 및 실시간 구독
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const imageMessage: Message = {
-        id: '2',
-        text: 'saju_example',
-        isUser: false,
-        timestamp: new Date(),
-        isImage: true,
-      };
-      setMessages(prev => [...prev, imageMessage]);
-    }, 2000); // 2초 후 이미지 표시
+    fetchMessages();
 
-    // 이미지 후 사주 해석 메시지 표시
-    const timer2 = setTimeout(() => {
-      const sajuMessage: Message = {
-        id: '3',
-        text: '"당신은 물(水)의 기운이 강한 사주로구나. 물이 많으면 편안한 듯 보여도, 생각이 넘쳐 머리가 복잡해지기 쉽지. 그래서 흙(土)의 기운으로 균형을 잡는 게 필요하네.\n\n서울이라면, 강가나 물가보다는 남향으로 햇볕이 잘 드는 동네, 땅이 안정적인 지역이 좋겠어. 예를 들자면 관악·서초·동작 같이 산줄기와 토의 기운이 받쳐주는 곳이 잘 어울린다네."',
-        isUser: false,
-        timestamp: new Date(),
-        isImage: false,
-      };
-      setMessages(prev => [...prev, sajuMessage]);
-    }, 4000); // 4초 후 사주 해석 표시
+    // 실시간 메시지 구독
+    const channel = supabase
+      .channel(`room:${roomId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `chat_room_id=eq.${roomId}`
+        },
+        (payload) => {
+          // 새 메시지를 바로 추가 (전체 새로고침 없이)
+          setMessages(prev => [...prev, payload.new as ChatMessage]);
+        }
+      )
+      .subscribe();
 
     return () => {
-      clearTimeout(timer);
-      clearTimeout(timer2);
+      channel.unsubscribe();
     };
+  }, [roomId]);
+
+  const [isAiResponding, setIsAiResponding] = useState(false);
+  const [userBirthInfo, setUserBirthInfo] = useState<BirthInfo | null>(null);
+
+  // 사용자의 사주 정보 가져오기
+  useEffect(() => {
+    const fetchUserBirthInfo = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('birth_infos')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching birth info:', error);
+        return;
+      }
+
+      if (data) {
+        setUserBirthInfo(data as BirthInfo);
+      }
+    };
+
+    fetchUserBirthInfo();
   }, []);
 
-  const sendMessage = () => {
-    if (message.trim()) {
-      const newMessage: Message = {
-        id: Date.now().toString(),
-        text: message.trim(),
-        isUser: true,
-        timestamp: new Date(),
-      };
-      setMessages([...messages, newMessage]);
+  const sendMessage = async () => {
+    if (!message.trim() || isAiResponding) return;
+
+    const userMessage = {
+      chat_room_id: roomId,
+      sender_type: 'user',
+      message: message.trim(),
+      created_at: new Date().toISOString()
+    };
+
+    try {
+      // 사용자 메시지 UI 업데이트 및 DB 저장
+      setMessages(prev => [...prev, userMessage as ChatMessage]);
       setMessage('');
-      
-      // 도사의 응답 시뮬레이션 (실제로는 API 호출)
-      setTimeout(() => {
-        const expertResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          text: '“올해는 작은 시도를 많이 해볼수록 큰 길이 열리는 해입니다. 서두르지 말고, 경험을 쌓는 데 집중하세요. 내년부터는 그 경험이 모여 예상치 못한 기회로 돌아올 것입니다.”',
-          isUser: false,
-          timestamp: new Date(),
-        };
-        setMessages(prev => [...prev, expertResponse]);
-      }, 1000);
+
+      const { error: userMessageError } = await supabase
+        .from('chat_messages')
+        .insert(userMessage);
+
+      if (userMessageError) throw userMessageError;
+
+      // AI 응답 생성 시작
+      setIsAiResponding(true);
+
+      // 이전 대화 내용 수집 (최근 5개 메시지)
+      const recentMessages = messages.slice(-5).map(msg => msg.message);
+
+      // AI 응답 생성
+      const { message: aiResponse, error: aiError } = await expertAIService.generateResponse({
+        expertCategory: expert.category,
+        birthInfo: userBirthInfo,
+        recentMessages: [...recentMessages, message.trim()]
+      });
+
+      if (aiError) {
+        throw new Error(aiError);
+      }
+
+      // AI 응답 메시지 생성
+      const aiMessage = {
+        chat_room_id: roomId,
+        sender_type: 'expert',
+        message: aiResponse,
+        created_at: new Date().toISOString()
+      };
+
+      // AI 응답 UI 업데이트 및 DB 저장
+      setMessages(prev => [...prev, aiMessage as ChatMessage]);
+
+      const { error: aiMessageError } = await supabase
+        .from('chat_messages')
+        .insert(aiMessage);
+
+      if (aiMessageError) throw aiMessageError;
+
+    } catch (error) {
+      console.error('Error in message flow:', error);
+      // 에러 시 메시지 롤백
+      setMessages(prev => prev.filter(msg => msg !== userMessage));
+      Alert.alert('오류', '메시지 처리 중 문제가 발생했습니다.');
+    } finally {
+      setIsAiResponding(false);
     }
   };
 
@@ -104,41 +188,31 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     }
   }, [messages]);
 
-  const renderMessage = ({ item }: { item: Message }) => (
+  const renderMessage = ({ item }: { item: ChatMessage }) => (
     <View style={styles.messageContainer}>
-      {!item.isUser && (
+      {item.sender_type === 'expert' && (
         <View style={styles.expertInfo}>
-          <Image source={expert.image} style={styles.messageExpertImage} />
-          <Text style={styles.expertName}>{expert.title}</Text>
+          <Image source={getExpertImage(expert.image_name)} style={styles.messageExpertImage} />
+          <Text style={styles.expertName}>{expert.name}</Text>
         </View>
       )}
       <View style={[
         styles.messageBubble,
-        item.isUser ? styles.userMessage : styles.expertMessage
+        item.sender_type === 'user' ? styles.userMessage : styles.expertMessage
       ]}>
-        {item.isImage ? (
-          <Image 
-            source={require('../../assets/saju/saju_example.png')} 
-            style={styles.sajuImage}
-            resizeMode="contain"
-          />
-        ) : (
-          <Text style={[
-            styles.messageText,
-            item.isUser ? styles.userMessageText : styles.expertMessageText
-          ]}>
-            {item.text}
-          </Text>
-        )}
-      </View>
-      {item.isUser && (
-        <Text style={styles.timestamp}>
-          {item.timestamp.toLocaleTimeString('ko-KR', { 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          })}
+        <Text style={[
+          styles.messageText,
+          item.sender_type === 'user' ? styles.userMessageText : styles.expertMessageText
+        ]}>
+          {item.message}
         </Text>
-      )}
+      </View>
+      <Text style={styles.timestamp}>
+        {new Date(item.created_at).toLocaleTimeString('ko-KR', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })}
+      </Text>
     </View>
   );
 
@@ -156,30 +230,35 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          style={styles.messagesList}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-          onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
-        />
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id || item.created_at}
+            style={styles.messagesList}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            removeClippedSubviews={false}
+          />
         
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.textInput}
             value={message}
             onChangeText={setMessage}
-            placeholder="메시지를 입력하세요..."
+            placeholder="메시지를 입력하세요."
             placeholderTextColor="#999"
             multiline
+            editable={!isAiResponding}
           />
           <TouchableOpacity 
-            style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]}
+            style={[
+              styles.sendButton, 
+              (!message.trim() || isAiResponding) && styles.sendButtonDisabled
+            ]}
             onPress={sendMessage}
-            disabled={!message.trim()}
+            disabled={!message.trim() || isAiResponding}
           >
             <Icon 
               name="send" 

@@ -40,6 +40,55 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
     fetchExpertDetails();
   }, []);
 
+  const handleStartChat = async () => {
+    if (!expert) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert('오류', '로그인이 필요합니다.');
+      return;
+    }
+
+    try {
+      // 1. 기존 채팅방 확인
+      const { data: existingRoom } = await supabase
+        .from('chat_rooms')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('expert_id', expert.id)
+        .single();
+
+      let chatRoomId;
+
+      if (existingRoom) {
+        chatRoomId = existingRoom.id;
+      } else {
+        // 2. 새 채팅방 생성
+        const { data: newRoom, error } = await supabase
+          .from('chat_rooms')
+          .insert({
+            user_id: user.id,
+            expert_id: expert.id
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        chatRoomId = newRoom.id;
+      }
+
+      // 3. 채팅방으로 이동
+      navigation.navigate('ChatRoom', {
+        roomId: chatRoomId,
+        expert: expert
+      });
+
+    } catch (error) {
+      console.error('Error starting chat:', error);
+      Alert.alert('오류', '채팅을 시작할 수 없습니다.');
+    }
+  };
+
   const fetchExpertDetails = async () => {
     try {
       const { data, error } = await supabase
@@ -141,7 +190,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
 
           <TouchableOpacity 
             style={styles.consultButton}
-            onPress={() => navigation.navigate('ChatRoom', { expert })}
+            onPress={handleStartChat}
           >
             <Text style={styles.consultButtonText}>이야기 나누기</Text>
           </TouchableOpacity>
