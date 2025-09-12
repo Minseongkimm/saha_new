@@ -1,8 +1,12 @@
 export const AI_CONFIG = {
   MODEL_NAME: "gpt-4o-mini",
-  TEMPERATURE: 0,
+  TEMPERATURE: 0.3, // 전문성과 약간의 유연성 균형
   MAX_RECENT_MESSAGES: 5,
   RESPONSE_TIMEOUT: 30000, // 30초
+  TARGET_CHAR_LENGTH: 600, // 응답 목표 길이(자)
+  // 가짜 스트리밍 속도 조절 (글자나오는 속도)
+  STREAM_CHUNK_SIZE: 10,
+  STREAM_DELAY_MS: 90,
 };
 
 export const ERROR_MESSAGES = {

@@ -16,7 +16,10 @@ export interface BirthInfo {
 export interface AIResponse {
   message: string;
   error?: string;
+  isStreaming?: boolean;
 }
+
+export type StreamCallback = (chunk: string) => void;
 
 export interface ChatContext {
   expertCategory: ExpertCategory;

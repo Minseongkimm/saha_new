@@ -12,6 +12,8 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -37,7 +39,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   const { roomId, expert } = route.params;
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
-  const flatListRef = useRef<FlatList>(null);
+  const flatListRef = useRef<FlatList<ChatMessage> | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   // 메시지 목록 가져오기
@@ -141,31 +143,53 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       // 이전 대화 내용 수집 (최근 5개 메시지)
       const recentMessages = messages.slice(-5).map(msg => msg.message);
 
-      // AI 응답 생성
-      const { message: aiResponse, error: aiError } = await expertAIService.generateResponse({
+      // AI 응답을 위한 임시 메시지 생성 (식별 가능한 임시 ID 부여)
+      const tempId = `temp_ai_${Date.now()}`;
+      const tempAiMessage = {
+        id: tempId,
+        chat_room_id: roomId,
+        sender_type: 'expert' as const,
+        message: '',
+        created_at: new Date().toISOString()
+      };
+      
+      // UI에 임시 메시지 추가
+      setMessages(prev => [...prev, tempAiMessage as ChatMessage]);
+
+      // AI 응답 생성 (스트리밍)
+      const { error: aiError, message: aiFinalText } = await expertAIService.generateResponse({
         expertCategory: expert.category,
         birthInfo: userBirthInfo,
         recentMessages: [...recentMessages, message.trim()]
+      }, (chunk: string) => {
+        // 스트리밍으로 받은 텍스트를 메시지에 추가
+        setMessages(prev => prev.map(msg => 
+          (msg as any).id === tempId
+            ? { ...msg, message: (msg as any).message + chunk }
+            : msg
+        ));
       });
 
       if (aiError) {
         throw new Error(aiError);
       }
 
-      // AI 응답 메시지 생성
-      const aiMessage = {
-        chat_room_id: roomId,
-        sender_type: 'expert',
-        message: aiResponse,
-        created_at: new Date().toISOString()
-      };
+      // 스트리밍 누락 방지: 최종 텍스트로 임시 버블을 확정
+      setMessages(prev => prev.map(msg => 
+        (msg as any).id === tempId
+          ? { ...msg, message: aiFinalText || '' }
+          : msg
+      ));
 
-      // AI 응답 UI 업데이트 및 DB 저장
-      setMessages(prev => [...prev, aiMessage as ChatMessage]);
-
+      // 최종 메시지를 DB에 저장
+      // DB 저장 시 임시 id는 제외하고 저장
+      const { id: _ignoreTempId, ...dbAiMessage } = tempAiMessage as any;
       const { error: aiMessageError } = await supabase
         .from('chat_messages')
-        .insert(aiMessage);
+        .insert({
+          ...dbAiMessage,
+          message: aiFinalText || ''
+        });
 
       if (aiMessageError) throw aiMessageError;
 
@@ -188,6 +212,53 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     }
   }, [messages]);
 
+  const TypingIndicator: React.FC = () => {
+    const dot1Opacity = useRef(new Animated.Value(0)).current;
+    const dot2Opacity = useRef(new Animated.Value(0)).current;
+    const dot3Opacity = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+      const createLoop = (value: Animated.Value, startDelayMs: number) =>
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(value, {
+              toValue: 1,
+              duration: 300,
+              easing: Easing.inOut(Easing.quad),
+              useNativeDriver: true,
+              delay: startDelayMs,
+            }),
+            Animated.timing(value, {
+              toValue: 0,
+              duration: 300,
+              easing: Easing.inOut(Easing.quad),
+              useNativeDriver: true,
+            }),
+          ])
+        );
+
+      const a = createLoop(dot1Opacity, 0);
+      const b = createLoop(dot2Opacity, 150);
+      const c = createLoop(dot3Opacity, 300);
+      a.start();
+      b.start();
+      c.start();
+      return () => {
+        a.stop();
+        b.stop();
+        c.stop();
+      };
+    }, [dot1Opacity, dot2Opacity, dot3Opacity]);
+
+    return (
+      <View style={styles.typingRow}>
+        <Animated.View style={[styles.dot, { opacity: dot1Opacity }]} />
+        <Animated.View style={[styles.dot, { opacity: dot2Opacity, marginLeft: 6 }]} />
+        <Animated.View style={[styles.dot, { opacity: dot3Opacity, marginLeft: 6 }]} />
+      </View>
+    );
+  };
+
   const renderMessage = ({ item }: { item: ChatMessage }) => (
     <View style={styles.messageContainer}>
       {item.sender_type === 'expert' && (
@@ -200,15 +271,40 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         styles.messageBubble,
         item.sender_type === 'user' ? styles.userMessage : styles.expertMessage
       ]}>
-        <Text style={[
-          styles.messageText,
-          item.sender_type === 'user' ? styles.userMessageText : styles.expertMessageText
-        ]}>
-          {item.message}
-        </Text>
+        {item.sender_type === 'expert' && !item.message?.trim() && isAiResponding ? (
+          <TypingIndicator />
+        ) : (
+          <Text style={[
+            styles.messageText,
+            item.sender_type === 'user' ? styles.userMessageText : styles.expertMessageText
+          ]}>
+            {item.message}
+          </Text>
+        )}
       </View>
-      <Text style={styles.timestamp}>
+      <Text style={[
+        styles.timestampBase,
+        item.sender_type === 'user' ? styles.timestampUser : styles.timestampExpert
+      ]}>
         {new Date(item.created_at).toLocaleTimeString('ko-KR', { 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        })}
+      </Text>
+    </View>
+  );
+
+  const ListEmptyThinking = () => (
+    <View style={styles.messageContainer}>
+      <View style={styles.expertInfo}>
+        <Image source={getExpertImage(expert.image_name)} style={styles.messageExpertImage} />
+        <Text style={styles.expertName}>{expert.name}</Text>
+      </View>
+      <View style={[styles.messageBubble, styles.expertMessage]}>
+        <TypingIndicator />
+      </View>
+      <Text style={[styles.timestampBase, styles.timestampExpert]}>
+        {new Date().toLocaleTimeString('ko-KR', { 
           hour: '2-digit', 
           minute: '2-digit' 
         })}
@@ -230,7 +326,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-          <FlatList
+          <FlatList<ChatMessage>
             ref={flatListRef}
             data={messages}
             renderItem={renderMessage}
@@ -240,6 +336,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
             onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
             removeClippedSubviews={false}
+            ListEmptyComponent={loading ? ListEmptyThinking : null}
           />
         
         <View style={styles.inputContainer}>
@@ -362,11 +459,28 @@ const styles = StyleSheet.create({
   expertMessageText: {
     color: '#333',
   },
-  timestamp: {
+  typingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#bbb',
+  },
+  timestampBase: {
     fontSize: 12,
     color: '#999',
     marginTop: 4,
+  },
+  timestampUser: {
+    alignSelf: 'flex-end',
     textAlign: 'right',
+  },
+  timestampExpert: {
+    alignSelf: 'flex-start',
+    textAlign: 'left',
   },
   inputContainer: {
     flexDirection: 'row',
