@@ -14,6 +14,8 @@ import {
   Alert,
   Animated,
   Easing,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -21,6 +23,7 @@ import { ChatMessage } from '../types/chat';
 import { getExpertImage } from '../utils/getExpertImage';
 import { expertAIService, BirthInfo } from '../services/ai';
 import { supabase } from '../utils/supabaseClient';
+import { getCachedMessages, setCachedMessages } from '../utils/chatCache';
 
 interface ChatRoomScreenProps {
   navigation: any;
@@ -53,7 +56,11 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         .limit(30);  // 최근 30개만
 
       if (error) throw error;
-      setMessages((data || []).reverse());  // 시간순 정렬
+      const ordered = (data || []).reverse();
+      setMessages(ordered);
+      setCachedMessages(roomId, ordered);
+      // 데이터 적용 직후 1회 무애니메이션으로 맨 아래 고정
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 0);
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
@@ -63,7 +70,18 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
 
   // 초기 메시지 로드 및 실시간 구독
   useEffect(() => {
-    fetchMessages();
+    // 캐시 우선 표시
+    const cached = getCachedMessages(roomId);
+    if (cached.length > 0) {
+      setMessages(cached);
+      setLoading(false);
+      // 캐시 표시 직후 즉시 하단 고정
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 0);
+      // 백그라운드 새로고침
+      fetchMessages();
+    } else {
+      fetchMessages();
+    }
 
     // 실시간 메시지 구독
     const channel = supabase
@@ -78,7 +96,11 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         },
         (payload) => {
           // 새 메시지를 바로 추가 (전체 새로고침 없이)
-          setMessages(prev => [...prev, payload.new as ChatMessage]);
+          setMessages(prev => {
+            const next = [...prev, payload.new as ChatMessage];
+            setCachedMessages(roomId, next);
+            return next;
+          });
         }
       )
       .subscribe();
@@ -90,6 +112,55 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
 
   const [isAiResponding, setIsAiResponding] = useState(false);
   const [userBirthInfo, setUserBirthInfo] = useState<BirthInfo | null>(null);
+
+  // 방 이탈 시 최신 미리보기 갱신을 위한 마지막 메시지 보관
+  const lastPreviewRef = useRef<{ text: string; at: string | null }>({ text: '', at: null });
+  const lastSavedRef = useRef<{ text: string; at: string | null }>({ text: '', at: null });
+  const saveLastPreviewIfAny = () => {
+    const { text, at } = lastPreviewRef.current;
+    const saved = lastSavedRef.current;
+    if (!text) return;
+    if (text === saved.text && at === saved.at) return;
+    void supabase
+      .from('chat_rooms')
+      .update({
+        last_message: text,
+        last_message_at: at || new Date().toISOString(),
+      })
+      .eq('id', roomId);
+    lastSavedRef.current = { text, at };
+  };
+  useEffect(() => {
+    if (messages.length > 0) {
+      const last = messages[messages.length - 1];
+      lastPreviewRef.current = {
+        text: last.message || '',
+        at: last.created_at || null,
+      };
+    }
+  }, [messages]);
+  useEffect(() => {
+    return () => {
+      saveLastPreviewIfAny();
+    };
+  }, [roomId]);
+  useEffect(() => {
+    const onAppStateChange = (state: AppStateStatus) => {
+      if (state === 'background' || state === 'inactive') {
+        saveLastPreviewIfAny();
+      }
+    };
+    const sub = AppState.addEventListener('change', onAppStateChange);
+    return () => {
+      sub.remove();
+    };
+  }, []);
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('blur', () => {
+      saveLastPreviewIfAny();
+    });
+    return unsubscribe;
+  }, [navigation, roomId]);
 
   // 사용자의 사주 정보 가져오기
   useEffect(() => {
@@ -129,6 +200,8 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     try {
       // 사용자 메시지 UI 업데이트 및 DB 저장
       setMessages(prev => [...prev, userMessage as ChatMessage]);
+      // 새 입력 시는 자연스러운 애니메이션 스크롤
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 0);
       setMessage('');
 
       const { error: userMessageError } = await supabase
@@ -136,6 +209,8 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         .insert(userMessage);
 
       if (userMessageError) throw userMessageError;
+
+      // 최근 메시지 갱신은 방 이탈 시 일괄 처리
 
       // AI 응답 생성 시작
       setIsAiResponding(true);
@@ -155,6 +230,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       
       // UI에 임시 메시지 추가
       setMessages(prev => [...prev, tempAiMessage as ChatMessage]);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 0);
 
       // AI 응답 생성 (스트리밍)
       const { error: aiError, message: aiFinalText } = await expertAIService.generateResponse({
@@ -193,6 +269,8 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
 
       if (aiMessageError) throw aiMessageError;
 
+      // 최근 메시지 갱신은 방 이탈 시 일괄 처리
+
     } catch (error) {
       console.error('Error in message flow:', error);
       // 에러 시 메시지 롤백
@@ -203,13 +281,26 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     }
   };
 
-  // 새 메시지가 추가될 때마다 자동 스크롤
+  // 초기 진입 시 1회만 즉시(무애니메이션) 맨 아래로, 이후에는 새 메시지에 한해 부드럽게 스크롤
+  const didInitScroll = useRef(false);
+  const prevLenRef = useRef(0);
   useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+    const len = messages.length;
+    const prevLen = prevLenRef.current;
+    if (!len) {
+      prevLenRef.current = len;
+      return;
     }
+    if (!didInitScroll.current) {
+      flatListRef.current?.scrollToEnd({ animated: false });
+      didInitScroll.current = true;
+      prevLenRef.current = len;
+      return;
+    }
+    if (len > prevLen) {
+      flatListRef.current?.scrollToEnd({ animated: true });
+    }
+    prevLenRef.current = len;
   }, [messages]);
 
   const TypingIndicator: React.FC = () => {
@@ -333,8 +424,18 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
             keyExtractor={(item) => item.id || item.created_at}
             style={styles.messagesList}
             showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
-            onLayout={() => flatListRef.current?.scrollToEnd({ animated: true })}
+            onContentSizeChange={() => {
+              if (!didInitScroll.current) {
+                flatListRef.current?.scrollToEnd({ animated: false });
+                didInitScroll.current = true;
+              }
+            }}
+            onLayout={() => {
+              if (!didInitScroll.current) {
+                flatListRef.current?.scrollToEnd({ animated: false });
+                didInitScroll.current = true;
+              }
+            }}
             removeClippedSubviews={false}
             ListEmptyComponent={loading ? ListEmptyThinking : null}
           />
