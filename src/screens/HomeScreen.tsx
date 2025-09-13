@@ -15,6 +15,7 @@ import ExpertCard from '../components/ExpertCard';
 import { Colors } from '../constants/colors';
 import { supabase } from '../utils/supabaseClient';
 import { Expert } from '../types/expert';
+import { getExpertListCache, setExpertListCache, isExpertListFresh } from '../utils/expertListCache';
 
 interface HomeScreenProps {
   navigation: any;
@@ -25,6 +26,17 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const FRESH_MS = 60 * 1000; // 60s
+    if (isExpertListFresh(FRESH_MS)) {
+      const cached = getExpertListCache();
+      if (cached) {
+        setExperts(cached);
+        setLoading(false);
+        // 백그라운드 최신화
+        void fetchExperts();
+        return;
+      }
+    }
     fetchExperts();
   }, []);
 
@@ -36,7 +48,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setExperts(data || []);
+      const list = data || [];
+      setExperts(list);
+      setExpertListCache(list); // 성공 시에만 캐시
     } catch (error) {
       console.error('Error fetching experts:', error);
       Alert.alert('오류', '전문가 목록을 불러오는데 실패했습니다.');

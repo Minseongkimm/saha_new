@@ -15,6 +15,7 @@ import { supabase } from '../utils/supabaseClient';
 import { Expert } from '../types/expert';
 
 import { getExpertImage } from '../utils/getExpertImage';
+import { getExpertListCache } from '../utils/expertListCache';
 
 interface ExpertDetailScreenProps {
   navigation: any;
@@ -37,6 +38,13 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
   const [expert, setExpert] = useState<ExpertWithDetails | null>(null);
 
   useEffect(() => {
+    const cached = getExpertListCache();
+    if (cached) {
+      const found = cached.find((e) => e.id === expertId);
+      if (found) {
+        setExpert({ ...(found as Expert), expert_details: { message: '', introduction: '', ai_accuracy: 0, consultation_count: 0, satisfaction_rate: 0 } });
+      }
+    }
     fetchExpertDetails();
   }, []);
 

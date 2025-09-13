@@ -11,6 +11,7 @@ import {
   ImageSourcePropType,
   Modal,
   Animated,
+  Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -18,6 +19,7 @@ import { supabase } from '../utils/supabaseClient';
 import { Expert } from '../types/expert';
 import { getExpertImage } from '../utils/getExpertImage';
 import { useNavigation } from '@react-navigation/native';
+import { getChatListCache, setChatListCache, isChatListFresh, consumeChatListNeedsRefresh } from '../utils/chatListCache';
 
 interface ChatScreenProps {
   navigation: any;
@@ -50,6 +52,12 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
           setChats([]);
           setLoading(false);
           return;
+        }
+        // 캐시 선반영 (신선하면 즉시 사용)
+        const FRESH_MS = 10 * 1000;
+        if (isChatListFresh(FRESH_MS)) {
+          const cached = getChatListCache();
+          if (cached) setChats(cached as ChatItem[]);
         }
         const { data: rooms, error: roomError } = await supabase
           .from('chat_rooms')
@@ -103,18 +111,34 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
           };
         });
         setChats(items);
+        // 성공 시에만 캐시 저장
+        setChatListCache(items);
       } catch (err) {
-        setChats([]);
+        // 오류 시 캐시를 덮어쓰지 않음
       } finally {
         setLoading(false);
       }
   }, []);
 
   useEffect(() => {
-    fetchChatRooms();
-    const unsubscribe = navigation.addListener('focus', () => {
+    // 최초 진입: 캐시 있으면 즉시 표시, 서버는 생략
+    const cached = getChatListCache();
+    if (cached) {
+      setChats(cached as ChatItem[]);
+      setLoading(false);
+    } else {
       setLoading(true);
       fetchChatRooms();
+    }
+    const unsubscribe = navigation.addListener('focus', () => {
+      // 방에서 돌아온 경우에만 새로고침 (needsRefresh 소비)
+      if (consumeChatListNeedsRefresh()) {
+        setLoading(true);
+        fetchChatRooms();
+      } else {
+        const cache = getChatListCache();
+        if (cache) setChats(cache as ChatItem[]);
+      }
     });
     return unsubscribe;
   }, [navigation, fetchChatRooms]);
@@ -158,13 +182,22 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
           })
         )
       );
-      setChats((prev) => prev.filter((c) => !selectedIds.has(c.id)));
+      // DB 삭제를 반드시 대기
+      const { error: msgErr } = await supabase.from('chat_messages').delete().in('chat_room_id', ids);
+      if (msgErr) throw msgErr;
+      const { error: roomErr } = await supabase.from('chat_rooms').delete().in('id', ids);
+      if (roomErr) throw roomErr;
+      // 성공 시 UI/캐시 갱신
+      setChats((prev) => {
+        const next = prev.filter((c) => !selectedIds.has(c.id));
+        setChatListCache(next as any);
+        return next;
+      });
       setSelectedIds(new Set());
       setSelectionMode(false);
       setDeleteModalVisible(false);
-      void supabase.from('chat_messages').delete().in('chat_room_id', ids);
-      void supabase.from('chat_rooms').delete().in('id', ids);
     } catch (err) {
+      Alert.alert('오류', '대화 삭제에 실패했습니다. 잠시 후 다시 시도하세요.');
       setDeleteModalVisible(false);
     }
   };
