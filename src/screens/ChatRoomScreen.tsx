@@ -16,6 +16,7 @@ import {
   Easing,
   AppState,
   AppStateStatus,
+  InteractionManager,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -44,6 +45,13 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList<ChatMessage> | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const scrollToBottom = (animated: boolean) => {
+    InteractionManager.runAfterInteractions(() => {
+      requestAnimationFrame(() => {
+        flatListRef.current?.scrollToEnd({ animated });
+      });
+    });
+  };
 
   // 메시지 목록 가져오기
   const fetchMessages = async () => {
@@ -60,7 +68,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       setMessages(ordered);
       setCachedMessages(roomId, ordered);
       // 데이터 적용 직후 1회 무애니메이션으로 맨 아래 고정
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 0);
+      scrollToBottom(false);
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
@@ -76,7 +84,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       setMessages(cached);
       setLoading(false);
       // 캐시 표시 직후 즉시 하단 고정
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 0);
+      scrollToBottom(false);
       // 백그라운드 새로고침
       fetchMessages();
     } else {
@@ -101,6 +109,8 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
             setCachedMessages(roomId, next);
             return next;
           });
+          // 실시간 도착 시에도 항상 하단 고정
+          scrollToBottom(true);
         }
       )
       .subscribe();
@@ -201,7 +211,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       // 사용자 메시지 UI 업데이트 및 DB 저장
       setMessages(prev => [...prev, userMessage as ChatMessage]);
       // 새 입력 시는 자연스러운 애니메이션 스크롤
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 0);
+      scrollToBottom(true);
       setMessage('');
 
       const { error: userMessageError } = await supabase
@@ -230,7 +240,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       
       // UI에 임시 메시지 추가
       setMessages(prev => [...prev, tempAiMessage as ChatMessage]);
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 0);
+      scrollToBottom(true);
 
       // AI 응답 생성 (스트리밍)
       const { error: aiError, message: aiFinalText } = await expertAIService.generateResponse({
@@ -281,26 +291,10 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     }
   };
 
-  // 초기 진입 시 1회만 즉시(무애니메이션) 맨 아래로, 이후에는 새 메시지에 한해 부드럽게 스크롤
-  const didInitScroll = useRef(false);
-  const prevLenRef = useRef(0);
+  // 메시지 변경 시 항상 최신으로 스크롤
   useEffect(() => {
-    const len = messages.length;
-    const prevLen = prevLenRef.current;
-    if (!len) {
-      prevLenRef.current = len;
-      return;
-    }
-    if (!didInitScroll.current) {
-      flatListRef.current?.scrollToEnd({ animated: false });
-      didInitScroll.current = true;
-      prevLenRef.current = len;
-      return;
-    }
-    if (len > prevLen) {
-      flatListRef.current?.scrollToEnd({ animated: true });
-    }
-    prevLenRef.current = len;
+    if (messages.length === 0) return;
+    scrollToBottom(true);
   }, [messages]);
 
   const TypingIndicator: React.FC = () => {
@@ -424,18 +418,8 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
             keyExtractor={(item) => item.id || item.created_at}
             style={styles.messagesList}
             showsVerticalScrollIndicator={false}
-            onContentSizeChange={() => {
-              if (!didInitScroll.current) {
-                flatListRef.current?.scrollToEnd({ animated: false });
-                didInitScroll.current = true;
-              }
-            }}
-            onLayout={() => {
-              if (!didInitScroll.current) {
-                flatListRef.current?.scrollToEnd({ animated: false });
-                didInitScroll.current = true;
-              }
-            }}
+            onContentSizeChange={() => scrollToBottom(false)}
+            onLayout={() => scrollToBottom(false)}
             removeClippedSubviews={false}
             ListEmptyComponent={loading ? ListEmptyThinking : null}
           />
