@@ -53,6 +53,25 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     });
   };
 
+  // **text** 형태를 볼드 처리하는 함수
+  const renderFormattedText = (text: string) => {
+    if (!text) return '';
+    
+    const parts = text.split(/(\*\*.*?\*\*)/);
+    
+    return parts.map((part, index) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        const boldText = part.slice(2, -2);
+        return (
+          <Text key={index} style={styles.boldText}>
+            {boldText}
+          </Text>
+        );
+      }
+      return part;
+    });
+  };
+
   // 메시지 목록 가져오기
   const fetchMessages = async () => {
     try {
@@ -367,7 +386,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
             styles.messageText,
             item.sender_type === 'user' ? styles.userMessageText : styles.expertMessageText
           ]}>
-            {item.message}
+            {renderFormattedText(item.message)}
           </Text>
         )}
       </View>
@@ -662,6 +681,12 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#e9ecef',
+  },
+  
+  // **text** 볼드 처리 스타일
+  boldText: {
+    fontWeight: 'bold',
+    color: Colors.primaryColor, // 강조색으로 표시
   },
 });
 
