@@ -74,6 +74,13 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
               }}
             />
             <Stack.Screen
+              name="BirthInfo"
+              component={BirthInfoScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
               name="BannerDetail"
               component={BannerDetailScreen}
               options={{
@@ -83,13 +90,6 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
             <Stack.Screen
               name="ExpertDetail"
               component={ExpertDetailScreen}
-              options={{
-                headerShown: false,
-              }}
-            />
-            <Stack.Screen
-              name="BirthInfo"
-              component={BirthInfoScreen}
               options={{
                 headerShown: false,
               }}

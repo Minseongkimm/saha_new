@@ -34,6 +34,64 @@ class ExpertAIService {
     return messages.slice(-AI_CONFIG.MAX_RECENT_MESSAGES).join("\n");
   }
 
+  private formatAdvancedSajuInfo(birthInfo: any): any {
+    if (!birthInfo.sajuResult) return '';
+
+    const saju = birthInfo.sajuResult;
+    
+    // 공망 정보
+    const gongmang = saju.gongmang || '없음';
+    
+    // 오행 분석
+    const fiveProperties = saju.fiveProperties ? 
+      `년주: ${saju.fiveProperties.yearProperty}(${saju.fiveProperties.yearNapeum}), 월주: ${saju.fiveProperties.monthProperty}(${saju.fiveProperties.monthNapeum}), 일주: ${saju.fiveProperties.dayProperty}(${saju.fiveProperties.dayNapeum}), 시주: ${saju.fiveProperties.timeProperty}(${saju.fiveProperties.timeNapeum})` : 
+      '없음';
+    
+    // 지지암장간
+    const jijiAmjangan = saju.jijiAmjangan ? 
+      `년지: ${saju.jijiAmjangan.yearAmjangan}, 월지: ${saju.jijiAmjangan.monthAmjangan}, 일지: ${saju.jijiAmjangan.dayAmjangan}, 시지: ${saju.jijiAmjangan.timeAmjangan}` : 
+      '없음';
+    
+    // 살(殺) 분석
+    const salAnalysis = saju.sal ? 
+      Object.entries(saju.sal)
+        .filter(([_, values]) => (values as string[]).length > 0)
+        .map(([key, values]) => `${key}: ${(values as string[]).join(', ')}`)
+        .join('; ') || '없음' : 
+      '없음';
+    
+    // 귀인 분석
+    const guinAnalysis = saju.guin ? 
+      Object.entries(saju.guin)
+        .filter(([_, values]) => (values as string[]).length > 0)
+        .map(([key, values]) => `${key}: ${(values as string[]).join(', ')}`)
+        .join('; ') || '없음' : 
+      '없음';
+    
+    // 지지 관계
+    const jijiRelations = saju.jijiRelations ? 
+      Object.entries(saju.jijiRelations)
+        .filter(([_, values]) => (values as string[]).length > 0)
+        .map(([key, values]) => `${key}: ${(values as string[]).join(', ')}`)
+        .join('; ') || '없음' : 
+      '없음';
+    
+    // 대운 정보
+    const daewoonInfo = saju.daewoon && saju.daewoon.length > 0 ? 
+      saju.daewoon.slice(0, 3).map((d: any) => `${d.age}세(${d.year}년): ${d.ganji}`).join(', ') + '...' : 
+      '없음';
+
+    return {
+      gongmang,
+      fiveProperties,
+      jijiAmjangan,
+      salAnalysis,
+      guinAnalysis,
+      jijiRelations,
+      daewoonInfo
+    };
+  }
+
   public async generateResponse(
     context: ChatContext,
     onStream?: StreamCallback
@@ -47,12 +105,35 @@ class ExpertAIService {
         ? JSON.stringify(context.birthInfo, null, 2)
         : '사주 정보가 없습니다.';
 
+      // 고급 사주 분석 정보 포맷팅
+      const advancedSajuInfo = context.birthInfo ? this.formatAdvancedSajuInfo(context.birthInfo) : {
+        gongmang: '없음',
+        fiveProperties: '없음',
+        jijiAmjangan: '없음',
+        salAnalysis: '없음',
+        guinAnalysis: '없음',
+        jijiRelations: '없음',
+        daewoonInfo: '없음'
+      };
+
+      // 디버그: 고급 사주 정보 출력
+      console.log('=== AI 서비스 고급 사주 정보 ===');
+      console.log('사용자 사주 정보:', context.birthInfo);
+      console.log('포맷팅된 고급 사주 정보:', advancedSajuInfo);
+
       let response = '';
 
       // Always use non-streaming request in RN; simulate streaming when needed
       const systemPrompt = getExpertPrompt(context.expertCategory)
         .replace('{target_len}', String(AI_CONFIG.TARGET_CHAR_LENGTH))
         .replace('{birth_info}', birthInfoStr)
+        .replace('{gongmang}', advancedSajuInfo.gongmang)
+        .replace('{five_properties}', advancedSajuInfo.fiveProperties)
+        .replace('{jiji_amjangan}', advancedSajuInfo.jijiAmjangan)
+        .replace('{sal_analysis}', advancedSajuInfo.salAnalysis)
+        .replace('{guin_analysis}', advancedSajuInfo.guinAnalysis)
+        .replace('{jiji_relations}', advancedSajuInfo.jijiRelations)
+        .replace('{daewoon_info}', advancedSajuInfo.daewoonInfo)
         .replace('{history}', prevHistory)
         .replace('{question}', lastQuestion);
       const result = await Promise.race([

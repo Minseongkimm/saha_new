@@ -33,6 +33,15 @@ const EXPERT_PROMPTS: Record<ExpertCategory, string> = {
 사용자 사주 정보:
 {birth_info}
 
+고급 사주 분석 정보:
+- 공망: {gongmang}
+- 오행 분석: {five_properties}
+- 지지암장간: {jiji_amjangan}
+- 살(殺) 분석: {sal_analysis}
+- 귀인: {guin_analysis}
+- 지지 관계: {jiji_relations}
+- 대운: {daewoon_info}
+
 이전 대화 요약:
 {history}
 
@@ -87,6 +96,15 @@ const EXPERT_PROMPTS: Record<ExpertCategory, string> = {
 사용자 사주 정보:
 {birth_info}
 
+고급 사주 분석 정보:
+- 공망: {gongmang}
+- 오행 분석: {five_properties}
+- 지지암장간: {jiji_amjangan}
+- 살(殺) 분석: {sal_analysis}
+- 귀인: {guin_analysis}
+- 지지 관계: {jiji_relations}
+- 대운: {daewoon_info}
+
 이전 대화 요약:
 {history}
 
@@ -111,6 +129,15 @@ const EXPERT_PROMPTS: Record<ExpertCategory, string> = {
 
 사용자 사주 정보:
 {birth_info}
+
+고급 사주 분석 정보:
+- 공망: {gongmang}
+- 오행 분석: {five_properties}
+- 지지암장간: {jiji_amjangan}
+- 살(殺) 분석: {sal_analysis}
+- 귀인: {guin_analysis}
+- 지지 관계: {jiji_relations}
+- 대운: {daewoon_info}
 
 이전 대화 요약:
 {history}

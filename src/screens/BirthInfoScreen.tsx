@@ -103,15 +103,25 @@ function BirthInfoScreen({ navigation, route }: BirthInfoScreenProps) {
     }
 
     // 사주 계산
-    const sajuResult = calculateSaju({
-      year,
-      month,
-      day,
-      hour,
-      minute,
-      isLunar: calendarType === 'lunar',
-      isLeapMonth
-    });
+    let sajuResult;
+    try {
+      sajuResult = calculateSaju({
+        year,
+        month,
+        day,
+        hour,
+        minute,
+        isLunar: calendarType === 'lunar',
+        isLeapMonth
+      });
+    } catch (error) {
+      let errorMessage = '알 수 없는 오류가 발생했습니다.';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      Alert.alert('오류', '사주 계산 중 오류가 발생했습니다: ' + errorMessage);
+      return;
+    }
 
     // 바로 저장 진행
     handleSaveWithSaju(sajuResult);
@@ -126,6 +136,16 @@ interface SajuResult {
   stemSasin: string[];       // 천간 십신 [시, 일, 월, 년]
   branchSasin: string[];     // 지지 십신 [시, 일, 월, 년]
   sibun: string[];          // 십이운성 [시, 일, 월, 년]
+  
+  // 고급 사주 요소들
+  sinsal: { [key: string]: string[] };      // 신살 정보
+  gongmang: string;                         // 공망
+  daewoon: any[];                           // 대운 리스트
+  fiveProperties: { [key: string]: string }; // 오행 정보
+  jijiAmjangan: { [key: string]: string };   // 지지암장간
+  sal: { [key: string]: string[] };         // 살(殺) 정보
+  guin: { [key: string]: string[] };        // 귀인 정보
+  jijiRelations: { [key: string]: string[] }; // 지지 관계 (삼합, 육합, 삼형, 육충)
 }
 
 
