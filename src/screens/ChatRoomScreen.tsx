@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { ChatMessage } from '../types/chat';
+import { ChatMessage, ChatMessageDB } from '../types/chat';
 import { getExpertImage } from '../utils/getExpertImage';
 import { expertAIService, BirthInfo } from '../services/ai';
 import { supabase } from '../utils/supabaseClient';
@@ -201,6 +201,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     if (!message.trim() || isAiResponding) return;
 
     const userMessage = {
+      id: `temp_user_${Date.now()}`,
       chat_room_id: roomId,
       sender_type: 'user',
       message: message.trim(),
@@ -214,9 +215,10 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       scrollToBottom(true);
       setMessage('');
 
+      const { id: _tempUserId, ...dbUserMessage } = userMessage;
       const { error: userMessageError } = await supabase
         .from('chat_messages')
-        .insert(userMessage);
+        .insert(dbUserMessage);
 
       if (userMessageError) throw userMessageError;
 
@@ -243,7 +245,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       scrollToBottom(true);
 
       // AI 응답 생성 (스트리밍)
-      const { error: aiError, message: aiFinalText } = await expertAIService.generateResponse({
+      const { error: aiError, message: aiFinalText, followUpQuestions } = await expertAIService.generateResponse({
         expertCategory: expert.category,
         birthInfo: userBirthInfo,
         recentMessages: [...recentMessages, message.trim()]
@@ -260,10 +262,12 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         throw new Error(aiError);
       }
 
+      console.log('Setting message with follow-up questions:', followUpQuestions);
+      
       // 스트리밍 누락 방지: 최종 텍스트로 임시 버블을 확정
       setMessages(prev => prev.map(msg => 
         (msg as any).id === tempId
-          ? { ...msg, message: aiFinalText || '' }
+          ? { ...msg, message: aiFinalText || '', follow_up_questions: followUpQuestions }
           : msg
       ));
 
@@ -284,7 +288,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     } catch (error) {
       console.error('Error in message flow:', error);
       // 에러 시 메시지 롤백
-      setMessages(prev => prev.filter(msg => msg !== userMessage));
+      setMessages(prev => prev.filter(msg => msg.id !== userMessage.id));
       Alert.alert('오류', '메시지 처리 중 문제가 발생했습니다.');
     } finally {
       setIsAiResponding(false);
@@ -425,29 +429,57 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
           />
         
         <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.textInput}
-            value={message}
-            onChangeText={setMessage}
-            placeholder="메시지를 입력하세요."
-            placeholderTextColor="#999"
-            multiline
-            editable={!isAiResponding}
-          />
-          <TouchableOpacity 
-            style={[
-              styles.sendButton, 
-              (!message.trim() || isAiResponding) && styles.sendButtonDisabled
-            ]}
-            onPress={sendMessage}
-            disabled={!message.trim() || isAiResponding}
-          >
-            <Icon 
-              name="send" 
-              size={20} 
-              color={message.trim() ? 'white' : '#ccc'} 
+          {/* 팔로업 질문이 있을 때만 표시 */}
+          {(() => {
+            if (messages.length === 0) return null;
+            const lastMessage = messages[messages.length - 1];
+            if (!lastMessage.follow_up_questions?.length) return null;
+            return (
+                <View style={styles.followUpContainer}>
+                  <Text style={styles.followUpTitle}>추천 질문</Text>
+                  <View style={styles.followUpButtonsRow}>
+                    {lastMessage.follow_up_questions.map((question, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.followUpButton}
+                      onPress={() => {
+                        setMessage(question);
+                      }}
+                    >
+                      <Text style={styles.followUpButtonText} numberOfLines={2}>
+                        {question}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                  </View>
+                </View>
+            );
+          })()}
+          <View style={styles.messageInputRow}>
+            <TextInput
+              style={styles.textInput}
+              value={message}
+              onChangeText={setMessage}
+              placeholder="메시지를 입력하세요."
+              placeholderTextColor="#999"
+              multiline
+              editable={!isAiResponding}
             />
-          </TouchableOpacity>
+            <TouchableOpacity 
+              style={[
+                styles.sendButton, 
+                (!message.trim() || isAiResponding) && styles.sendButtonDisabled
+              ]}
+              onPress={sendMessage}
+              disabled={!message.trim() || isAiResponding}
+            >
+              <Icon 
+                name="send" 
+                size={20} 
+                color={message.trim() ? 'white' : '#ccc'} 
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -568,12 +600,47 @@ const styles = StyleSheet.create({
     textAlign: 'left',
   },
   inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    padding: 16,
     backgroundColor: 'white',
     // borderTopWidth: 1,
     // borderTopColor: '#e9ecef',
+  },
+  followUpContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  followUpTitle: {
+    fontSize: 10,
+    color: '#999',
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  followUpButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  followUpButton: {
+    backgroundColor: '#f0f0f5',
+    borderRadius: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flex: 1,
+    minHeight: 36,
+    justifyContent: 'center',
+  },
+  followUpButtonText: {
+    color: '#1a1a1a',
+    fontSize: 11,
+    textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 16,
+  },
+  messageInputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    padding: 16,
+    paddingTop: 8,
   },
   textInput: {
     flex: 1,

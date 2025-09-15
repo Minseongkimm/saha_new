@@ -7,10 +7,16 @@ export interface ChatRoom {
   created_at: string;
 }
 
-export interface ChatMessage {
+// DB에 저장되는 실제 메시지 타입
+export interface ChatMessageDB {
   id: string;
   chat_room_id: string;
   sender_type: 'user' | 'expert';
   message: string;
   created_at: string;
+}
+
+// UI에서 사용되는 확장된 메시지 타입
+export interface ChatMessage extends ChatMessageDB {
+  follow_up_questions?: string[];
 }

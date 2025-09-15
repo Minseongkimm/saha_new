@@ -17,6 +17,7 @@ export interface AIResponse {
   message: string;
   error?: string;
   isStreaming?: boolean;
+  followUpQuestions?: string[];
 }
 
 export type StreamCallback = (chunk: string) => void;
