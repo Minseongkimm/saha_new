@@ -116,11 +116,6 @@ class ExpertAIService {
         daewoonInfo: '없음'
       };
 
-      // 디버그: 고급 사주 정보 출력
-      console.log('=== AI 서비스 고급 사주 정보 ===');
-      console.log('사용자 사주 정보:', context.birthInfo);
-      console.log('포맷팅된 고급 사주 정보:', advancedSajuInfo);
-
       let response = '';
 
       // Always use non-streaming request in RN; simulate streaming when needed
@@ -150,9 +145,6 @@ class ExpertAIService {
         ? content.map((c: any) => (typeof c === 'string' ? c : c.text ?? '')).join('')
         : String(content);
 
-      // 팔로업 질문 추출
-      // 팔로업 질문 추출 디버깅
-      console.log('AI Response:', response);
       // 팔로업 질문 추출
       const lastQuestionsRegex = /팔로업\s*질문:\s*\n\s*1\.\s*([^\n]+)\s*\n\s*2\.\s*([^\n]+)/;
       const followUpMatch = response.match(lastQuestionsRegex);

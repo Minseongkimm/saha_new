@@ -45,7 +45,11 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList<ChatMessage> | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  
   const scrollToBottom = (animated: boolean) => {
+    if (!shouldAutoScroll) return;
+    
     InteractionManager.runAfterInteractions(() => {
       requestAnimationFrame(() => {
         flatListRef.current?.scrollToEnd({ animated });
@@ -54,7 +58,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   };
 
   // **text** 형태를 볼드 처리하는 함수
-  const renderFormattedText = (text: string) => {
+  const renderFormattedText = React.useCallback((text: string) => {
     if (!text) return '';
     
     const parts = text.split(/(\*\*.*?\*\*)/);
@@ -70,7 +74,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       }
       return part;
     });
-  };
+  }, []);
 
   // 메시지 목록 가져오기
   const fetchMessages = async () => {
@@ -216,6 +220,102 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     fetchUserBirthInfo();
   }, []);
 
+  const sendMessageWithText = async (text: string) => {
+    if (!text.trim() || isAiResponding) return;
+
+    const userMessage = {
+      id: `temp_user_${Date.now()}`,
+      chat_room_id: roomId,
+      sender_type: 'user',
+      message: text.trim(),
+      created_at: new Date().toISOString()
+    };
+
+    try {
+      // 사용자 메시지 UI 업데이트 및 DB 저장
+      setMessages(prev => [...prev, userMessage as ChatMessage]);
+      // 새 메시지 전송 시 자동 스크롤 활성화
+      setShouldAutoScroll(true);
+      scrollToBottom(true);
+      setMessage('');
+
+      const { id: _tempUserId, ...dbUserMessage } = userMessage;
+      const { error: userMessageError } = await supabase
+        .from('chat_messages')
+        .insert(dbUserMessage);
+
+      if (userMessageError) throw userMessageError;
+
+      // 최근 메시지 갱신은 방 이탈 시 일괄 처리
+
+      // AI 응답 생성 시작
+      setIsAiResponding(true);
+
+      // 이전 대화 내용 수집 (최근 5개 메시지)
+      const recentMessages = messages.slice(-5).map(msg => msg.message);
+
+      // AI 응답을 위한 임시 메시지 생성 (식별 가능한 임시 ID 부여)
+      const tempId = `temp_ai_${Date.now()}`;
+      const tempAiMessage = {
+        id: tempId,
+        chat_room_id: roomId,
+        sender_type: 'expert' as const,
+        message: '',
+        created_at: new Date().toISOString()
+      };
+      
+      // UI에 임시 메시지 추가
+      setMessages(prev => [...prev, tempAiMessage as ChatMessage]);
+      scrollToBottom(true);
+
+      // AI 응답 생성 (스트리밍)
+      const { error: aiError, message: aiFinalText, followUpQuestions } = await expertAIService.generateResponse({
+        expertCategory: expert.category,
+        birthInfo: userBirthInfo,
+        recentMessages: [...recentMessages, text.trim()]
+      }, (chunk: string) => {
+        // 스트리밍으로 받은 텍스트를 메시지에 추가
+        setMessages(prev => prev.map(msg => 
+          (msg as any).id === tempId
+            ? { ...msg, message: (msg as any).message + chunk }
+            : msg
+        ));
+      });
+
+      if (aiError) {
+        throw new Error(aiError);
+      }
+
+      // 스트리밍 누락 방지: 최종 텍스트로 임시 버블을 확정
+      setMessages(prev => prev.map(msg => 
+        (msg as any).id === tempId
+          ? { ...msg, message: aiFinalText || '', follow_up_questions: followUpQuestions }
+          : msg
+      ));
+
+      // 최종 메시지를 DB에 저장
+      // DB 저장 시 임시 id는 제외하고 저장
+      const { id: _ignoreTempId, ...dbAiMessage } = tempAiMessage as any;
+      const { error: aiMessageError } = await supabase
+        .from('chat_messages')
+        .insert({
+          ...dbAiMessage,
+          message: aiFinalText || ''
+          // follow_up_questions는 UI에서만 사용 (DB 저장 안함)
+        });
+
+      if (aiMessageError) throw aiMessageError;
+
+    } catch (error) {
+      console.error('Error sending message:', error);
+      Alert.alert('오류', '메시지 전송에 실패했습니다.');
+      // 에러 발생 시 임시 메시지 제거
+      setMessages(prev => prev.filter(msg => (msg as any).id !== userMessage.id));
+    } finally {
+      setIsAiResponding(false);
+    }
+  };
+
   const sendMessage = async () => {
     if (!message.trim() || isAiResponding) return;
 
@@ -230,7 +330,8 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     try {
       // 사용자 메시지 UI 업데이트 및 DB 저장
       setMessages(prev => [...prev, userMessage as ChatMessage]);
-      // 새 입력 시는 자연스러운 애니메이션 스크롤
+      // 새 메시지 전송 시 자동 스크롤 활성화
+      setShouldAutoScroll(true);
       scrollToBottom(true);
       setMessage('');
 
@@ -281,8 +382,6 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         throw new Error(aiError);
       }
 
-      console.log('Setting message with follow-up questions:', followUpQuestions);
-      
       // 스트리밍 누락 방지: 최종 텍스트로 임시 버블을 확정
       setMessages(prev => prev.map(msg => 
         (msg as any).id === tempId
@@ -367,7 +466,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     );
   };
 
-  const renderMessage = ({ item }: { item: ChatMessage }) => (
+  const MessageItem = React.memo(({ item }: { item: ChatMessage }) => (
     <View style={styles.messageContainer}>
       {item.sender_type === 'expert' && (
         <View style={styles.expertInfo}>
@@ -400,7 +499,10 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         })}
       </Text>
     </View>
-  );
+  ));
+
+  const renderMessage = React.useCallback(({ item }: { item: ChatMessage }) => 
+    <MessageItem item={item} />, []);
 
   const ListEmptyThinking = () => (
     <View style={styles.messageContainer}>
@@ -443,7 +545,15 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() => scrollToBottom(false)}
             onLayout={() => scrollToBottom(false)}
-            removeClippedSubviews={false}
+            onScrollBeginDrag={() => setShouldAutoScroll(false)}
+            onScrollEndDrag={() => {
+              // 스크롤이 맨 아래 근처에 있으면 자동 스크롤 다시 활성화
+              setTimeout(() => setShouldAutoScroll(true), 1000);
+            }}
+            onMomentumScrollEnd={() => {
+              // 스크롤이 맨 아래 근처에 있으면 자동 스크롤 다시 활성화
+              setTimeout(() => setShouldAutoScroll(true), 1000);
+            }}
             ListEmptyComponent={loading ? ListEmptyThinking : null}
           />
         
@@ -461,8 +571,10 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
                     <TouchableOpacity
                       key={index}
                       style={styles.followUpButton}
-                      onPress={() => {
+                      onPress={async () => {
                         setMessage(question);
+                        // 바로 전송
+                        await sendMessageWithText(question);
                       }}
                     >
                       <Text style={styles.followUpButtonText} numberOfLines={2}>
