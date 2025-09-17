@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,29 +7,162 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Colors } from '../constants/colors';
+import { supabase } from '../utils/supabaseClient';
 
 interface MyInfoScreenProps {
   navigation: any;
 }
 
 const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
-  const handleLogout = () => {
-    console.log('로그아웃');
+  const [userName, setUserName] = useState('사용자');
+  const [userEmail, setUserEmail] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [dayGan, setDayGan] = useState('水'); // 일간 오행
+
+  // 일간에서 오행 추출
+  const getElementFromDayGan = (dayGanjiChar: string): string => {
+    const elementMap: { [key: string]: string } = {
+      '甲': '木', '乙': '木', // 갑을목
+      '丙': '火', '丁': '火', // 병정화
+      '戊': '土', '己': '土', // 무기토
+      '庚': '金', '辛': '金', // 경신금
+      '壬': '水', '癸': '水', // 임계수
+    };
+    return elementMap[dayGanjiChar] || '水';
   };
+
+  // 오행에 맞는 색상 가져오기
+  const getElementColor = (element: string): string => {
+    const colorMap: { [key: string]: string } = {
+      '木': '#2E7D32', // 녹색 (목)
+      '火': '#D32F2F', // 빨간색 (화)
+      '土': '#F57C00', // 주황색 (토)
+      '金': '#FFD700', // 금색 (금)
+      '水': '#1976D2', // 파란색 (수)
+    };
+    return colorMap[element] || '#1976D2';
+  };
+
+  // 오행에 맞는 배경색 가져오기
+  const getElementBackgroundColor = (element: string): string => {
+    const backgroundMap: { [key: string]: string } = {
+      '木': '#E8F5E8', // 연한 녹색
+      '火': '#FFEBEE', // 연한 빨간색
+      '土': '#FFF3E0', // 연한 주황색
+      '金': '#FFFDE7', // 연한 금색
+      '水': '#E3F2FD', // 연한 파란색
+    };
+    return backgroundMap[element] || '#E3F2FD';
+  };
+
+  // 사용자 정보 로드
+  useEffect(() => {
+    loadUserInfo();
+  }, []);
+
+  const loadUserInfo = async () => {
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        navigation.replace('Login');
+        return;
+      }
+
+      // 카카오 메타데이터에서 이름 가져오기
+      const name = user.user_metadata?.full_name || 
+                   user.user_metadata?.name || 
+                   user.user_metadata?.preferred_username || 
+                   user.user_metadata?.user_name || 
+                   user.email?.split('@')[0] || 
+                   '사용자';
+
+      setUserName(name);
+      setUserEmail(user.email || '');
+
+      // 사주 정보에서 일간 오행 가져오기
+      const { data: birthData, error: birthError } = await supabase
+        .from('birth_infos')
+        .select('saju_data')
+        .eq('user_id', user.id)
+        .single();
+
+      if (birthData?.saju_data?.dayHangulGanji) {
+        // 일간 한글 간지에서 첫 글자 추출 (예: "임수" -> "임")
+        const dayGanChar = birthData.saju_data.dayHangulGanji[0];
+        // 한글을 한자로 변환
+        const ganjiMap: { [key: string]: string } = {
+          '갑': '甲', '을': '乙', '병': '丙', '정': '丁', '무': '戊',
+          '기': '己', '경': '庚', '신': '辛', '임': '壬', '계': '癸'
+        };
+        const dayGanHanja = ganjiMap[dayGanChar] || '壬';
+        const element = getElementFromDayGan(dayGanHanja);
+        setDayGan(element);
+      }
+    } catch (error) {
+      console.error('Error loading user info:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      '로그아웃',
+      '정말 로그아웃 하시겠습니까?',
+      [
+        {
+          text: '취소',
+          style: 'cancel',
+        },
+        {
+          text: '로그아웃',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await supabase.auth.signOut();
+              navigation.replace('Login');
+            } catch (error) {
+              console.error('로그아웃 오류:', error);
+              Alert.alert('오류', '로그아웃에 실패했습니다.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primaryColor} />
+          <Text style={styles.loadingText}>사용자 정보를 불러오는 중...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
           <View style={styles.profileImageContainer}>
-            <View style={styles.profileImage}>
-              <Text style={styles.profileText}>水</Text>
+            <View style={[
+              styles.profileImage, 
+              { backgroundColor: getElementBackgroundColor(dayGan) }
+            ]}>
+              <Text style={[
+                styles.profileText, 
+                { color: getElementColor(dayGan) }
+              ]}>{dayGan}</Text>
             </View>
           </View>
-          <Text style={styles.userName}>두룸치</Text>
-          <Text style={styles.userEmail}>임수일간, 물의사주</Text>
+          <Text style={styles.userName}>{userName}</Text>
+          <Text style={styles.userEmail}>{userEmail}</Text>
         </View>
 
         {/* 결제 기능 임시 비활성화 */}
@@ -124,14 +257,12 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#f2f1e8',
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileText: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: Colors.primaryColor,
   },
   chargeButton: {
     backgroundColor: Colors.primaryColor,
@@ -244,6 +375,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#ccc',
     fontWeight: 'bold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
 });
 

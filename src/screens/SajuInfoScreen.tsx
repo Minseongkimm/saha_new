@@ -9,8 +9,11 @@ import {
   TextInput,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Colors } from '../constants/colors';
+import { supabase } from '../utils/supabaseClient';
+import { calculateSaju } from '../utils/saju/ganji_local';
 
 interface SajuInfoScreenProps {
   navigation: any;
@@ -18,14 +21,14 @@ interface SajuInfoScreenProps {
 
 const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
   const [sajuInfo, setSajuInfo] = useState({
-    name: '두룸치',
-    birthYear: '1990',
-    birthMonth: '3',
-    birthDay: '15',
-    birthHour: '14',
-    birthMinute: '30',
-    gender: '남성',
-    calendarType: '양력',
+    name: '',
+    birthYear: '',
+    birthMonth: '',
+    birthDay: '',
+    birthHour: '',
+    birthMinute: '',
+    gender: '',
+    calendarType: '',
     isLeapMonth: false,
     timeUnknown: false,
   });
@@ -33,12 +36,89 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const yearScrollRef = useRef<ScrollView>(null);
   const monthScrollRef = useRef<ScrollView>(null);
   const dayScrollRef = useRef<ScrollView>(null);
   const hourScrollRef = useRef<ScrollView>(null);
   const minuteScrollRef = useRef<ScrollView>(null);
+
+  // 사용자 정보 로드
+  useEffect(() => {
+    loadUserBirthInfo();
+  }, []);
+
+  const loadUserBirthInfo = async () => {
+    try {
+      setLoading(true);
+      
+      // 현재 로그인된 사용자 정보 가져오기
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        Alert.alert('오류', '로그인이 필요합니다.');
+        navigation.goBack();
+        return;
+      }
+
+      setUserId(user.id);
+
+      // 사용자의 birth_infos 데이터 가져오기
+      const { data: birthData, error: birthError } = await supabase
+        .from('birth_infos')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (birthError && birthError.code !== 'PGRST116') {
+        throw birthError;
+      }
+
+      // 사용자 이름은 Auth 메타데이터에서 가져오기 (카카오 데이터 우선순위)
+      const userName = user.user_metadata?.full_name || 
+                      user.user_metadata?.name || 
+                      user.user_metadata?.preferred_username || 
+                      user.user_metadata?.user_name || 
+                      user.email?.split('@')[0] || 
+                      '사용자';
+
+      if (birthData) {
+        // 데이터베이스에서 가져온 정보로 상태 업데이트
+        setSajuInfo({
+          name: birthData.name || userName, // DB에 이름이 있으면 사용, 없으면 Auth에서 가져온 이름 사용
+          birthYear: birthData.year?.toString() || '',
+          birthMonth: birthData.month?.toString() || '',
+          birthDay: birthData.day?.toString() || '',
+          birthHour: birthData.hour?.toString() || '0',
+          birthMinute: birthData.minute?.toString() || '0',
+          gender: birthData.gender === 'male' ? '남성' : '여성',
+          calendarType: birthData.calendar_type === 'lunar' ? '음력' : '양력',
+          isLeapMonth: birthData.is_leap_month || false,
+          timeUnknown: birthData.is_time_unknown || false,
+        });
+      } else {
+        // 데이터가 없으면 기본값 설정
+        setSajuInfo({
+          name: userName,
+          birthYear: '1990',
+          birthMonth: '1',
+          birthDay: '1',
+          birthHour: '0',
+          birthMinute: '0',
+          gender: '남성',
+          calendarType: '양력',
+          isLeapMonth: false,
+          timeUnknown: true,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading user birth info:', error);
+      Alert.alert('오류', '사주 정보를 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (showDatePicker) {
@@ -65,9 +145,84 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
     }
   }, [showTimePicker]);
 
-  const handleSave = () => {
-    Alert.alert('저장 완료', '사주 정보가 저장되었습니다.');
-    setIsEditing(false);
+  const handleSave = async () => {
+    if (!userId) {
+      Alert.alert('오류', '사용자 정보를 찾을 수 없습니다.');
+      return;
+    }
+
+    if (!sajuInfo.name.trim()) {
+      Alert.alert('오류', '이름을 입력해주세요.');
+      return;
+    }
+
+    if (!sajuInfo.birthYear || !sajuInfo.birthMonth || !sajuInfo.birthDay) {
+      Alert.alert('오류', '생년월일을 입력해주세요.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // 사주 재계산
+      const sajuResult = calculateSaju({
+        year: parseInt(sajuInfo.birthYear),
+        month: parseInt(sajuInfo.birthMonth),
+        day: parseInt(sajuInfo.birthDay),
+        hour: sajuInfo.timeUnknown ? 0 : parseInt(sajuInfo.birthHour),
+        minute: sajuInfo.timeUnknown ? 0 : parseInt(sajuInfo.birthMinute),
+        isLunar: sajuInfo.calendarType === '음력',
+        isLeapMonth: sajuInfo.isLeapMonth,
+      });
+
+      const birthInfoData = {
+        user_id: userId,
+        name: sajuInfo.name.trim(),
+        year: parseInt(sajuInfo.birthYear),
+        month: parseInt(sajuInfo.birthMonth),
+        day: parseInt(sajuInfo.birthDay),
+        hour: sajuInfo.timeUnknown ? null : parseInt(sajuInfo.birthHour),
+        minute: sajuInfo.timeUnknown ? null : parseInt(sajuInfo.birthMinute),
+        is_time_unknown: sajuInfo.timeUnknown,
+        calendar_type: sajuInfo.calendarType === '음력' ? 'lunar' : 'solar',
+        is_leap_month: sajuInfo.isLeapMonth,
+        gender: sajuInfo.gender === '남성' ? 'male' : 'female',
+        saju_data: sajuResult,  // 재계산된 사주 데이터 저장
+      };
+
+      // 기존 데이터 확인 후 업데이트 또는 삽입
+      const { data: existingData, error: checkError } = await supabase
+        .from('birth_infos')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      let error;
+      if (existingData) {
+        // 기존 데이터가 있으면 업데이트
+        const { error: updateError } = await supabase
+          .from('birth_infos')
+          .update(birthInfoData)
+          .eq('user_id', userId);
+        error = updateError;
+      } else {
+        // 기존 데이터가 없으면 삽입
+        const { error: insertError } = await supabase
+          .from('birth_infos')
+          .insert(birthInfoData);
+        error = insertError;
+      }
+
+      if (error) throw error;
+
+      Alert.alert('저장 완료', '사주 정보가 저장되었습니다.');
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving birth info:', error);
+      Alert.alert('오류', '사주 정보 저장에 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCancel = () => {
@@ -109,6 +264,24 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
     });
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backButtonText}>‹</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>사주 정보 관리</Text>
+          <View style={styles.headerRight} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primaryColor} />
+          <Text style={styles.loadingText}>사주 정보를 불러오는 중...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -136,8 +309,13 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
               <TextInput
                 style={styles.input}
                 value={sajuInfo.name}
-                onChangeText={(text) => setSajuInfo({...sajuInfo, name: text})}
+                onChangeText={(text) => {
+                  // 한글, 영문만 허용 (숫자, 특수문자 제거) - 한글 조합 문자도 포함
+                  const filteredText = text.replace(/[^ㄱ-ㅎㅏ-ㅣ가-힣a-zA-Z\s]/g, '');
+                  setSajuInfo({...sajuInfo, name: filteredText});
+                }}
                 placeholder="이름을 입력하세요"
+                maxLength={10}
               />
             ) : (
               <Text style={styles.infoValue}>{sajuInfo.name}</Text>
@@ -883,6 +1061,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
 });
 

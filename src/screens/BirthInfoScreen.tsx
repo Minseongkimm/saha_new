@@ -153,8 +153,18 @@ interface SajuResult {
     setIsLoading(true);
 
     try {
+      // 사용자 이름 가져오기 (카카오 데이터 우선순위)
+      const { data: { user } } = await supabase.auth.getUser();
+      const userName = user?.user_metadata?.full_name || 
+                      user?.user_metadata?.name || 
+                      user?.user_metadata?.preferred_username || 
+                      user?.user_metadata?.user_name || 
+                      user?.email?.split('@')[0] || 
+                      '사용자';
+
       const birthData = {
         user_id: userId,
+        name: userName,
         year: parseInt(birthYear),
         month: parseInt(birthMonth),
         day: parseInt(birthDay),
