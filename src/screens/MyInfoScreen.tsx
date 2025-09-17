@@ -32,7 +32,8 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
           <Text style={styles.userEmail}>임수일간, 물의사주</Text>
         </View>
 
-        <View style={styles.section}>
+        {/* 결제 기능 임시 비활성화 */}
+        {/* <View style={styles.section}>
           <Text style={styles.sectionTitle}>결제</Text>
           <View style={styles.paymentCard}>
             <View style={styles.balanceSection}>
@@ -53,7 +54,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </View> */}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>계정 관리</Text>

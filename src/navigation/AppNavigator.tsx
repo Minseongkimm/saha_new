@@ -11,7 +11,7 @@ import ExpertDetailScreen from '../screens/ExpertDetailScreen';
 import ChatRoomScreen from '../screens/ChatRoomScreen';
 import SajuInfoScreen from '../screens/SajuInfoScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
-import ChargeScreen from '../screens/ChargeScreen';
+// import ChargeScreen from '../screens/ChargeScreen';
 import BirthInfoScreen from '../screens/BirthInfoScreen';
 import { RootStackParamList } from '../types/navigation';
 import LoginScreen from '../screens/LoginScreen';
@@ -115,13 +115,13 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
                 headerShown: false,
               }}
             />
-            <Stack.Screen
+            {/* <Stack.Screen
               name="Charge"
               component={ChargeScreen}
               options={{
                 headerShown: false,
               }}
-            />
+            /> */}
           </>
         )}
       </Stack.Navigator>

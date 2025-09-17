@@ -23,6 +23,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { ChatMessage, ChatMessageDB } from '../types/chat';
 import { getExpertImage } from '../utils/getExpertImage';
 import { expertAIService, BirthInfo } from '../services/ai';
+import { INITIAL_QUESTIONS } from '../services/ai/prompts';
 import { supabase } from '../utils/supabaseClient';
 import { getCachedMessages, setCachedMessages } from '../utils/chatCache';
 
@@ -46,7 +47,6 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   const flatListRef = useRef<FlatList<ChatMessage> | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
-  
   const scrollToBottom = (animated: boolean) => {
     if (!shouldAutoScroll) return;
     
@@ -58,7 +58,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   };
 
   // **text** 형태를 볼드 처리하는 함수
-  const renderFormattedText = React.useCallback((text: string) => {
+  const renderFormattedText = (text: string) => {
     if (!text) return '';
     
     const parts = text.split(/(\*\*.*?\*\*)/);
@@ -74,7 +74,38 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       }
       return part;
     });
-  }, []);
+  };
+
+  // 초기 인사말 생성
+  const generateWelcomeMessage = async () => {
+    try {
+      const welcomeText = await expertAIService.generateWelcomeMessage(expert.category);
+      
+      const welcomeMessage = {
+        id: `welcome_${Date.now()}`,
+        chat_room_id: roomId,
+        sender_type: 'expert' as const,
+        message: welcomeText,
+        created_at: new Date().toISOString()
+      };
+
+      // UI에 인사말 추가
+      setMessages(prev => [...prev, welcomeMessage as ChatMessage]);
+      
+      // DB에 인사말 저장
+      const { id: _ignoreId, ...dbWelcomeMessage } = welcomeMessage as any;
+      await supabase
+        .from('chat_messages')
+        .insert(dbWelcomeMessage);
+        
+      // 캐시 업데이트
+      setCachedMessages(roomId, [...messages, welcomeMessage as ChatMessage]);
+      
+      scrollToBottom(true);
+    } catch (error) {
+      console.error('Error generating welcome message:', error);
+    }
+  };
 
   // 메시지 목록 가져오기
   const fetchMessages = async () => {
@@ -90,6 +121,12 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       const ordered = (data || []).reverse();
       setMessages(ordered);
       setCachedMessages(roomId, ordered);
+      
+      // 메시지가 없으면 초기 인사말 생성
+      if (ordered.length === 0) {
+        await generateWelcomeMessage();
+      }
+      
       // 데이터 적용 직후 1회 무애니메이션으로 맨 아래 고정
       scrollToBottom(false);
     } catch (error) {
@@ -330,8 +367,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     try {
       // 사용자 메시지 UI 업데이트 및 DB 저장
       setMessages(prev => [...prev, userMessage as ChatMessage]);
-      // 새 메시지 전송 시 자동 스크롤 활성화
-      setShouldAutoScroll(true);
+      // 새 입력 시는 자연스러운 애니메이션 스크롤
       scrollToBottom(true);
       setMessage('');
 
@@ -382,6 +418,8 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         throw new Error(aiError);
       }
 
+      console.log('Setting message with follow-up questions:', followUpQuestions);
+      
       // 스트리밍 누락 방지: 최종 텍스트로 임시 버블을 확정
       setMessages(prev => prev.map(msg => 
         (msg as any).id === tempId
@@ -466,7 +504,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     );
   };
 
-  const MessageItem = React.memo(({ item }: { item: ChatMessage }) => (
+  const renderMessage = ({ item }: { item: ChatMessage }) => (
     <View style={styles.messageContainer}>
       {item.sender_type === 'expert' && (
         <View style={styles.expertInfo}>
@@ -499,10 +537,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         })}
       </Text>
     </View>
-  ));
-
-  const renderMessage = React.useCallback(({ item }: { item: ChatMessage }) => 
-    <MessageItem item={item} />, []);
+  );
 
   const ListEmptyThinking = () => (
     <View style={styles.messageContainer}>
@@ -554,13 +589,44 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
               // 스크롤이 맨 아래 근처에 있으면 자동 스크롤 다시 활성화
               setTimeout(() => setShouldAutoScroll(true), 1000);
             }}
+            removeClippedSubviews={false}
             ListEmptyComponent={loading ? ListEmptyThinking : null}
           />
         
         <View style={styles.inputContainer}>
+          {/* 초기 질문 옵션 표시 (인사말만 있을 때) */}
+          {(() => {
+            if (messages.length !== 1) return null;
+            const firstMessage = messages[0];
+            if (firstMessage.sender_type !== 'expert') return null;
+            const initialQuestions = INITIAL_QUESTIONS[expert.category as keyof typeof INITIAL_QUESTIONS];
+            if (!initialQuestions?.length) return null;
+            
+            return (
+              <View style={styles.initialQuestionsContainer}>
+                <Text style={styles.initialQuestionsTitle}>궁금한 점을 선택해보세요</Text>
+                <View style={styles.initialQuestionsGrid}>
+                  {initialQuestions.map((question: string, index: number) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.initialQuestionButton}
+                      onPress={async () => {
+                        await sendMessageWithText(question);
+                      }}
+                    >
+                      <Text style={styles.initialQuestionButtonText} numberOfLines={2}>
+                        {question}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            );
+          })()}
+          
           {/* 팔로업 질문이 있을 때만 표시 */}
           {(() => {
-            if (messages.length === 0) return null;
+            if (messages.length <= 1) return null;
             const lastMessage = messages[messages.length - 1];
             if (!lastMessage.follow_up_questions?.length) return null;
             return (
@@ -572,8 +638,6 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
                       key={index}
                       style={styles.followUpButton}
                       onPress={async () => {
-                        setMessage(question);
-                        // 바로 전송
                         await sendMessageWithText(question);
                       }}
                     >
@@ -734,6 +798,42 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     // borderTopWidth: 1,
     // borderTopColor: '#e9ecef',
+  },
+  initialQuestionsContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  initialQuestionsTitle: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  initialQuestionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  initialQuestionButton: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    width: '48%',
+    minHeight: 44,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  initialQuestionButtonText: {
+    color: '#333',
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: '500',
+    lineHeight: 16,
   },
   followUpContainer: {
     paddingHorizontal: 16,

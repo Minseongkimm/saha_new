@@ -1,21 +1,21 @@
 export const AI_CONFIG = {
   // MODEL_NAME: LLM family/version. 추론력 강화 필요 시 상위 모델 사용
-  MODEL_NAME: "gpt-4o",
+  MODEL_NAME: "gpt-4o-mini",
   // TEMPERATURE: 창의성/다양성 제어(0=결정적, 높을수록 변주). 상담 톤은 0.5 권장
-  TEMPERATURE: 0.5,
-  // MAX_RECENT_MESSAGES: 프롬프트에 포함할 최근 대화 길이(맥락 유지 범위)
-  MAX_RECENT_MESSAGES: 12,
+  TEMPERATURE: 0.7,
+  // MAX_RECENT_MESSAGES: 프롬프트 길이 단축으로 속도 향상
+  MAX_RECENT_MESSAGES: 8,
   // RESPONSE_TIMEOUT(ms): LLM 응답 대기 타임아웃
-  RESPONSE_TIMEOUT: 30000,
-  // TARGET_CHAR_LENGTH: 답변 목표 길이(자). 장황함 방지용 가이드
-  TARGET_CHAR_LENGTH: 450,
+  RESPONSE_TIMEOUT: 20000,
+  // TARGET_CHAR_LENGTH: 답변 길이 단축으로 생성 속도 향상
+  TARGET_CHAR_LENGTH: 300,
   // STREAM_*: 클라이언트 측 가짜 스트리밍(텍스트 점진 표시) 속도 제어
   STREAM_CHUNK_SIZE: 12,
-  STREAM_DELAY_MS: 70,
+  STREAM_DELAY_MS: 50,
   // 샘플링/패널티: 표현 중복 억제와 주제 다양성 유도
-  TOP_P: 0.9,
-  FREQUENCY_PENALTY: 0.6,
-  PRESENCE_PENALTY: 0.3,
+  TOP_P: 0.8,
+  FREQUENCY_PENALTY: 0.3,
+  PRESENCE_PENALTY: 0.2,
 };
 
 export const ERROR_MESSAGES = {

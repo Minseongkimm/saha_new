@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config/env';
+
 // Supabase 설정
-const supabaseUrl = 'https://tdzkgyixpthhzzcfnotu.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRkemtneWl4cHRoaHp6Y2Zub3R1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcyODI5NzQsImV4cCI6MjA3Mjg1ODk3NH0.qXnrCzQ9coN3s_IR_Fkezc6PNK_oLIAt4HB-1ZfFqvs';
+const supabaseUrl = SUPABASE_URL;
+const supabaseAnonKey = SUPABASE_ANON_KEY;
 
 // Supabase 클라이언트 생성 (React Native 최적화)
 // 강제 로그아웃 함수

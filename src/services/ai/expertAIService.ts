@@ -2,7 +2,7 @@ import { ChatOpenAI } from "@langchain/openai";
 
 import { AI_CONFIG, ERROR_MESSAGES } from './config';
 import { OPENAI_API_KEY } from '../../config/env';
-import { getExpertPrompt } from './prompts';
+import { getExpertPrompt, getWelcomePrompt } from './prompts';
 import { AIResponse, ChatContext, ExpertCategory, StreamCallback } from './types';
 
 class ExpertAIService {
@@ -92,6 +92,32 @@ class ExpertAIService {
     };
   }
 
+  public async generateWelcomeMessage(expertCategory: ExpertCategory): Promise<string> {
+    try {
+      const welcomePrompt = getWelcomePrompt(expertCategory);
+      
+      const result = await Promise.race([
+        this.chatModel.invoke([
+          { role: 'system', content: welcomePrompt },
+        ]),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error(ERROR_MESSAGES.RESPONSE_TIMEOUT)), 
+          AI_CONFIG.RESPONSE_TIMEOUT)
+        )
+      ]) as any;
+      
+      const content = (result && (result as any).content) ?? '';
+      const response = Array.isArray(content)
+        ? content.map((c: any) => (typeof c === 'string' ? c : c.text ?? '')).join('')
+        : String(content);
+      
+      return response.trim();
+    } catch (error) {
+      console.error('Error generating welcome message:', error);
+      return '안녕하세요! 궁금한 점이 있으시면 언제든 말씀해 주세요.';
+    }
+  }
+
   public async generateResponse(
     context: ChatContext,
     onStream?: StreamCallback
@@ -145,17 +171,31 @@ class ExpertAIService {
         ? content.map((c: any) => (typeof c === 'string' ? c : c.text ?? '')).join('')
         : String(content);
 
-      // 팔로업 질문 추출
-      const lastQuestionsRegex = /팔로업\s*질문:\s*\n\s*1\.\s*([^\n]+)\s*\n\s*2\.\s*([^\n]+)/;
-      const followUpMatch = response.match(lastQuestionsRegex);
-      let cleanResponse = response;
+      // 팔로업 질문 추출 - 다양한 형식 지원
       const followUpQuestions: string[] = [];
+      let cleanResponse = response;
 
-      // 팔로업 질문이 있으면 추출하고, 없으면 무시
-      if (followUpMatch && followUpMatch[1] && followUpMatch[2]) {
-        followUpQuestions.push(followUpMatch[1].trim(), followUpMatch[2].trim());
-        // 팔로업 질문 부분 제거
+      // 형식 1: "팔로업 질문:" 형식
+      const format1Regex = /팔로업\s*질문:\s*\n\s*1\.\s*([^\n]+)\s*\n\s*2\.\s*([^\n]+)/;
+      const format1Match = response.match(format1Regex);
+      
+      // 형식 2: "다음으로 궁금하신 점은 무엇인지요?" 형식
+      const format2Regex = /다음으로\s*궁금하신\s*점은\s*무엇인지요\?[\s\S]*?1\.\s*([^\n]+)[\s\S]*?2\.\s*([^\n]+)/;
+      const format2Match = response.match(format2Regex);
+      
+      // 형식 3: 단순히 1. 2. 형식
+      const format3Regex = /1\.\s*([^\n]+)[\s\S]*?2\.\s*([^\n]+)/;
+      const format3Match = response.match(format3Regex);
+
+      if (format1Match && format1Match[1] && format1Match[2]) {
+        followUpQuestions.push(format1Match[1].trim(), format1Match[2].trim());
         cleanResponse = response.replace(/팔로업\s*질문:[\s\S]*$/, '').trim();
+      } else if (format2Match && format2Match[1] && format2Match[2]) {
+        followUpQuestions.push(format2Match[1].trim(), format2Match[2].trim());
+        cleanResponse = response.replace(/다음으로\s*궁금하신\s*점은\s*무엇인지요\?[\s\S]*$/, '').trim();
+      } else if (format3Match && format3Match[1] && format3Match[2]) {
+        followUpQuestions.push(format3Match[1].trim(), format3Match[2].trim());
+        cleanResponse = response.replace(/1\.\s*[^\n]+[\s\S]*?2\.\s*[^\n]+[\s\S]*$/, '').trim();
       }
 
       if (onStream) {
