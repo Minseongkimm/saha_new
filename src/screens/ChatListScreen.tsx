@@ -21,7 +21,7 @@ import { getExpertImage } from '../utils/getExpertImage';
 import { useNavigation } from '@react-navigation/native';
 import { getChatListCache, setChatListCache, isChatListFresh, consumeChatListNeedsRefresh } from '../utils/chatListCache';
 
-interface ChatScreenProps {
+interface ChatListScreenProps {
   navigation: any;
 }
 
@@ -36,7 +36,7 @@ interface ChatItem {
   expert: Expert;
 }
 
-const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
+const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectionMode, setSelectionMode] = useState<boolean>(false);
@@ -309,7 +309,22 @@ const ChatScreen: React.FC<ChatScreenProps> = ({ navigation }) => {
           contentContainerStyle={[styles.chatListContent, chats.length === 0 ? styles.emptyListContent : undefined]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>최근 대화가 없습니다.</Text>
+              {/* <Image 
+                source={require('../../assets/saju/saju_example.png')} 
+                style={styles.emptyImage}
+                resizeMode="contain"
+              /> */}
+              <Text style={styles.emptyTitle}>당신의 이야기를 들려주세요</Text>
+              <Text style={styles.emptySubtitle}>
+                AI 도사들과 대화를 시작해보세요{'\n'}
+                당신만의 인생에 실마리를 찾아요
+              </Text>
+              <TouchableOpacity 
+                style={styles.startChatButton}
+                onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
+              >
+                <Text style={styles.startChatButtonText}>대화하기</Text>
+              </TouchableOpacity>
             </View>
           }
         />
@@ -492,7 +507,44 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: 40,
+    paddingVertical: 80,
+  },
+  emptyImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 24,
+    opacity: 0.7,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  startChatButton: {
+    backgroundColor: Colors.primaryColor,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  startChatButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
   emptyText: {
     color: '#999',
@@ -564,4 +616,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ChatScreen;
+export default ChatListScreen;

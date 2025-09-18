@@ -1,8 +1,8 @@
 export const AI_CONFIG = {
   // MODEL_NAME: LLM family/version. 추론력 강화 필요 시 상위 모델 사용
-  MODEL_NAME: "gpt-4o-mini",
+  MODEL_NAME: "gpt-4o",
   // TEMPERATURE: 창의성/다양성 제어(0=결정적, 높을수록 변주). 상담 톤은 0.5 권장
-  TEMPERATURE: 0.7,
+  TEMPERATURE: 1.2,
   // MAX_RECENT_MESSAGES: 프롬프트 길이 단축으로 속도 향상
   MAX_RECENT_MESSAGES: 8,
   // RESPONSE_TIMEOUT(ms): LLM 응답 대기 타임아웃

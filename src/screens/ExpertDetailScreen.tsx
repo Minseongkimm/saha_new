@@ -16,6 +16,7 @@ import { Expert } from '../types/expert';
 
 import { getExpertImage } from '../utils/getExpertImage';
 import { getExpertListCache } from '../utils/expertListCache';
+import { markChatListNeedsRefresh } from '../utils/chatListCache';
 
 interface ExpertDetailScreenProps {
   navigation: any;
@@ -83,6 +84,8 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
 
         if (error) throw error;
         chatRoomId = newRoom.id;
+        // 새로운 대화방이 생성되면 대화 리스트 새로고침 필요
+        markChatListNeedsRefresh();
       }
 
       // 3. 채팅방으로 이동

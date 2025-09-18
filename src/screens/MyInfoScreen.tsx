@@ -225,12 +225,12 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
             <Text style={styles.arrowIcon}>›</Text>
           </TouchableOpacity>
         </View>
-
-        <View style={styles.developerInfo}>
-          <Text style={styles.developerText}>© 2024 Saha App</Text>
-          <Text style={styles.developerText}>개발자: Saha Team</Text>
-        </View>
       </ScrollView>
+
+      <View style={styles.developerInfo}>
+        <Text style={styles.developerText}>© 2025 Saha App</Text>
+        <Text style={styles.developerText}>개발자: Saha Team</Text>
+      </View>
     </SafeAreaView>
   );
 };

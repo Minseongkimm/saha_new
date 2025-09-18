@@ -175,27 +175,27 @@ class ExpertAIService {
       const followUpQuestions: string[] = [];
       let cleanResponse = response;
 
-      // 형식 1: "팔로업 질문:" 형식
-      const format1Regex = /팔로업\s*질문:\s*\n\s*1\.\s*([^\n]+)\s*\n\s*2\.\s*([^\n]+)/;
+      // 형식 1: "팔로업 질문:" 형식 (4개)
+      const format1Regex = /팔로업\s*질문:\s*\n\s*1\.\s*([^\n]+)\s*\n\s*2\.\s*([^\n]+)\s*\n\s*3\.\s*([^\n]+)\s*\n\s*4\.\s*([^\n]+)/;
       const format1Match = response.match(format1Regex);
       
-      // 형식 2: "다음으로 궁금하신 점은 무엇인지요?" 형식
-      const format2Regex = /다음으로\s*궁금하신\s*점은\s*무엇인지요\?[\s\S]*?1\.\s*([^\n]+)[\s\S]*?2\.\s*([^\n]+)/;
+      // 형식 2: "다음으로 궁금하신 점은 무엇인지요?" 형식 (4개)
+      const format2Regex = /다음으로\s*궁금하신\s*점은\s*무엇인지요\?[\s\S]*?1\.\s*([^\n]+)[\s\S]*?2\.\s*([^\n]+)[\s\S]*?3\.\s*([^\n]+)[\s\S]*?4\.\s*([^\n]+)/;
       const format2Match = response.match(format2Regex);
       
-      // 형식 3: 단순히 1. 2. 형식
-      const format3Regex = /1\.\s*([^\n]+)[\s\S]*?2\.\s*([^\n]+)/;
+      // 형식 3: 단순히 1. 2. 3. 4. 형식
+      const format3Regex = /1\.\s*([^\n]+)[\s\S]*?2\.\s*([^\n]+)[\s\S]*?3\.\s*([^\n]+)[\s\S]*?4\.\s*([^\n]+)/;
       const format3Match = response.match(format3Regex);
 
-      if (format1Match && format1Match[1] && format1Match[2]) {
-        followUpQuestions.push(format1Match[1].trim(), format1Match[2].trim());
+      if (format1Match && format1Match[1] && format1Match[2] && format1Match[3] && format1Match[4]) {
+        followUpQuestions.push(format1Match[1].trim(), format1Match[2].trim(), format1Match[3].trim(), format1Match[4].trim());
         cleanResponse = response.replace(/팔로업\s*질문:[\s\S]*$/, '').trim();
-      } else if (format2Match && format2Match[1] && format2Match[2]) {
-        followUpQuestions.push(format2Match[1].trim(), format2Match[2].trim());
+      } else if (format2Match && format2Match[1] && format2Match[2] && format2Match[3] && format2Match[4]) {
+        followUpQuestions.push(format2Match[1].trim(), format2Match[2].trim(), format2Match[3].trim(), format2Match[4].trim());
         cleanResponse = response.replace(/다음으로\s*궁금하신\s*점은\s*무엇인지요\?[\s\S]*$/, '').trim();
-      } else if (format3Match && format3Match[1] && format3Match[2]) {
-        followUpQuestions.push(format3Match[1].trim(), format3Match[2].trim());
-        cleanResponse = response.replace(/1\.\s*[^\n]+[\s\S]*?2\.\s*[^\n]+[\s\S]*$/, '').trim();
+      } else if (format3Match && format3Match[1] && format3Match[2] && format3Match[3] && format3Match[4]) {
+        followUpQuestions.push(format3Match[1].trim(), format3Match[2].trim(), format3Match[3].trim(), format3Match[4].trim());
+        cleanResponse = response.replace(/1\.\s*[^\n]+[\s\S]*?4\.\s*[^\n]+[\s\S]*$/, '').trim();
       }
 
       if (onStream) {

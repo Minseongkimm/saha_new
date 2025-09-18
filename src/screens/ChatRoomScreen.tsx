@@ -26,6 +26,7 @@ import { expertAIService, BirthInfo } from '../services/ai';
 import { INITIAL_QUESTIONS } from '../services/ai/prompts';
 import { supabase } from '../utils/supabaseClient';
 import { getCachedMessages, setCachedMessages } from '../utils/chatCache';
+import { markChatListNeedsRefresh, updateChatListPreview } from '../utils/chatListCache';
 
 interface ChatRoomScreenProps {
   navigation: any;
@@ -177,6 +178,8 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
 
     return () => {
       channel.unsubscribe();
+      // 대화방 나갈 때 대화 리스트 새로고침 필요 표시
+      markChatListNeedsRefresh();
     };
   }, [roomId]);
 
@@ -343,6 +346,12 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
 
       if (aiMessageError) throw aiMessageError;
 
+      // 대화 리스트 캐시 즉시 업데이트
+      if (aiFinalText) {
+        const timestampLabel = new Date().toLocaleString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        updateChatListPreview(roomId, aiFinalText, timestampLabel);
+      }
+
     } catch (error) {
       console.error('Error sending message:', error);
       Alert.alert('오류', '메시지 전송에 실패했습니다.');
@@ -438,6 +447,12 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         });
 
       if (aiMessageError) throw aiMessageError;
+
+      // 대화 리스트 캐시 즉시 업데이트
+      if (aiFinalText) {
+        const timestampLabel = new Date().toLocaleString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        updateChatListPreview(roomId, aiFinalText, timestampLabel);
+      }
 
       // 최근 메시지 갱신은 방 이탈 시 일괄 처리
 
@@ -848,15 +863,16 @@ const styles = StyleSheet.create({
   },
   followUpButtonsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 8,
   },
   followUpButton: {
     backgroundColor: '#f0f0f5',
     borderRadius: 6,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    flex: 1,
+    width: '48%',
     minHeight: 36,
     justifyContent: 'center',
   },

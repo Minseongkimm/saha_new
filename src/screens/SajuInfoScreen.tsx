@@ -14,6 +14,7 @@ import {
 import { Colors } from '../constants/colors';
 import { supabase } from '../utils/supabaseClient';
 import { calculateSaju } from '../utils/saju/ganji_local';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface SajuInfoScreenProps {
   navigation: any;
@@ -64,7 +65,36 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
 
       setUserId(user.id);
 
-      // 사용자의 birth_infos 데이터 가져오기
+      // 사용자 이름은 Auth 메타데이터에서 가져오기 (카카오 데이터 우선순위)
+      const userName = user.user_metadata?.full_name || 
+                      user.user_metadata?.name || 
+                      user.user_metadata?.preferred_username || 
+                      user.user_metadata?.user_name || 
+                      user.email?.split('@')[0] || 
+                      '사용자';
+
+      // 캐시 우선 표시
+      const cacheKey = `birth_info_${user.id}`;
+      const cachedData = await AsyncStorage.getItem(cacheKey);
+      
+      if (cachedData) {
+        const parsedCache = JSON.parse(cachedData);
+        setSajuInfo({
+          name: parsedCache.name || userName,
+          birthYear: parsedCache.year?.toString() || '',
+          birthMonth: parsedCache.month?.toString() || '',
+          birthDay: parsedCache.day?.toString() || '',
+          birthHour: parsedCache.hour?.toString() || '0',
+          birthMinute: parsedCache.minute?.toString() || '0',
+          gender: parsedCache.gender === 'male' ? '남성' : '여성',
+          calendarType: parsedCache.calendar_type === 'lunar' ? '음력' : '양력',
+          isLeapMonth: parsedCache.is_leap_month || false,
+          timeUnknown: parsedCache.is_time_unknown || false,
+        });
+        setLoading(false);
+      }
+
+      // 백그라운드에서 최신 데이터 가져오기
       const { data: birthData, error: birthError } = await supabase
         .from('birth_infos')
         .select('*')
@@ -75,18 +105,13 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
         throw birthError;
       }
 
-      // 사용자 이름은 Auth 메타데이터에서 가져오기 (카카오 데이터 우선순위)
-      const userName = user.user_metadata?.full_name || 
-                      user.user_metadata?.name || 
-                      user.user_metadata?.preferred_username || 
-                      user.user_metadata?.user_name || 
-                      user.email?.split('@')[0] || 
-                      '사용자';
-
       if (birthData) {
+        // 캐시 업데이트
+        await AsyncStorage.setItem(cacheKey, JSON.stringify(birthData));
+        
         // 데이터베이스에서 가져온 정보로 상태 업데이트
         setSajuInfo({
-          name: birthData.name || userName, // DB에 이름이 있으면 사용, 없으면 Auth에서 가져온 이름 사용
+          name: birthData.name || userName,
           birthYear: birthData.year?.toString() || '',
           birthMonth: birthData.month?.toString() || '',
           birthDay: birthData.day?.toString() || '',
@@ -99,7 +124,7 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
         });
       } else {
         // 데이터가 없으면 기본값 설정
-        setSajuInfo({
+        const defaultData = {
           name: userName,
           birthYear: '1990',
           birthMonth: '1',
@@ -110,7 +135,8 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
           calendarType: '양력',
           isLeapMonth: false,
           timeUnknown: true,
-        });
+        };
+        setSajuInfo(defaultData);
       }
     } catch (error) {
       console.error('Error loading user birth info:', error);
@@ -214,6 +240,10 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
       }
 
       if (error) throw error;
+
+      // 캐시 업데이트
+      const cacheKey = `birth_info_${userId}`;
+      await AsyncStorage.setItem(cacheKey, JSON.stringify(birthInfoData));
 
       Alert.alert('저장 완료', '사주 정보가 저장되었습니다.');
       setIsEditing(false);
