@@ -355,30 +355,250 @@ export class SajuCalculator {
     const analysis1 = this.analyzeSaju(sajuInfo1);
     const analysis2 = this.analyzeSaju(sajuInfo2);
     
-    // 오행 상생/상극 분석
-    const compatibility: {
-      overall: string;
-      details: string[];
-      recommendations: string[];
-    } = {
+    // 상세 호환성 분석
+    const compatibility = {
       overall: '보통',
-      details: [],
-      recommendations: []
+      score: 50,
+      details: [] as string[],
+      recommendations: [] as string[],
+      strengths: [] as string[],
+      weaknesses: [] as string[],
+      categories: {
+        dayPillar: { score: 50, description: '' },
+        fiveElements: { score: 50, description: '' },
+        jijiRelation: { score: 50, description: '' },
+        sinsal: { score: 50, description: '' }
+      }
     };
     
-    // 간단한 호환성 분석 로직
-    const dayGan1 = SajuUtils.getProperty(sajuInfo1.dayGanji[0]);
-    const dayGan2 = SajuUtils.getProperty(sajuInfo2.dayGanji[0]);
+    let totalScore = 0;
     
-    if (SajuUtils.isSangsaeng(dayGan1, dayGan2)) {
+    // 1. 일주 궁합 분석 (가중치 30%)
+    const dayPillarScore = this.analyzeDayPillarCompatibility(sajuInfo1, sajuInfo2);
+    compatibility.categories.dayPillar = dayPillarScore;
+    totalScore += dayPillarScore.score * 0.3;
+    
+    // 2. 오행 균형 궁합 (가중치 25%)
+    const fiveElementScore = this.analyzeFiveElementCompatibility(sajuInfo1, sajuInfo2);
+    compatibility.categories.fiveElements = fiveElementScore;
+    totalScore += fiveElementScore.score * 0.25;
+    
+    // 3. 지지 관계 궁합 (가중치 25%)
+    const jijiScore = this.analyzeJijiCompatibility(sajuInfo1, sajuInfo2);
+    compatibility.categories.jijiRelation = jijiScore;
+    totalScore += jijiScore.score * 0.25;
+    
+    // 4. 신살 궁합 (가중치 20%)
+    const sinsalScore = this.analyzeSinsalCompatibility(analysis1, analysis2);
+    compatibility.categories.sinsal = sinsalScore;
+    totalScore += sinsalScore.score * 0.2;
+    
+    compatibility.score = Math.round(totalScore);
+    
+    // 종합 평가
+    if (compatibility.score >= 80) {
+      compatibility.overall = '매우 좋음';
+    } else if (compatibility.score >= 65) {
       compatibility.overall = '좋음';
-      compatibility.details.push('일간 오행이 상생 관계입니다.');
-    } else if (SajuUtils.isSanggeuk(dayGan1, dayGan2)) {
+    } else if (compatibility.score >= 50) {
+      compatibility.overall = '보통';
+    } else if (compatibility.score >= 35) {
       compatibility.overall = '주의';
-      compatibility.details.push('일간 오행이 상극 관계입니다.');
+    } else {
+      compatibility.overall = '매우 주의';
     }
     
+    // 상세 분석 결과 정리
+    Object.values(compatibility.categories).forEach(category => {
+      if (category.score >= 70) {
+        compatibility.strengths.push(category.description);
+      } else if (category.score < 40) {
+        compatibility.weaknesses.push(category.description);
+      }
+      compatibility.details.push(category.description);
+    });
+    
+    // 추천사항 생성
+    this.generateCompatibilityRecommendations(compatibility);
+    
     return compatibility;
+  }
+
+  /**
+   * 일주 궁합 분석
+   */
+  private analyzeDayPillarCompatibility(sajuInfo1: SajuInfo, sajuInfo2: SajuInfo): { score: number; description: string } {
+    const dayGan1 = SajuUtils.getProperty(sajuInfo1.dayGanji[0]);
+    const dayGan2 = SajuUtils.getProperty(sajuInfo2.dayGanji[0]);
+    const dayJi1 = SajuUtils.getProperty(sajuInfo1.dayGanji[1]);
+    const dayJi2 = SajuUtils.getProperty(sajuInfo2.dayGanji[1]);
+    
+    let score = 50;
+    let description = '';
+    
+    // 일간 관계 분석
+    if (SajuUtils.isSangsaeng(dayGan1, dayGan2) || SajuUtils.isSangsaeng(dayGan2, dayGan1)) {
+      score += 20;
+      description += '일간이 상생관계로 서로 도움이 됩니다. ';
+    } else if (SajuUtils.isSanggeuk(dayGan1, dayGan2) || SajuUtils.isSanggeuk(dayGan2, dayGan1)) {
+      score -= 15;
+      description += '일간이 상극관계로 갈등이 있을 수 있습니다. ';
+    } else if (dayGan1 === dayGan2) {
+      score += 10;
+      description += '일간이 같아 성향이 비슷합니다. ';
+    }
+    
+    // 일지 관계 분석
+    if (SajuUtils.isSangsaeng(dayJi1, dayJi2) || SajuUtils.isSangsaeng(dayJi2, dayJi1)) {
+      score += 15;
+      description += '일지가 상생관계로 조화롭습니다.';
+    } else if (SajuUtils.isSanggeuk(dayJi1, dayJi2) || SajuUtils.isSanggeuk(dayJi2, dayJi1)) {
+      score -= 10;
+      description += '일지가 상극관계로 주의가 필요합니다.';
+    }
+    
+    return { score: Math.max(0, Math.min(100, score)), description };
+  }
+
+  /**
+   * 오행 균형 궁합 분석
+   */
+  private analyzeFiveElementCompatibility(sajuInfo1: SajuInfo, sajuInfo2: SajuInfo): { score: number; description: string } {
+    const balance1 = this.analyzeFiveElementBalance(sajuInfo1);
+    const balance2 = this.analyzeFiveElementBalance(sajuInfo2);
+    
+    let score = 50;
+    let description = '';
+    
+    // 부족한 오행을 서로 보완하는지 확인
+    const weak1 = balance1.weakElements || [];
+    const strong2 = balance2.strongElements || [];
+    const weak2 = balance2.weakElements || [];
+    const strong1 = balance1.strongElements || [];
+    
+    const complement1to2 = weak1.filter((element: string) => strong2.includes(element)).length;
+    const complement2to1 = weak2.filter((element: string) => strong1.includes(element)).length;
+    
+    if (complement1to2 > 0 && complement2to1 > 0) {
+      score += 25;
+      description = '서로의 부족한 오행을 완벽하게 보완해줍니다.';
+    } else if (complement1to2 > 0 || complement2to1 > 0) {
+      score += 15;
+      description = '한쪽의 부족한 오행을 보완해줍니다.';
+    } else {
+      description = '오행 보완 관계가 약합니다.';
+    }
+    
+    return { score: Math.max(0, Math.min(100, score)), description };
+  }
+
+  /**
+   * 지지 관계 궁합 분석
+   */
+  private analyzeJijiCompatibility(sajuInfo1: SajuInfo, sajuInfo2: SajuInfo): { score: number; description: string } {
+    const jiji1 = [sajuInfo1.yearGanji[1], sajuInfo1.monthGanji[1], sajuInfo1.dayGanji[1], sajuInfo1.timeGanji[1]];
+    const jiji2 = [sajuInfo2.yearGanji[1], sajuInfo2.monthGanji[1], sajuInfo2.dayGanji[1], sajuInfo2.timeGanji[1]];
+    
+    let score = 50;
+    let harmonious = 0;
+    let conflicting = 0;
+    
+    // 삼합, 육합 관계 확인
+    const banghapResult1 = this.banghapCalculator.analyzeBanghapStrength([...jiji1, ...jiji2]);
+    if (banghapResult1.totalStrength > 0) {
+      harmonious += banghapResult1.totalStrength;
+    }
+    
+    // 충, 형, 해 관계 확인 (간단한 버전)
+    for (const ji1 of jiji1) {
+      for (const ji2 of jiji2) {
+        if (this.isJijiConflict(ji1, ji2)) {
+          conflicting += 1;
+        }
+      }
+    }
+    
+    score += harmonious * 10 - conflicting * 5;
+    
+    let description = '';
+    if (harmonious > conflicting) {
+      description = '지지 관계가 조화롭고 안정적입니다.';
+    } else if (conflicting > harmonious) {
+      description = '지지 관계에서 갈등 요소가 있습니다.';
+    } else {
+      description = '지지 관계가 평범합니다.';
+    }
+    
+    return { score: Math.max(0, Math.min(100, score)), description };
+  }
+
+  /**
+   * 신살 궁합 분석
+   */
+  private analyzeSinsalCompatibility(analysis1: SajuAnalysis, analysis2: SajuAnalysis): { score: number; description: string } {
+    let score = 50;
+    let description = '신살 관계가 평범합니다.';
+    
+    // 긍정적인 신살 개수 비교
+    const positive1 = this.countPositiveSinsal(analysis1.sinsal);
+    const positive2 = this.countPositiveSinsal(analysis2.sinsal);
+    
+    if (positive1 > 2 && positive2 > 2) {
+      score += 20;
+      description = '둘 다 좋은 신살이 많아 길한 관계입니다.';
+    } else if (positive1 > 2 || positive2 > 2) {
+      score += 10;
+      description = '한쪽에 좋은 신살이 많습니다.';
+    }
+    
+    return { score: Math.max(0, Math.min(100, score)), description };
+  }
+
+  /**
+   * 지지 충돌 확인 (간단한 버전)
+   */
+  private isJijiConflict(ji1: string, ji2: string): boolean {
+    const conflicts: { [key: string]: string } = {
+      '子': '午', '午': '子',
+      '丑': '未', '未': '丑', 
+      '寅': '申', '申': '寅',
+      '卯': '酉', '酉': '卯',
+      '辰': '戌', '戌': '辰',
+      '巳': '亥', '亥': '巳'
+    };
+    return conflicts[ji1] === ji2;
+  }
+
+  /**
+   * 긍정적인 신살 개수 계산
+   */
+  private countPositiveSinsal(sinsal: { [key: string]: string[] }): number {
+    const positiveSinsal = ['천을귀인', '월덕귀인', '천덕귀인', '복성귀인', '월령'];
+    let count = 0;
+    
+    Object.keys(sinsal).forEach(key => {
+      if (positiveSinsal.some(positive => key.includes(positive))) {
+        count += sinsal[key].length;
+      }
+    });
+    
+    return count;
+  }
+
+  /**
+   * 궁합 추천사항 생성
+   */
+  private generateCompatibilityRecommendations(compatibility: any): void {
+    if (compatibility.score >= 80) {
+      compatibility.recommendations.push('매우 좋은 궁합입니다. 서로를 믿고 의지하세요.');
+    } else if (compatibility.score >= 65) {
+      compatibility.recommendations.push('좋은 궁합입니다. 소통을 통해 더욱 발전시키세요.');
+    } else if (compatibility.score >= 50) {
+      compatibility.recommendations.push('보통 궁합입니다. 서로의 차이점을 인정하고 노력하세요.');
+    } else {
+      compatibility.recommendations.push('주의가 필요한 궁합입니다. 서로 이해하려 노력하세요.');
+      compatibility.recommendations.push('갈등이 생기면 냉정하게 대화로 해결하세요.');
+    }
   }
 
   /**

@@ -81,6 +81,26 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           
         {/* 사주 메뉴 섹션 */}
         <View style={styles.content}>
+          {/* 궁합 기능 버튼 - 임시 주석 처리 */}
+          {/* <TouchableOpacity 
+            style={styles.compatibilityButton}
+            onPress={() => navigation.navigate('Compatibility')}
+            activeOpacity={0.8}
+          >
+            <View style={styles.compatibilityContent}>
+              <View style={styles.compatibilityIcon}>
+                <Text style={styles.compatibilityIconText}>💕</Text>
+              </View>
+              <View style={styles.compatibilityTextContainer}>
+                <Text style={styles.compatibilityTitle}>사주 궁합</Text>
+                <Text style={styles.compatibilitySubtitle}>두 사람의 궁합을 확인해보세요</Text>
+              </View>
+              <View style={styles.compatibilityArrow}>
+                <Text style={styles.compatibilityArrowText}>›</Text>
+              </View>
+            </View>
+          </TouchableOpacity> */}
+
           <View style={styles.cardsSection}>
             <Text style={styles.sectionTitle}>AI 사주 도사</Text>
             {loading ? (
@@ -151,6 +171,56 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     paddingHorizontal: 0,
+  },
+  compatibilityButton: {
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  compatibilityContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+  },
+  compatibilityIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#fff0f5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  compatibilityIconText: {
+    fontSize: 24,
+  },
+  compatibilityTextContainer: {
+    flex: 1,
+  },
+  compatibilityTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  compatibilitySubtitle: {
+    fontSize: 14,
+    color: '#666',
+  },
+  compatibilityArrow: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compatibilityArrowText: {
+    fontSize: 20,
+    color: Colors.primaryColor,
+    fontWeight: 'bold',
   },
 });
 

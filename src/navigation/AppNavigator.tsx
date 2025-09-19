@@ -11,6 +11,7 @@ import ExpertDetailScreen from '../screens/ExpertDetailScreen';
 import ChatRoomScreen from '../screens/ChatRoomScreen';
 import SajuInfoScreen from '../screens/SajuInfoScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
+import CompatibilityScreen from '../screens/CompatibilityScreen';
 // import ChargeScreen from '../screens/ChargeScreen';
 import BirthInfoScreen from '../screens/BirthInfoScreen';
 import { RootStackParamList } from '../types/navigation';
@@ -111,6 +112,13 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
             <Stack.Screen
               name="NotificationSettings"
               component={NotificationSettingsScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="Compatibility"
+              component={CompatibilityScreen}
               options={{
                 headerShown: false,
               }}

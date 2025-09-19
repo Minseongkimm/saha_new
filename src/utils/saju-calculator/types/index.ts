@@ -85,6 +85,8 @@ export interface FiveElementBalance {
   maxElement: string;                      // 가장 많은 오행
   minElement: string;                      // 가장 적은 오행
   balance: string;                         // 균형 상태
+  weakElements?: string[];                 // 부족한 오행들
+  strongElements?: string[];               // 강한 오행들
 }
 
 // 대운 분석 결과

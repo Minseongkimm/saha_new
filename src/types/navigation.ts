@@ -7,6 +7,7 @@ export type RootStackParamList = {
   ChatRoom: { roomId: string; expert: any };
   SajuInfo: undefined;
   NotificationSettings: undefined;
+  Compatibility: undefined;
   // Charge: undefined; // 결제 기능 임시 비활성화
   BirthInfo: { userId: string };
 };
