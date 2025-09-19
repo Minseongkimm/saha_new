@@ -12,6 +12,7 @@ import {
   Alert,
 } from 'react-native';
 import ExpertCard from '../components/ExpertCard';
+import SectionHeader from '../components/SectionHeader';
 import { Colors } from '../constants/colors';
 import { supabase } from '../utils/supabaseClient';
 import { Expert } from '../types/expert';
@@ -81,28 +82,51 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           
         {/* 사주 메뉴 섹션 */}
         <View style={styles.content}>
-          {/* 궁합 기능 버튼 - 임시 주석 처리 */}
-          {/* <TouchableOpacity 
-            style={styles.compatibilityButton}
-            onPress={() => navigation.navigate('Compatibility')}
-            activeOpacity={0.8}
-          >
-            <View style={styles.compatibilityContent}>
-              <View style={styles.compatibilityIcon}>
-                <Text style={styles.compatibilityIconText}>💕</Text>
+          {/* 3개 사주 메뉴 그리드 */}
+          <View style={styles.sajuCard}>
+            <SectionHeader 
+              title="사주 풀이" 
+              description="숨겨진 운명의 실마리를 찾아보세요"
+              style={styles.sajuCardHeader}
+            />
+            <View style={styles.menuGrid}>
+            <TouchableOpacity style={styles.menuItem} activeOpacity={0.8}>
+              <View style={styles.menuIcon}>
+                <Image
+                  source={require('../../assets/saju/jeongtong_saju.png')}
+                  style={styles.menuIconImage}
+                />
               </View>
-              <View style={styles.compatibilityTextContainer}>
-                <Text style={styles.compatibilityTitle}>사주 궁합</Text>
-                <Text style={styles.compatibilitySubtitle}>두 사람의 궁합을 확인해보세요</Text>
+              <Text style={styles.menuText}>정통사주</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem} activeOpacity={0.8}>
+              <View style={styles.menuIcon}>
+                <Image
+                  source={require('../../assets/saju/calendar_saju.png')}
+                  style={styles.menuIconImage}
+                />
               </View>
-              <View style={styles.compatibilityArrow}>
-                <Text style={styles.compatibilityArrowText}>›</Text>
+              <Text style={styles.menuText}>오늘의 운세</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.menuItem} activeOpacity={0.8}>
+              <View style={styles.menuIcon}>
+                <Image
+                  source={require('../../assets/saju/newyear_saju.png')}
+                  style={styles.menuIconImage}
+                />
               </View>
+              <Text style={styles.menuText}>신년 운세</Text>
+            </TouchableOpacity>
             </View>
-          </TouchableOpacity> */}
+          </View>
 
           <View style={styles.cardsSection}>
-            <Text style={styles.sectionTitle}>AI 사주 도사</Text>
+            <SectionHeader 
+              title="AI 사주 도사" 
+              description="언제든 대화할 수 있는 나만의 사주 선생님"
+            />
             {loading ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={Colors.primaryColor} />
@@ -154,73 +178,64 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: 'white',
   },
+  sajuCard: {
+    backgroundColor: '#fefefe',
+    marginHorizontal: 3,
+    marginBottom: 15,
+    borderRadius: 16,
+    paddingVertical: 25,
+    paddingHorizontal: 18,
+    borderWidth: 0.5,
+    borderColor: '#f5f5f5',
+    shadowColor: Colors.primaryColor,
+    shadowOpacity: 0.09,
+    shadowRadius: 5,
+  },
+  sajuCardHeader: {
+    marginTop: -3,
+    marginBottom: 5,
+    paddingHorizontal: 0,
+  },
   cardsSection: {
     width: '100%',
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#000',
-    marginTop: 5,
-    marginBottom: 10,
-    marginLeft: 10,
-    textAlign: 'left',
-  },
   cardsGrid: {
+    marginTop: 10,
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingHorizontal: 0,
+    paddingHorizontal: 3,
   },
-  compatibilityButton: {
-    backgroundColor: 'white',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  compatibilityContent: {
+  menuGrid: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 20,
+    justifyContent: 'space-between',
+    marginHorizontal: 0,
+    marginBottom: 0,
   },
-  compatibilityIcon: {
+  menuItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  menuIcon: {
     width: 50,
     height: 50,
-    borderRadius: 25,
-    backgroundColor: '#fff0f5',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    marginBottom: 5,
   },
-  compatibilityIconText: {
-    fontSize: 24,
-  },
-  compatibilityTextContainer: {
-    flex: 1,
-  },
-  compatibilityTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  compatibilitySubtitle: {
-    fontSize: 14,
-    color: '#666',
-  },
-  compatibilityArrow: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  compatibilityArrowText: {
+  menuIconText: {
     fontSize: 20,
-    color: Colors.primaryColor,
-    fontWeight: 'bold',
+  },
+  menuIconImage: {
+    width: 31,
+    height: 31,
+    resizeMode: 'contain',
+  },
+  menuText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
   },
 });
 
