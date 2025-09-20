@@ -12,6 +12,12 @@ import {
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import { supabase } from '../utils/supabaseClient';
+import { 
+  getElementColor, 
+  getElementBackgroundColor, 
+  getElementFromDayGan,
+  koreanToHanja 
+} from '../constants/fiveElements';
 
 interface MyInfoScreenProps {
   navigation: any;
@@ -23,41 +29,6 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [dayGan, setDayGan] = useState('水'); // 일간 오행
 
-  // 일간에서 오행 추출
-  const getElementFromDayGan = (dayGanjiChar: string): string => {
-    const elementMap: { [key: string]: string } = {
-      '甲': '木', '乙': '木', // 갑을목
-      '丙': '火', '丁': '火', // 병정화
-      '戊': '土', '己': '土', // 무기토
-      '庚': '金', '辛': '金', // 경신금
-      '壬': '水', '癸': '水', // 임계수
-    };
-    return elementMap[dayGanjiChar] || '水';
-  };
-
-  // 오행에 맞는 색상 가져오기
-  const getElementColor = (element: string): string => {
-    const colorMap: { [key: string]: string } = {
-      '木': '#2E7D32', // 녹색 (목)
-      '火': '#D32F2F', // 빨간색 (화)
-      '土': '#F57C00', // 주황색 (토)
-      '金': '#FFD700', // 금색 (금)
-      '水': '#1976D2', // 파란색 (수)
-    };
-    return colorMap[element] || '#1976D2';
-  };
-
-  // 오행에 맞는 배경색 가져오기
-  const getElementBackgroundColor = (element: string): string => {
-    const backgroundMap: { [key: string]: string } = {
-      '木': '#E8F5E8', // 연한 녹색
-      '火': '#FFEBEE', // 연한 빨간색
-      '土': '#FFF3E0', // 연한 주황색
-      '金': '#FFFDE7', // 연한 금색
-      '水': '#E3F2FD', // 연한 파란색
-    };
-    return backgroundMap[element] || '#E3F2FD';
-  };
 
   // 사용자 정보 로드
   useEffect(() => {
@@ -94,11 +65,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
         // 일간 한글 간지에서 첫 글자 추출 (예: "임수" -> "임")
         const dayGanChar = birthData.saju_data.dayHangulGanji[0];
         // 한글을 한자로 변환
-        const ganjiMap: { [key: string]: string } = {
-          '갑': '甲', '을': '乙', '병': '丙', '정': '丁', '무': '戊',
-          '기': '己', '경': '庚', '신': '辛', '임': '壬', '계': '癸'
-        };
-        const dayGanHanja = ganjiMap[dayGanChar] || '壬';
+        const dayGanHanja = koreanToHanja[dayGanChar as keyof typeof koreanToHanja] || '壬';
         const element = getElementFromDayGan(dayGanHanja);
         setDayGan(element);
       }
