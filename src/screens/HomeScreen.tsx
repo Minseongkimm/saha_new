@@ -90,7 +90,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               style={styles.sajuCardHeader}
             />
             <View style={styles.menuGrid}>
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.8}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('JeongtongSaju')}
+            >
               <View style={styles.menuIcon}>
                 <Image
                   source={require('../../assets/saju/jeongtong_saju.png')}
@@ -100,7 +104,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <Text style={styles.menuText}>정통사주</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.8}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('TodayFortune')}
+            >
               <View style={styles.menuIcon}>
                 <Image
                   source={require('../../assets/saju/calendar_saju.png')}
@@ -110,7 +118,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <Text style={styles.menuText}>오늘의 운세</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem} activeOpacity={0.8}>
+            <TouchableOpacity 
+              style={styles.menuItem} 
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('NewYearFortune')}
+            >
               <View style={styles.menuIcon}>
                 <Image
                   source={require('../../assets/saju/newyear_saju.png')}

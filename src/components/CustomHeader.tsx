@@ -2,79 +2,86 @@ import React from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
-  Image,
-  Dimensions,
+  StyleSheet,
+  StatusBar,
+  SafeAreaView,
 } from 'react-native';
-import { Colors } from '../constants/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { Colors } from '../constants/colors';
 
 interface CustomHeaderProps {
-  title?: string;
-  showBackButton?: boolean;
-  onBackPress?: () => void;
-  showLogo?: boolean;
+  title: string;
+  onBackPress: () => void;
+  rightComponent?: React.ReactNode;
 }
 
 const CustomHeader: React.FC<CustomHeaderProps> = ({
   title,
-  showBackButton = true,
   onBackPress,
-  showLogo = true,
+  rightComponent,
 }) => {
   return (
-    <View style={styles.header}>
-      {showBackButton ? (
-        <TouchableOpacity style={styles.backButton} onPress={onBackPress}>
-          <Icon name="arrow-back" size={19} color={Colors.primaryColor} />
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.placeholder} />
-      )}
-      
-      {showLogo ? (
-        <Image
-          source={require('../../assets/logo/logo_icon.png')}
-          style={styles.headerLogo}
-          resizeMode="contain"
-        />
-      ) : (
-        <Text style={styles.headerTitle}>{title}</Text>
-      )}
-      
-      <View style={styles.placeholder} />
-    </View>
+    <>
+      <StatusBar backgroundColor="white" barStyle="dark-content" />
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.container}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={onBackPress}
+            activeOpacity={0.7}
+          >
+            <Icon name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          
+          <Text style={styles.title} numberOfLines={1}>
+            {title}
+          </Text>
+          
+          <View style={styles.rightContainer}>
+            {rightComponent || <View style={styles.placeholder} />}
+          </View>
+        </View>
+      </SafeAreaView>
+    </>
   );
 };
 
 const styles = StyleSheet.create({
-  header: {
+  safeArea: {
+    backgroundColor: 'white',
+  },
+  container: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 0,
-    paddingTop: Dimensions.get('window').height * 0.07,
     backgroundColor: 'white',
+    paddingHorizontal: 16,
     borderBottomWidth: 0.5,
     borderBottomColor: '#e0e0e0',
   },
   backButton: {
-    padding: 8,
-    marginLeft: 5,
-  },
-  headerLogo: {
     width: 40,
     height: 40,
-    marginBottom: 7,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
-  headerTitle: {
+  title: {
+    flex: 1,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '700',
     color: '#333',
+    textAlign: 'center',
+    marginHorizontal: 16,
+  },
+  rightContainer: {
+    width: 48,
+    alignItems: 'flex-end',
   },
   placeholder: {
-    width: 50,
+    width: 24,
+    height: 24,
   },
 });
 

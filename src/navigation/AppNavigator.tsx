@@ -12,6 +12,9 @@ import ChatRoomScreen from '../screens/ChatRoomScreen';
 import SajuInfoScreen from '../screens/SajuInfoScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import CompatibilityScreen from '../screens/CompatibilityScreen';
+import JeongtongSajuScreen from '../screens/JeongtongSajuScreen';
+import TodayFortuneScreen from '../screens/TodayFortuneScreen';
+import NewYearFortuneScreen from '../screens/NewYearFortuneScreen';
 // import ChargeScreen from '../screens/ChargeScreen';
 import BirthInfoScreen from '../screens/BirthInfoScreen';
 import { RootStackParamList } from '../types/navigation';
@@ -119,6 +122,27 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
             <Stack.Screen
               name="Compatibility"
               component={CompatibilityScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="JeongtongSaju"
+              component={JeongtongSajuScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="TodayFortune"
+              component={TodayFortuneScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="NewYearFortune"
+              component={NewYearFortuneScreen}
               options={{
                 headerShown: false,
               }}
