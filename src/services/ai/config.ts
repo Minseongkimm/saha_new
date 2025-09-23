@@ -1,12 +1,14 @@
 export const AI_CONFIG = {
   // MODEL_NAME: LLM family/version. 추론력 강화 필요 시 상위 모델 사용
   MODEL_NAME: "gpt-4o",
+  // TRADITIONAL_SAJU_MODEL: 정통사주 해석 전용 모델 (빠른 응답을 위해)
+  TRADITIONAL_SAJU_MODEL: "gpt-4o-mini",
   // TEMPERATURE: 창의성/다양성 제어(0=결정적, 높을수록 변주). 상담 톤은 0.5 권장
   TEMPERATURE: 1.2,
   // MAX_RECENT_MESSAGES: 프롬프트 길이 단축으로 속도 향상
   MAX_RECENT_MESSAGES: 8,
   // RESPONSE_TIMEOUT(ms): LLM 응답 대기 타임아웃
-  RESPONSE_TIMEOUT: 20000,
+  RESPONSE_TIMEOUT: 45000,
   // TARGET_CHAR_LENGTH: 답변 길이 단축으로 생성 속도 향상
   TARGET_CHAR_LENGTH: 300,
   // STREAM_*: 클라이언트 측 가짜 스트리밍(텍스트 점진 표시) 속도 제어

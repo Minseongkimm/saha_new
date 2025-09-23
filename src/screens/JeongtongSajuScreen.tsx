@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import SectionHeader from '../components/SectionHeader';
@@ -14,6 +15,8 @@ import CustomHeader from '../components/CustomHeader';
 import SajuChart from '../components/SajuChart';
 import { supabase } from '../utils/supabaseClient';
 import { SajuCache } from '../utils/sajuCache';
+import { traditionalSajuService } from '../services/ai/traditionalSajuService';
+import SajuAnalysis from '../components/SajuAnalysis';
 
 interface JeongtongSajuScreenProps {
   navigation: any;
@@ -21,10 +24,17 @@ interface JeongtongSajuScreenProps {
 
 const JeongtongSajuScreen: React.FC<JeongtongSajuScreenProps> = ({ navigation }) => {
   const [userSajuData, setUserSajuData] = useState<any>(null);
-  const [llmAnalysis, setLlmAnalysis] = useState<any>(null);
+  const [llmAnalysis, setLlmAnalysis] = useState<any>(null); // 임시로 null 유지하여 로딩화면 표시
   const [loadingChart, setLoadingChart] = useState(true);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
-  const [generatingAnalysis, setGeneratingAnalysis] = useState(false);
+  const [generatingAnalysis, setGeneratingAnalysis] = useState(false); // LLM 생성 활성화
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [iconScale, setIconScale] = useState(1);
+  
+  // 애니메이션 인터벌 참조
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const iconIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  
 
   useEffect(() => {
     loadSajuData();
@@ -36,10 +46,12 @@ const JeongtongSajuScreen: React.FC<JeongtongSajuScreenProps> = ({ navigation })
       if (!user) return;
 
       // 1단계: 만세력 표 데이터 로드 (캐시 우선)
-      await loadCalculatedSaju(user.id);
+      const sajuData = await loadCalculatedSaju(user.id);
       
-      // 2단계: 사주 해석 데이터 로드 (백그라운드)
-      loadAnalysisData(user.id);
+      // 2단계: 사주 해석 데이터 로드 (userSajuData가 설정된 후)
+      if (sajuData && sajuData.calculatedSaju) {
+        await loadAnalysisData(user.id, sajuData);
+      }
       
     } catch (error) {
       console.error('Error loading saju data:', error);
@@ -55,7 +67,9 @@ const JeongtongSajuScreen: React.FC<JeongtongSajuScreenProps> = ({ navigation })
         // 캐시가 있으면 즉시 표시
         setUserSajuData(cachedData);
         setLoadingChart(false);
-        return;
+        
+        // 캐시에서 로드된 경우 LLM 호출하지 않음 (loadAnalysisData에서 캐시 확인)
+        return cachedData;
       }
 
       // 2. 캐시가 없으면 DB에서 조회
@@ -88,19 +102,25 @@ const JeongtongSajuScreen: React.FC<JeongtongSajuScreenProps> = ({ navigation })
         setUserSajuData(formattedData);
         // 캐시에 저장 (영구 저장)
         await SajuCache.setCachedCalculatedSaju(userId, formattedData);
+        
+        // DB에서 로드 완료 (LLM은 loadAnalysisData에서 처리)
+        return formattedData;
+      } else {
+        return null;
       }
     } catch (error) {
       console.error('Error loading calculated saju:', error);
+      return null;
     } finally {
       setLoadingChart(false);
     }
   };
 
-  const loadAnalysisData = async (userId: string) => {
+  const loadAnalysisData = async (userId: string, sajuData?: any) => {
     try {
       setLoadingAnalysis(true);
       
-      // 1. 캐시에서 먼저 확인
+      // 캐시에서 먼저 확인
       const cachedAnalysis = await SajuCache.getCachedAnalysis(userId);
       
       if (cachedAnalysis) {
@@ -110,17 +130,41 @@ const JeongtongSajuScreen: React.FC<JeongtongSajuScreenProps> = ({ navigation })
         return;
       }
 
-      // 2. 캐시가 없으면 DB에서 조회 (향후 구현)
-      // const dbAnalysis = await fetchAnalysisFromDatabase(userId);
-      // if (dbAnalysis) {
-      //   setLlmAnalysis(dbAnalysis);
-      //   await SajuCache.setCachedAnalysis(userId, dbAnalysis);
-      //   setLoadingAnalysis(false);
-      //   return;
-      // }
+      // 캐시가 없으면 DB에서 조회
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // birth_info_id 가져오기
+        const { data: birthData } = await supabase
+          .from('birth_infos')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (birthData) {
+          const dbAnalysis = await traditionalSajuService.getAnalysisFromDatabase(user.id, birthData.id);
+          if (dbAnalysis) {
+            setLlmAnalysis(dbAnalysis);
+            await SajuCache.setCachedAnalysis(userId, dbAnalysis);
+            setLoadingAnalysis(false);
+            return;
+          }
+        }
+      }
 
-      // 3. 둘 다 없으면 "AI 사주 해석 받기" 버튼 표시
+      // 둘 다 없으면 자동으로 LLM을 통해 사주 해석 생성
       setLoadingAnalysis(false);
+      
+      // 사용할 사주 데이터 결정 (매개변수로 받은 데이터 우선, 없으면 상태에서 가져오기)
+      const dataToUse = sajuData || userSajuData;
+      
+      // 사주 데이터가 없으면 에러
+      if (!dataToUse || !dataToUse.calculatedSaju) {
+        console.error('사주 데이터가 로드되지 않음');
+        return;
+      }
+      
+      // 자동으로 사주 해석 생성
+      await generateLlmAnalysis(dataToUse);
       
     } catch (error) {
       console.error('Error loading analysis data:', error);
@@ -128,39 +172,127 @@ const JeongtongSajuScreen: React.FC<JeongtongSajuScreenProps> = ({ navigation })
     }
   };
 
-  const generateLlmAnalysis = async () => {
+  const generateLlmAnalysis = async (sajuData?: any) => {
+    const startTime = Date.now(); // 시작 시간 기록
+    
     try {
       setGeneratingAnalysis(true);
+      setAnalysisProgress(0);
       
-      // LLM 분석 생성 로직 (향후 구현)
-      // const analysis = await generateSajuAnalysis(userSajuData.calculatedSaju);
+      // 진행률 시뮬레이션 시작 (15초 기준으로 조정)
+      const startTime = Date.now();
+      const targetDuration = 15000; // 15초
       
-      // 임시 데이터 (실제로는 LLM API 호출)
-      const mockAnalysis = {
-        personality: "당신은 강한 의지력과 추진력을 가진 사람입니다...",
-        career: "리더십이 강한 분야에서 성공할 가능성이 높습니다...",
-        love: "진실한 사랑을 추구하며 깊은 관계를 원합니다...",
-        health: "심장과 혈관 건강에 주의하시기 바랍니다...",
-        advice: "자신의 강점을 살려 적극적으로 도전해보세요...",
-        generatedAt: new Date().toISOString()
-      };
+      progressIntervalRef.current = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const timeBasedProgress = Math.min((elapsed / targetDuration) * 90, 90); // 90%까지 시간 기반
+        
+        setAnalysisProgress(prev => {
+          // 시간 기반 진행률과 이전 값 중 더 큰 값 사용 (뒤로 가지 않도록)
+          return Math.max(timeBasedProgress, prev);
+        });
+      }, 100); // 100ms마다 업데이트로 부드러운 진행
       
-      // 1. 상태 업데이트
-      setLlmAnalysis(mockAnalysis);
+      // 아이콘 애니메이션 시작
+      iconIntervalRef.current = setInterval(() => {
+        setIconScale(prev => {
+          // 0.9 ~ 1.1 사이에서 부드럽게 변화
+          const time = Date.now() / 1000;
+          return 1 + Math.sin(time * 2) * 0.1;
+        });
+      }, 50); // 50ms마다 업데이트로 부드러운 애니메이션
       
-      // 2. 캐시에 저장 (영구 저장)
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await SajuCache.setCachedAnalysis(user.id, mockAnalysis);
+      // 사용할 사주 데이터 결정 (매개변수로 받은 데이터 우선, 없으면 상태에서 가져오기)
+      const dataToUse = sajuData || userSajuData;
+      
+      if (!dataToUse || !dataToUse.calculatedSaju) {
+        throw new Error('사주 데이터가 없습니다.');
       }
       
-      // 3. DB에 저장 (향후 구현)
-      // await saveAnalysisToDatabase(user.id, mockAnalysis);
+      // 사주 데이터를 분석용 형태로 변환
+      const analysisInput = {
+        name: dataToUse.name,
+        birthInfo: `${dataToUse.birthYear}년 ${dataToUse.birthMonth}월 ${dataToUse.birthDay}일 ${dataToUse.birthHour}:${dataToUse.birthMinute} (${dataToUse.gender === 'male' ? '남성' : '여성'})`,
+        yearGanji: dataToUse.calculatedSaju.yearHangulGanji,
+        monthGanji: dataToUse.calculatedSaju.monthHangulGanji,
+        dayGanji: dataToUse.calculatedSaju.dayHangulGanji,
+        timeGanji: dataToUse.calculatedSaju.timeHangulGanji,
+        stemSasin: dataToUse.calculatedSaju.stemSasin,
+        branchSasin: dataToUse.calculatedSaju.branchSasin,
+        sibun: dataToUse.calculatedSaju.sibun,
+        fiveProperties: dataToUse.calculatedSaju.fiveProperties,
+        sinsal: dataToUse.calculatedSaju.sinsal,
+        guin: dataToUse.calculatedSaju.guin,
+        gongmang: dataToUse.calculatedSaju.gongmang,
+        jijiAmjangan: dataToUse.calculatedSaju.jijiAmjangan,
+        jijiRelations: dataToUse.calculatedSaju.jijiRelations
+      };
+      
+      // 정통사주 해석 생성 시작
+      
+      // LLM 분석 생성
+      const analysis = await traditionalSajuService.generateSajuAnalysis(analysisInput);
+      
+      // 진행률 100%로 완료 (부드러운 완료 애니메이션)
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      if (iconIntervalRef.current) {
+        clearInterval(iconIntervalRef.current);
+        iconIntervalRef.current = null;
+      }
+      
+      // 100%로 부드럽게 완료
+      setAnalysisProgress(100);
+      
+      // 완료 후 잠시 대기 (사용자가 100%를 볼 수 있도록)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // 정통사주 해석 생성 완료
+      
+      // 1. 상태 업데이트
+      setLlmAnalysis(analysis);
+      
+      // 캐시에 저장
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await SajuCache.setCachedAnalysis(user.id, analysis);
+        
+        // DB에 저장
+        // birth_info_id 가져오기
+        const { data: birthData } = await supabase
+          .from('birth_infos')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+          
+        if (birthData) {
+          await traditionalSajuService.saveAnalysisToDatabase(user.id, birthData.id, analysis);
+        }
+      }
       
     } catch (error) {
       console.error('Error generating LLM analysis:', error);
+      
+      // 에러 발생 시에도 인터벌 정리
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      if (iconIntervalRef.current) {
+        clearInterval(iconIntervalRef.current);
+        iconIntervalRef.current = null;
+      }
+      
+      // 에러 발생 시 llmAnalysis를 null로 설정하여 버튼이 다시 보이도록 함
+      setLlmAnalysis(null);
+      
+      // 사용자에게 에러 알림 (선택사항)
+      Alert.alert('오류', '사주 해석 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setGeneratingAnalysis(false);
+      setAnalysisProgress(0);
     }
   };
 
@@ -209,40 +341,54 @@ const JeongtongSajuScreen: React.FC<JeongtongSajuScreenProps> = ({ navigation })
                 description="인공지능이 당신의 사주를 깊이 있게 분석해드립니다"
               />
               
-              {generatingAnalysis ? (
-                <View style={styles.analysisLoadingCard}>
-                  <ActivityIndicator size="small" color={Colors.primaryColor} />
-                  <Text style={styles.analysisLoadingText}>
-                    AI가 당신의 사주를 분석하고 있어요...
-                  </Text>
-                </View>
-              ) : llmAnalysis ? (
-                <View style={styles.analysisCard}>
-                  <Text style={styles.analysisTitle}>성격 분석</Text>
-                  <Text style={styles.analysisText}>{llmAnalysis.personality}</Text>
-                  
-                  <Text style={styles.analysisTitle}>직업운</Text>
-                  <Text style={styles.analysisText}>{llmAnalysis.career}</Text>
-                  
-                  <Text style={styles.analysisTitle}>연애운</Text>
-                  <Text style={styles.analysisText}>{llmAnalysis.love}</Text>
-                  
-                  <Text style={styles.analysisTitle}>건강운</Text>
-                  <Text style={styles.analysisText}>{llmAnalysis.health}</Text>
-                  
-                  <Text style={styles.analysisTitle}>조언</Text>
-                  <Text style={styles.analysisText}>{llmAnalysis.advice}</Text>
-                </View>
-              ) : (
-                <TouchableOpacity 
-                  style={styles.generateAnalysisButton}
-                  onPress={generateLlmAnalysis}
-                >
-                  <Text style={styles.generateAnalysisButtonText}>
-                    AI 사주 해석 받기
-                  </Text>
-                </TouchableOpacity>
-              )}
+                     {generatingAnalysis && (
+                       <View style={styles.analysisLoadingContainer}>
+                         <Image 
+                           source={require('../../assets/logo/logo_icon.png')} 
+                           style={[
+                             styles.loadingIcon,
+                             { transform: [{ scale: iconScale }] }
+                           ]}
+                         />
+                         <Text style={styles.analysisLoadingText}>
+                           AI가 당신의 사주를 분석하고 있어요...{'\n'}
+                           <Text style={styles.loadingSubText}>
+                             약 15초 정도 소요됩니다
+                           </Text>
+                         </Text>
+                         <View style={styles.progressContainer}>
+                           <View style={styles.progressBar}>
+                             <View 
+                               style={[
+                                 styles.progressFill, 
+                                 { width: `${analysisProgress}%` }
+                               ]} 
+                             />
+                           </View>
+                           <Text style={styles.progressText}>
+                             {Math.round(analysisProgress)}%
+                           </Text>
+                           
+                           {/* 작은 로딩바 추가 */}
+                           <View style={styles.smallLoadingContainer}>
+                             <View style={styles.smallLoadingBar}>
+                               <View 
+                                 style={[
+                                   styles.smallLoadingFill, 
+                                   { width: `${analysisProgress}%` }
+                                 ]} 
+                               />
+                             </View>
+                           </View>
+                         </View>
+                       </View>
+                     )}
+                     
+                     {llmAnalysis && llmAnalysis.overall && (
+                       <View style={styles.analysisContentContainer}>
+                         <SajuAnalysis analysis={llmAnalysis} />
+                       </View>
+                     )}
             </View>
           )}
         </View>
@@ -306,26 +452,71 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   analysisSection: {
-    marginTop: 20,
+    marginTop: 0,
   },
-  analysisLoadingCard: {
-    backgroundColor: '#fefefe',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
-    borderWidth: 0.5,
-    borderColor: '#f5f5f5',
-    shadowColor: Colors.primaryColor,
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-    elevation: 3,
+  analysisContentContainer: {
+    marginTop: 15,
+  },
+         analysisLoadingContainer: {
+           alignItems: 'center',
+           paddingVertical: 25,
+           paddingHorizontal: 20,
+         },
+         analysisLoadingText: {
+           fontSize: 14,
+           color: '#666',
+           marginTop: 8,
+           textAlign: 'center',
+         },
+         loadingSubText: {
+           fontSize: 12,
+           color: '#999',
+           marginTop: 4,
+         },
+  loadingIcon: {
+    width: 65,
+    height: 65,
+    marginBottom: 12,
+    marginTop: 10,
+  },
+  progressContainer: {
+    marginTop: 5,
     alignItems: 'center',
   },
-  analysisLoadingText: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 12,
+  progressBar: {
+    width: '80%',
+    height: 8,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 4,
+    overflow: 'hidden',
   },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.primaryColor,
+    borderRadius: 4,
+  },
+         progressText: {
+           fontSize: 12,
+           color: Colors.primaryColor,
+           marginTop: 8,
+           fontWeight: '600',
+         },
+         smallLoadingContainer: {
+           marginTop: 8,
+           alignItems: 'center',
+         },
+         smallLoadingBar: {
+           width: 120,
+           height: 3,
+           backgroundColor: '#f0f0f0',
+           borderRadius: 2,
+           overflow: 'hidden',
+         },
+         smallLoadingFill: {
+           height: '100%',
+           backgroundColor: Colors.primaryColor,
+           borderRadius: 2,
+         },
   analysisCard: {
     backgroundColor: '#fefefe',
     borderRadius: 16,
@@ -349,19 +540,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
-  },
-  generateAnalysisButton: {
-    backgroundColor: Colors.primaryColor,
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  generateAnalysisButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
   },
 });
 

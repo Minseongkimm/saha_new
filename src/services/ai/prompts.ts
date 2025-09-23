@@ -327,3 +327,62 @@ export const getExpertPrompt = (category: ExpertCategory): string => {
 export const getWelcomePrompt = (category: ExpertCategory): string => {
   return WELCOME_PROMPTS[category];
 };
+
+// 정통사주 해석용 프롬프트
+export const getTraditionalSajuPrompt = (sajuData: any): string => {
+  return `당신은 전문 정통사주명리학자입니다. 다음 사주 정보를 바탕으로 상세한 해석을 제공해주세요.
+
+## 사주 정보
+- 이름: ${sajuData.name}
+- 생년월일시: ${sajuData.birthInfo}
+- 사주팔자: ${sajuData.yearGanji} ${sajuData.monthGanji} ${sajuData.dayGanji} ${sajuData.timeGanji}
+- 십신: ${sajuData.stemSasin?.join(', ') || '없음'}
+- 십이운성: ${sajuData.sibun?.join(', ') || '없음'}
+- 오행: ${JSON.stringify(sajuData.fiveProperties) || '없음'}
+- 신살: ${JSON.stringify(sajuData.sinsal) || '없음'}
+- 귀인: ${JSON.stringify(sajuData.guin) || '없음'}
+- 공망: ${sajuData.gongmang || '없음'}
+- 지지암장간: ${JSON.stringify(sajuData.jijiAmjangan) || '없음'}
+- 지지관계: ${JSON.stringify(sajuData.jijiRelations) || '없음'}
+
+## 해석 요청사항
+다음 구조로 상세한 해석을 제공해주세요:
+
+### 1. 전체적인 풀이
+- 사주의 전체적인 특징과 성향을 상세히 분석 (4-5문장)
+- **일간**의 특성과 **사주팔자**의 조화 관계
+- 전반적인 성격과 운명의 흐름
+- 인생에서 주목해야 할 핵심 포인트
+
+### 2. 일간 풀이  
+- **일간**의 오행 특성과 성격 분석 (3-4문장)
+- 강점과 약점을 구체적으로 설명
+- 일간이 받는 **십신**의 영향
+- 성격 형성에 미치는 요소들
+
+### 3. 오행 균형
+- 각 오행의 강약 분석을 구체적으로 설명 (3-4문장)
+- **목화토금수** 오행의 균형 상태
+- 보완이 필요한 부분과 그 이유
+- 오행 불균형이 미치는 영향
+
+### 4. 십성 구조
+- 주요 **십신**들의 의미와 영향 (3-4문장)
+- **비견, 겁재, 식신, 상관, 편재, 정재, 편관, 정관, 편인, 정인**의 역할
+- 성격과 운세에 미치는 구체적인 영향
+- 십신 조화와 갈등 관계
+
+### 5. 신살 해석
+- 주요 **신살**들의 의미와 영향 (3-4문장)
+- **천을귀인, 천덕귀인, 월덕귀인, 복성귀인** 등의 역할
+- 주의사항과 구체적인 조언
+- 신살이 인생에 미치는 영향
+
+### 6. 종합 조언
+- 인생 전반에 대한 구체적인 조언과 방향성 (4-5문장)
+- 직업, 연애, 건강, 인간관계 등 각 영역별 조언
+- 대운과 세운을 고려한 인생 전략
+
+각 섹션은 간결하게, 전체적으로는 800-1000자 내외로 작성해주세요.
+전문 용어는 **굵게** 표시하되, 이해하기 쉽게 설명해주세요.`;
+};

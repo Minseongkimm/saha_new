@@ -15,6 +15,7 @@ export class SajuCache {
   private static readonly LLM_ANALYSIS_PREFIX = 'saju_analysis_';
   // LLM 해석도 영구 캐시 (계산 데이터와 동일하게)
 
+
   // ===== 만세력 표 데이터 (계산된 사주) =====
   
   /**
@@ -116,11 +117,33 @@ export class SajuCache {
   /**
    * 특정 사용자의 모든 사주 캐시 삭제
    */
-  static async clearAllCache(userId: string): Promise<void> {
+  static async clearUserCache(userId: string): Promise<void> {
     await Promise.all([
       this.clearCalculatedSajuCache(userId),
       this.clearAnalysisCache(userId)
     ]);
+  }
+
+  /**
+   * 모든 사주 캐시 삭제
+   */
+  static async clearAllCache(): Promise<void> {
+    try {
+      const allKeys = await AsyncStorage.getAllKeys();
+      const sajuKeys = allKeys.filter(key => 
+        key.startsWith(this.CALCULATED_SAJU_PREFIX) || 
+        key.startsWith(this.LLM_ANALYSIS_PREFIX)
+      );
+      
+      if (sajuKeys.length > 0) {
+        await AsyncStorage.multiRemove(sajuKeys);
+        console.log(`모든 사주 캐시 삭제 완료 (${sajuKeys.length}개 키)`);
+      } else {
+        console.log('삭제할 사주 캐시가 없습니다.');
+      }
+    } catch (error) {
+      console.error('전체 사주 캐시 삭제 실패:', error);
+    }
   }
 
   /**
