@@ -27,7 +27,7 @@ interface JeongtongSajuScreenProps {
 const JeongtongSajuScreen: React.FC<JeongtongSajuScreenProps> = ({ navigation }) => {
   const [userSajuData, setUserSajuData] = useState<any>(null);
   const [llmAnalysis, setLlmAnalysis] = useState<any>(null); // 임시로 null 유지하여 로딩화면 표시
-  const [loadingChart, setLoadingChart] = useState(true);
+  const [loadingChart, setLoadingChart] = useState(false);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [generatingAnalysis, setGeneratingAnalysis] = useState(false); // LLM 생성 활성화
   const [analysisProgress, setAnalysisProgress] = useState(0);
@@ -67,13 +67,15 @@ const JeongtongSajuScreen: React.FC<JeongtongSajuScreenProps> = ({ navigation })
       const cachedData = await SajuCache.getCachedCalculatedSaju(userId);
       
       if (cachedData) {
-        // 캐시가 있으면 즉시 표시
+        // 캐시가 있으면 즉시 표시 (로딩 상태 변경 없음)
         setUserSajuData(cachedData);
-        setLoadingChart(false);
         
         // 캐시에서 로드된 경우 LLM 호출하지 않음 (loadAnalysisData에서 캐시 확인)
         return cachedData;
       }
+
+      // 캐시가 없을 때만 로딩 상태 시작
+      setLoadingChart(true);
 
       // 2. 캐시가 없으면 DB에서 조회
       const { data: birthData, error } = await supabase
@@ -121,17 +123,17 @@ const JeongtongSajuScreen: React.FC<JeongtongSajuScreenProps> = ({ navigation })
 
   const loadAnalysisData = async (userId: string, sajuData?: any) => {
     try {
-      setLoadingAnalysis(true);
-      
       // 캐시에서 먼저 확인
       const cachedAnalysis = await SajuCache.getCachedAnalysis(userId);
       
       if (cachedAnalysis) {
-        // 캐시가 있으면 즉시 표시
+        // 캐시가 있으면 즉시 표시 (로딩 상태 변경 없음)
         setLlmAnalysis(cachedAnalysis);
-        setLoadingAnalysis(false);
         return;
       }
+
+      // 캐시가 없을 때만 로딩 상태 시작
+      setLoadingAnalysis(true);
 
       // 캐시가 없으면 DB에서 조회
       const { data: { user } } = await supabase.auth.getUser();
@@ -311,7 +313,7 @@ const JeongtongSajuScreen: React.FC<JeongtongSajuScreenProps> = ({ navigation })
       >
         <View style={styles.content}>
           {/* 1단계: 만세력 표 */}
-          {loadingChart ? (
+          {loadingChart && !userSajuData ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={Colors.primaryColor} />
               <Text style={styles.loadingText}>만세력 표를 불러오는 중...</Text>
