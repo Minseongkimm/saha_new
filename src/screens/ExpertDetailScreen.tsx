@@ -16,7 +16,7 @@ import { Expert } from '../types/expert';
 
 import { getExpertImage } from '../utils/getExpertImage';
 import { getExpertListCache } from '../utils/expertListCache';
-import { markChatListNeedsRefresh } from '../utils/chatListCache';
+import { startChatWithExpert } from '../utils/chatUtils';
 
 interface ExpertDetailScreenProps {
   navigation: any;
@@ -51,53 +51,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
 
   const handleStartChat = async () => {
     if (!expert) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      Alert.alert('오류', '로그인이 필요합니다.');
-      return;
-    }
-
-    try {
-      // 1. 기존 채팅방 확인
-      const { data: existingRoom } = await supabase
-        .from('chat_rooms')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('expert_id', expert.id)
-        .single();
-
-      let chatRoomId;
-
-      if (existingRoom) {
-        chatRoomId = existingRoom.id;
-      } else {
-        // 2. 새 채팅방 생성
-        const { data: newRoom, error } = await supabase
-          .from('chat_rooms')
-          .insert({
-            user_id: user.id,
-            expert_id: expert.id
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-        chatRoomId = newRoom.id;
-        // 새로운 대화방이 생성되면 대화 리스트 새로고침 필요
-        markChatListNeedsRefresh();
-      }
-
-      // 3. 채팅방으로 이동
-      navigation.navigate('ChatRoom', {
-        roomId: chatRoomId,
-        expert: expert
-      });
-
-    } catch (error) {
-      console.error('Error starting chat:', error);
-      Alert.alert('오류', '채팅을 시작할 수 없습니다.');
-    }
+    await startChatWithExpert(navigation, expert.category);
   };
 
   const fetchExpertDetails = async () => {
@@ -133,9 +87,8 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
     <View style={styles.container}>
       {/* 커스텀 헤더 */}
       <CustomHeader
-        showBackButton={true}
+        title="전문가 상세"
         onBackPress={() => navigation.goBack()}
-        showLogo={true}
       />
 
       <ScrollView style={styles.scrollView}>

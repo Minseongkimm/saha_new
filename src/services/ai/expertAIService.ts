@@ -21,6 +21,12 @@ class ExpertAIService {
     });
   }
 
+  private getModelForCategory(category: ExpertCategory): string {
+    return category === 'traditional_saju' 
+      ? AI_CONFIG.TRADITIONAL_SAJU_MODEL 
+      : AI_CONFIG.MODEL_NAME;
+  }
+
   public static getInstance(): ExpertAIService {
     if (!ExpertAIService.instance) {
       ExpertAIService.instance = new ExpertAIService();
@@ -96,8 +102,20 @@ class ExpertAIService {
     try {
       const welcomePrompt = getWelcomePrompt(expertCategory);
       
+      // 전통사주 카테고리일 때는 다른 모델 사용
+      const modelToUse = this.getModelForCategory(expertCategory);
+      const chatModel = new ChatOpenAI({ 
+        apiKey: OPENAI_API_KEY,
+        model: modelToUse,
+        temperature: AI_CONFIG.TEMPERATURE,
+        topP: AI_CONFIG.TOP_P,
+        frequencyPenalty: AI_CONFIG.FREQUENCY_PENALTY,
+        presencePenalty: AI_CONFIG.PRESENCE_PENALTY,
+        streaming: false
+      });
+      
       const result = await Promise.race([
-        this.chatModel.invoke([
+        chatModel.invoke([
           { role: 'system', content: welcomePrompt },
         ]),
         new Promise((_, reject) => 
@@ -157,8 +175,21 @@ class ExpertAIService {
         .replace('{daewoon_info}', advancedSajuInfo.daewoonInfo)
         .replace('{history}', prevHistory)
         .replace('{question}', lastQuestion);
+      
+      // 전통사주 카테고리일 때는 다른 모델 사용
+      const modelToUse = this.getModelForCategory(context.expertCategory);
+      const chatModel = new ChatOpenAI({ 
+        apiKey: OPENAI_API_KEY,
+        model: modelToUse,
+        temperature: AI_CONFIG.TEMPERATURE,
+        topP: AI_CONFIG.TOP_P,
+        frequencyPenalty: AI_CONFIG.FREQUENCY_PENALTY,
+        presencePenalty: AI_CONFIG.PRESENCE_PENALTY,
+        streaming: false
+      });
+      
       const result = await Promise.race([
-        this.chatModel.invoke([
+        chatModel.invoke([
           { role: 'system', content: systemPrompt },
         ]),
         new Promise((_, reject) => 

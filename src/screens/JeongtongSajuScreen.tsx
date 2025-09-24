@@ -18,6 +18,7 @@ import { SajuCache } from '../utils/sajuCache';
 import { traditionalSajuService } from '../services/ai/traditionalSajuService';
 import SajuAnalysis from '../components/SajuAnalysis';
 import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
+import { startChatWithExpert } from '../utils/chatUtils';
 
 interface JeongtongSajuScreenProps {
   navigation: any;
@@ -436,8 +437,7 @@ const JeongtongSajuScreen: React.FC<JeongtongSajuScreenProps> = ({ navigation })
         onClose={() => setShowChatModal(false)}
         onStartChat={() => {
           setShowChatModal(false);
-          // TODO: 채팅 화면으로 네비게이션
-          console.log('정통사주 상담 시작');
+          startChatWithExpert(navigation, 'traditional_saju');
         }}
         title="AI 사주 전문가와 이야기하기"
         description="당신의 사주를 기반으로 AI가 인생의 실마리를 드립니다."

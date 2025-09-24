@@ -207,6 +207,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
     residence: '이사/주거',
     life: '인생/진로',
     wealth: '재물/사업',
+    traditional_saju: '전통사주',
   };
   const getRowAnim = (id: string): Animated.Value => {
     if (!rowAnimMap.current.has(id)) {
