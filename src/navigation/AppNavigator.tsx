@@ -12,7 +12,7 @@ import ChatRoomScreen from '../screens/ChatRoomScreen';
 import SajuInfoScreen from '../screens/SajuInfoScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
 import CompatibilityScreen from '../screens/CompatibilityScreen';
-import JeongtongSajuScreen from '../screens/JeongtongSajuScreen';
+import TraditionalSajuScreen from '../screens/TraditionalSajuScreen';
 import TodayFortuneScreen from '../screens/TodayFortuneScreen';
 import NewYearFortuneScreen from '../screens/NewYearFortuneScreen';
 // import ChargeScreen from '../screens/ChargeScreen';
@@ -128,7 +128,7 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
             />
             <Stack.Screen
               name="JeongtongSaju"
-              component={JeongtongSajuScreen}
+              component={TraditionalSajuScreen}
               options={{
                 headerShown: false,
               }}

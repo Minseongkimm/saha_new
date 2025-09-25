@@ -22,9 +22,12 @@ class ExpertAIService {
   }
 
   private getModelForCategory(category: ExpertCategory): string {
-    return category === 'traditional_saju' 
-      ? AI_CONFIG.TRADITIONAL_SAJU_MODEL 
-      : AI_CONFIG.MODEL_NAME;
+    if (category === 'traditional_saju') {
+      return AI_CONFIG.TRADITIONAL_SAJU_MODEL;
+    } else if (category === 'today_fortune') {
+      return AI_CONFIG.TODAY_FORTUNE_MODEL;
+    }
+    return AI_CONFIG.MODEL_NAME;
   }
 
   public static getInstance(): ExpertAIService {

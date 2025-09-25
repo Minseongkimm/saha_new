@@ -3,6 +3,8 @@ export const AI_CONFIG = {
   MODEL_NAME: "gpt-4o",
   // TRADITIONAL_SAJU_MODEL: 정통사주 해석 전용 모델 (빠른 응답을 위해)
   TRADITIONAL_SAJU_MODEL: "gpt-4o-mini",
+  // TODAY_FORTUNE_MODEL: 오늘의 운세 전용 모델 (빠른 응답을 위해)
+  TODAY_FORTUNE_MODEL: "gpt-4o-mini",
   // TEMPERATURE: 창의성/다양성 제어(0=결정적, 높을수록 변주). 상담 톤은 0.5 권장
   TEMPERATURE: 1.2,
   // MAX_RECENT_MESSAGES: 프롬프트 길이 단축으로 속도 향상

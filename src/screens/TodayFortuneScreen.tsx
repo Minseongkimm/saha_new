@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,25 +6,27 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import SectionHeader from '../components/SectionHeader';
 import CustomHeader from '../components/CustomHeader';
+import { supabase } from '../utils/supabaseClient';
+import { SajuCache } from '../utils/sajuCache';
+import { TodayFortuneCache } from '../utils/todayFortuneCache';
+import { todayFortuneService, TodayFortuneData } from '../services/ai/todayFortuneService';
+import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
+import { startChatWithExpert } from '../utils/chatUtils';
 
 interface TodayFortuneScreenProps {
   navigation: any;
 }
 
 const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) => {
-  const [selectedCategory, setSelectedCategory] = useState<string>('overall');
-
-  const fortuneCategories = [
-    { id: 'overall', name: '종합운', icon: '🌟' },
-    { id: 'love', name: '연애운', icon: '💕' },
-    { id: 'money', name: '재물운', icon: '💰' },
-    { id: 'health', name: '건강운', icon: '💪' },
-    { id: 'work', name: '직장운', icon: '💼' },
-  ];
+  const [fortuneData, setFortuneData] = useState<TodayFortuneData | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [showChatModal, setShowChatModal] = useState(false);
 
   const todayDate = new Date().toLocaleDateString('ko-KR', {
     year: 'numeric',
@@ -32,6 +34,88 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
     day: 'numeric',
     weekday: 'long',
   });
+
+  useEffect(() => {
+    loadTodayFortune();
+  }, []);
+
+  const loadTodayFortune = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const today = new Date().toISOString().split('T')[0];
+      
+      // 1. 캐시에서 먼저 확인
+      const cachedFortune = await TodayFortuneCache.getCachedTodayFortune(user.id, today);
+      if (cachedFortune) {
+        setFortuneData(cachedFortune);
+        return;
+      }
+
+      // 2. 캐시가 없으면 사주 데이터 가져오기
+      const sajuData = await SajuCache.getCachedCalculatedSaju(user.id);
+      if (!sajuData) {
+        Alert.alert('알림', '사주 정보가 없습니다. 먼저 사주 정보를 입력해주세요.');
+        return;
+      }
+
+      // 3. 오늘의 운세 생성 (임시 주석)
+      setLoading(true);
+      // const fortune = await todayFortuneService.generateTodayFortune(user.id, sajuData);
+      
+      // 4. 캐시에 저장 (임시 주석)
+      // await TodayFortuneCache.setCachedTodayFortune(user.id, fortune);
+      
+      // 5. DB에 저장 (임시 주석)
+      // await todayFortuneService.saveTodayFortuneToDatabase(user.id, fortune);
+      
+      // 임시 더미 데이터
+      const dummyFortune = {
+        score: 85,
+        summary: "과감하게 정진하세요",
+        explanation: "오늘은 일간이 강한 날로, 새로운 도전을 시작하기에 좋은 시기입니다. 십이운성과 신살의 조화가 이루어져 긍정적인 에너지가 흐르고 있습니다.",
+        doList: [
+          "새로운 프로젝트를 시작해보세요",
+          "주변 사람들과 소통을 늘려보세요",
+          "건강한 식사를 챙기세요",
+          "긍정적인 마음가짐을 유지하세요"
+        ],
+        dontList: [
+          "성급한 결정을 피하세요",
+          "과도한 스트레스를 받지 마세요",
+          "무리한 일정을 잡지 마세요"
+        ],
+        generatedAt: new Date().toISOString(),
+        date: today,
+        llmModel: "gpt-4o-mini"
+      };
+      
+      setFortuneData(dummyFortune);
+    } catch (error) {
+      console.error('오늘의 운세 로드 실패:', error);
+      Alert.alert('오류', '오늘의 운세를 불러올 수 없습니다.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartChat = () => {
+    setShowChatModal(true);
+  };
+
+  const onStartChat = () => {
+    setShowChatModal(false);
+    startChatWithExpert(navigation, 'today_fortune');
+  };
+
+  const getScoreStars = (score: number) => {
+    const fullStars = Math.floor(score / 20);
+    const hasHalfStar = (score % 20) >= 10;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    
+    return '★'.repeat(fullStars) + (hasHalfStar ? '☆' : '') + '☆'.repeat(emptyStars);
+  };
 
   return (
     <View style={styles.container}>
@@ -43,7 +127,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
         <View style={styles.content}>
           <SectionHeader 
             title="오늘의 운세" 
-            description={`${todayDate}의 운세를 확인해보세요`}
+            description={"안좋은건 피하고 좋은건 잡으세요"}
           />
 
           <View style={styles.dateCard}>
@@ -55,49 +139,98 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
             <Text style={styles.dateSubtext}>오늘 하루의 운세</Text>
           </View>
 
-          <View style={styles.categoryContainer}>
-            <Text style={styles.categoryTitle}>운세 카테고리</Text>
-            <View style={styles.categoryGrid}>
-              {fortuneCategories.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={[
-                    styles.categoryItem,
-                    selectedCategory === category.id && styles.categoryItemSelected,
-                  ]}
-                  onPress={() => setSelectedCategory(category.id)}
-                >
-                  <Text style={styles.categoryIcon}>{category.icon}</Text>
-                  <Text style={[
-                    styles.categoryName,
-                    selectedCategory === category.id && styles.categoryNameSelected,
-                  ]}>
-                    {category.name}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
 
-          <View style={styles.fortuneCard}>
-            <Text style={styles.fortuneTitle}>
-              {fortuneCategories.find(c => c.id === selectedCategory)?.name} 운세
-            </Text>
-            <Text style={styles.fortuneScore}>★★★★☆</Text>
-            <Text style={styles.fortuneDescription}>
-              오늘은 새로운 기회가 찾아올 수 있는 날입니다. 
-              평소보다 적극적인 자세로 임하면 좋은 결과를 얻을 수 있을 것입니다.
-              다만 서두르기보다는 신중하게 판단하는 것이 중요합니다.
-            </Text>
-            <View style={styles.adviceContainer}>
-              <Text style={styles.adviceTitle}>오늘의 조언</Text>
-              <Text style={styles.adviceText}>
-                • 새로운 도전을 두려워하지 마세요{'\n'}
-                • 주변 사람들의 조언에 귀 기울여보세요{'\n'}
-                • 건강한 식사와 충분한 휴식을 취하세요
-              </Text>
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={Colors.primaryColor} />
+              <Text style={styles.loadingText}>오늘의 운세를 분석하고 있습니다...</Text>
             </View>
-          </View>
+          ) : fortuneData ? (
+            <View style={styles.fortuneCard}>
+              {/* 운세 점수 섹션 */}
+              <View style={styles.scoreSection}>
+                <Text style={styles.fortuneTitle}>오늘의 운세</Text>
+                <View style={styles.scoreContainer}>
+                  <Text style={styles.scoreNumber}>{fortuneData.score}</Text>
+                  <Text style={styles.scoreText}>점</Text>
+                </View>
+                <Text style={styles.fortuneScore}>
+                  {getScoreStars(fortuneData.score)}
+                </Text>
+              </View>
+              
+              {/* 한마디 요약 */}
+              <View style={styles.summaryContainer}>
+                <Text style={styles.summaryLabel}>오늘의 한마디</Text>
+                <Text style={styles.summaryText}>"{fortuneData.summary}"</Text>
+              </View>
+              
+              {/* 사주 전문가 설명 */}
+              <View style={styles.explanationContainer}>
+                <View style={styles.explanationHeader}>
+                  <Text style={styles.explanationIcon}>🔮</Text>
+                  <Text style={styles.explanationTitle}>사주 전문가의 설명</Text>
+                </View>
+                <Text style={styles.explanationText}>{fortuneData.explanation}</Text>
+              </View>
+              
+              {/* 조언 섹션 */}
+              <View style={styles.adviceSection}>
+                <View style={styles.doContainer}>
+                  <View style={styles.adviceHeader}>
+                    <Text style={styles.adviceIcon}>✅</Text>
+                    <Text style={styles.adviceTitle}>해야할 것</Text>
+                  </View>
+                  {fortuneData.doList.map((item, index) => (
+                    <View key={index} style={styles.adviceItem}>
+                      <Text style={styles.adviceBullet}>•</Text>
+                      <Text style={styles.adviceText}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
+                
+                <View style={styles.dontContainer}>
+                  <View style={styles.adviceHeader}>
+                    <Text style={styles.adviceIcon}>❌</Text>
+                    <Text style={styles.adviceTitle}>하지말아야 할 것</Text>
+                  </View>
+                  {fortuneData.dontList.map((item, index) => (
+                    <View key={index} style={styles.adviceItem}>
+                      <Text style={styles.adviceBullet}>•</Text>
+                      <Text style={styles.adviceText}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+              
+              {/* 채팅 버튼 */}
+              <TouchableOpacity 
+                style={styles.chatButton}
+                onPress={handleStartChat}
+              >
+                <Text style={styles.chatButtonIcon}>💬</Text>
+                <Text style={styles.chatButtonText}>
+                  오늘의 운세에 대해 더 자세히 물어보기
+                </Text>
+                <Text style={styles.chatButtonSubtext}>
+                  AI 전문가와 1:1 대화하기
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.noDataContainer}>
+              <Text style={styles.noDataTitle}>사주 정보가 없습니다</Text>
+              <Text style={styles.noDataDescription}>
+                오늘의 운세를 확인하려면 먼저 사주 정보를 입력해주세요
+              </Text>
+              <TouchableOpacity 
+                style={styles.inputButton}
+                onPress={() => navigation.navigate('SajuInfo')}
+              >
+                <Text style={styles.inputButtonText}>사주 정보 입력하기</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <TouchableOpacity 
             style={styles.detailButton}
@@ -107,6 +240,15 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
           </TouchableOpacity>
         </View>
       </ScrollView>
+      
+      <ChatStartBottomSheet
+        visible={showChatModal}
+        onClose={() => setShowChatModal(false)}
+        onStartChat={onStartChat}
+        title="오늘의 운세 전문가와 대화하기"
+        description="오늘의 운세에 대해 더 자세히 물어보고 싶은 것이 있나요?"
+        buttonText="대화 시작하기"
+      />
     </View>
   );
 };
@@ -146,46 +288,6 @@ const styles = StyleSheet.create({
   dateSubtext: {
     fontSize: 14,
     color: '#666',
-  },
-  categoryContainer: {
-    marginBottom: 20,
-  },
-  categoryTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 12,
-  },
-  categoryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  categoryItem: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    minWidth: 70,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  categoryItemSelected: {
-    backgroundColor: Colors.primaryColor,
-    borderColor: Colors.primaryColor,
-  },
-  categoryIcon: {
-    fontSize: 20,
-    marginBottom: 4,
-  },
-  categoryName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
-  },
-  categoryNameSelected: {
-    color: 'white',
   },
   fortuneCard: {
     backgroundColor: '#fefefe',
@@ -244,6 +346,188 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '700',
+  },
+  loadingContainer: {
+    backgroundColor: '#fefefe',
+    borderRadius: 16,
+    padding: 40,
+    marginBottom: 20,
+    borderWidth: 0.5,
+    borderColor: '#f5f5f5',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 12,
+  },
+  summaryContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primaryColor,
+    alignItems: 'center',
+  },
+  summaryText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    lineHeight: 24,
+  },
+  explanationContainer: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  explanationTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 8,
+  },
+  explanationText: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+  },
+  doContainer: {
+    marginBottom: 16,
+  },
+  dontContainer: {
+    marginBottom: 16,
+  },
+  chatButton: {
+    backgroundColor: Colors.primaryColor,
+    borderRadius: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginTop: 24,
+    shadowColor: Colors.primaryColor,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  chatButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  noDataContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    minHeight: 300,
+    paddingTop: 50,
+  },
+  noDataTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#333',
+    marginBottom: 8,
+  },
+  noDataDescription: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  inputButton: {
+    backgroundColor: Colors.primaryColor,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  inputButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // 새로운 스타일들
+  scoreSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingVertical: 20,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  scoreContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginVertical: 12,
+  },
+  scoreNumber: {
+    fontSize: 48,
+    fontWeight: '800',
+    color: Colors.primaryColor,
+  },
+  scoreText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.primaryColor,
+    marginLeft: 4,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  explanationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  explanationIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  adviceSection: {
+    marginTop: 8,
+  },
+  adviceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  adviceIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  adviceItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  adviceBullet: {
+    fontSize: 16,
+    color: '#666',
+    marginRight: 8,
+    marginTop: 2,
+  },
+  chatButtonIcon: {
+    fontSize: 24,
+    marginBottom: 8,
+  },
+  chatButtonSubtext: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 4,
   },
 });
 
