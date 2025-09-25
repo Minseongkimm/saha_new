@@ -81,7 +81,6 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
         doList: [
           "새로운 프로젝트를 시작해보세요",
           "주변 사람들과 소통을 늘려보세요",
-          "건강한 식사를 챙기세요",
           "긍정적인 마음가짐을 유지하세요"
         ],
         dontList: [
@@ -153,7 +152,22 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
     return { main: '주의깊게 지내야 할 하루가 되겠네요', sub: '조심히 지나가세요' };
   };
 
+  // 카테고리별 점수에 따른 표현 결정 함수 (1-5점)
+  const getCategoryScoreText = (score: number) => {
+    if (score >= 5) return "최고";
+    if (score >= 4) return "좋음";
+    if (score >= 3) return "보통";
+    if (score >= 2) return "주의";
+    return "위험";
+  };
 
+  const getCategoryScoreColor = (score: number) => {
+    if (score >= 5) return { color: '#2e7d32' }; // 진한 초록색 (80-100점과 동일)
+    if (score >= 4) return { color: '#4caf50' }; // 초록색 (60-79점과 동일)
+    if (score >= 3) return { color: '#ff9800' }; // 주황색 (40-59점과 동일)
+    if (score >= 2) return { color: '#f44336' }; // 빨간색 (20-39점과 동일)
+    return { color: '#d32f2f' }; // 진한 빨간색 (0-19점과 동일)
+  };
 
   return (
     <View style={styles.container}>
@@ -188,7 +202,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
                   <Text style={[styles.scoreNumber, getScoreColor(fortuneData.score)]}>
                     {getValidScore(fortuneData.score)}
                   </Text>
-                  <Text style={styles.scoreText}>점</Text>
+                  <Text style={[styles.scoreText, getScoreColor(fortuneData.score)]}>점</Text>
                 </View>
                 <View style={styles.scoreStatusContainer}>
                   <Text style={[styles.scoreStatus, getScoreColor(fortuneData.score)]}>
@@ -213,9 +227,42 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
               </View>
               
               {/* 한 줄 요약 (키 메시지) */}
-              <View style={styles.keyMessageContainer}>
-                <Text style={styles.keyMessageLabel}>오늘의 한마디</Text>
-                <Text style={styles.keyMessageText}>"{fortuneData.summary}"</Text>
+              <View style={styles.keyMessageCard}>
+                <View style={styles.keyMessageHeader}>
+                  <Text style={styles.keyMessageLabel}>오늘의 한마디</Text>
+                </View>
+                <View style={styles.keyMessageContent}>
+                  <Text style={styles.keyMessageText}>{fortuneData.summary}</Text>
+                </View>
+              </View>
+              
+              {/* 오늘의 사주 분석 */}
+              <View style={styles.sajuAnalysisCard}>
+                <View style={styles.sajuAnalysisHeader}>
+                  <Text style={styles.sajuAnalysisTitle}>오늘의 사주 분석</Text>
+                </View>
+                <View style={styles.sajuAnalysisContent}>
+                  <View style={styles.analysisItem}>
+                    <Text style={styles.analysisLabel}>직업운</Text>
+                    <Text style={[styles.analysisValue, getCategoryScoreColor(4)]}>{getCategoryScoreText(4)}</Text>
+                    <Text style={styles.analysisDescription}>새로운 프로젝트나 업무에서 좋은 성과를 낼 수 있는 날입니다. 상사와의 관계도 원만해질 것 같아요</Text>
+                  </View>
+                  <View style={styles.analysisItem}>
+                    <Text style={styles.analysisLabel}>연애운</Text>
+                    <Text style={[styles.analysisValue, getCategoryScoreColor(5)]}>{getCategoryScoreText(5)}</Text>
+                    <Text style={styles.analysisDescription}>연인과의 관계가 더 깊어질 수 있는 날입니다. 솔직한 대화를 나누면 관계 발전에 도움이 될 것 같아요</Text>
+                  </View>
+                  <View style={styles.analysisItem}>
+                    <Text style={styles.analysisLabel}>인간관계</Text>
+                    <Text style={[styles.analysisValue, getCategoryScoreColor(3)]}>{getCategoryScoreText(3)}</Text>
+                    <Text style={styles.analysisDescription}>새로운 인연이 생기거나 기존 관계가 더 돈독해질 수 있는 날입니다. 주변 사람들과의 소통을 늘려보세요</Text>
+                  </View>
+                  <View style={styles.analysisItem}>
+                    <Text style={styles.analysisLabel}>재물운</Text>
+                    <Text style={[styles.analysisValue, getCategoryScoreColor(4)]}>{getCategoryScoreText(4)}</Text>
+                    <Text style={styles.analysisDescription}>재정적으로 안정적인 하루가 될 것 같습니다. 불필요한 지출을 피하고 계획적인 소비를 하세요</Text>
+                  </View>
+                </View>
               </View>
               
               {/* 피해야 할 점 (위험/주의 포인트) */}
@@ -249,7 +296,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
               {/* AI 가이드 섹션 */}
               <AIGuideSection
                 title="더 깊이 있는 이야기가 필요하다면"
-                description="궁금한 점이나 더 자세한 해석이 필요하시다면\nAI 도사와 1:1 대화를 통해 맞춤형 조언을 받아보세요."
+                description={`궁금한 점이나 더 자세한 해석이 필요하시다면${'\n'}AI 도사와 1:1 대화를 통해 맞춤형 조언을 받아보세요.`}
                 imageSource={require('../../assets/logo/logo_icon.png')}
               />
 
@@ -369,26 +416,104 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  keyMessageContainer: {
-    padding: 20,
-    marginBottom: 20,
-    alignItems: 'center',
+  keyMessageCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginTop: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+    overflow: 'hidden',
+  },
+  keyMessageHeader: {
+    backgroundColor: '#f0f8ff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e6f3ff',
   },
   keyMessageLabel: {
-    fontSize: 12,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2c3e50',
+    textAlign: 'center',
+  },
+  keyMessageContent: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  keyMessageText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2c3e50',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    lineHeight: 28,
+  },
+  sajuAnalysisCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+    overflow: 'hidden',
+  },
+  sajuAnalysisHeader: {
+    backgroundColor: '#f0f8ff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e6f3ff',
+  },
+  sajuAnalysisTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2c3e50',
+    textAlign: 'center',
+  },
+  sajuAnalysisContent: {
+    padding: 20,
+  },
+  analysisItem: {
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f8f9fa',
+  },
+  analysisLabel: {
+    fontSize: 14,
     fontWeight: '600',
     color: '#666',
-    marginBottom: 8,
+    marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  keyMessageText: {
+  analysisValue: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
-    textAlign: 'center',
-    fontStyle: 'italic',
-    lineHeight: 24,
+    color: '#2c3e50',
+    marginBottom: 6,
+  },
+  analysisDescription: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
   },
   avoidSection: {
     marginBottom: 20,
@@ -411,30 +536,30 @@ const styles = StyleSheet.create({
     color: '#2c3e50',
   },
   keywordContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     gap: 8,
   },
   keywordTag: {
     backgroundColor: '#ffebee',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: '#ffcdd2',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    alignSelf: 'stretch',
   },
   utilizeTag: {
-    borderColor: '#c8e6c9',
+    backgroundColor: '#e8f5e8',
   },
   keywordText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     color: '#d32f2f',
+    textAlign: 'left',
   },
   utilizeKeywordText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '500',
     color: '#2e7d32',
+    textAlign: 'left',
   },
   explanationContainer: {
     padding: 16,
@@ -507,7 +632,7 @@ const styles = StyleSheet.create({
   },
   scoreText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '900',
     color: Colors.primaryColor,
     marginLeft: 4,
   },
