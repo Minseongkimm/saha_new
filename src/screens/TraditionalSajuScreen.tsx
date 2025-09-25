@@ -19,6 +19,8 @@ import { traditionalSajuService } from '../services/ai/traditionalSajuService';
 import SajuAnalysis from '../components/SajuAnalysis';
 import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
 import ProgressLoadingCard from '../components/ProgressLoadingCard';
+import AIGuideSection from '../components/AIGuideSection';
+import BottomFixedButton from '../components/BottomFixedButton';
 import { startChatWithExpert } from '../utils/chatUtils';
 
 interface TraditionalSajuScreenProps {
@@ -305,21 +307,11 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
                      
                      {/* AI 도사 연결 안내 */}
                      {llmAnalysis && llmAnalysis.overall && (
-                       <View style={styles.aiGuideSection}>
-                         <View style={styles.aiGuideHeader}>
-                           <View style={styles.aiGuideIcon}>
-                             <Image 
-                               source={require('../../assets/logo/logo_icon.png')} 
-                               style={styles.aiGuideLogo}
-                             />
-                           </View>
-                           <Text style={styles.aiGuideTitle}>더 깊이 있는 이야기가 필요하다면</Text>
-                         </View>
-                         <Text style={styles.aiGuideText}>
-                           궁금한 점이나 더 자세한 해석이 필요하시다면{'\n'}
-                           AI 도사와 1:1 대화를 통해 맞춤형 조언을 받아보세요.
-                         </Text>
-                       </View>
+                       <AIGuideSection
+                         title="더 깊이 있는 이야기가 필요하다면"
+                         description="궁금한 점이나 더 자세한 해석이 필요하시다면\nAI 도사와 1:1 대화를 통해 맞춤형 조언을 받아보세요."
+                         imageSource={require('../../assets/logo/logo_icon.png')}
+                       />
                      )}
 
             </View>
@@ -330,14 +322,10 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
 
       
       {/* 하단 고정 버튼 */}
-      <View style={styles.bottomButtonContainer}>
-        <TouchableOpacity 
-          style={styles.bottomButton}
-          onPress={() => setShowChatModal(true)}
-        >
-          <Text style={styles.bottomButtonText}>AI 도사와 이야기 나누기</Text>
-        </TouchableOpacity>
-      </View>
+      <BottomFixedButton
+        onPress={() => setShowChatModal(true)}
+        text="AI 도사와 이야기 나누기"
+      />
       
       {/* 채팅 시작 바텀 시트 */}
       <ChatStartBottomSheet
@@ -441,94 +429,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
-  },
-  bottomButtonContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'white',
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-    paddingBottom: 30, // 하단 safe area 고려
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  bottomButton: {
-    backgroundColor: Colors.primaryColor,
-    borderRadius: 12,
-    paddingVertical: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bottomButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  aiGuideSection: {
-    marginTop: 10,
-    // marginBottom: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    backgroundColor: 'white',
-    borderRadius: 16,
-    shadowColor: Colors.primaryColor,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
-    alignItems: 'center',
-  },
-  aiGuideHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    justifyContent: 'center',
-  },
-  aiGuideIcon: {
-    width: 32,
-    height: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 2,
-  },
-  aiGuideIconText: {
-    fontSize: 16,
-  },
-  aiGuideLogo: {
-    width: 20,
-    height: 20,
-  },
-  aiGuideTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#2c3e50',
-    textAlign: 'center',
-  },
-  aiGuideText: {
-    fontSize: 14,
-    lineHeight: 22,
-    color: '#5a6c7d',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  aiGuideCta: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: Colors.primaryColor,
-    borderRadius: 20,
-  },
-  aiGuideCtaText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: 'white',
   },
 });
 

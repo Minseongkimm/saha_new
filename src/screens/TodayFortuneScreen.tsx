@@ -18,6 +18,8 @@ import { TodayFortuneCache } from '../utils/todayFortuneCache';
 import { todayFortuneService, TodayFortuneData } from '../services/ai/todayFortuneService';
 import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
 import ProgressLoadingCard from '../components/ProgressLoadingCard';
+import AIGuideSection from '../components/AIGuideSection';
+import BottomFixedButton from '../components/BottomFixedButton';
 import { startChatWithExpert } from '../utils/chatUtils';
 
 interface TodayFortuneScreenProps {
@@ -110,14 +112,48 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
     startChatWithExpert(navigation, 'today_fortune');
   };
 
-
-  const getScoreStars = (score: number) => {
-    const fullStars = Math.floor(score / 20);
-    const hasHalfStar = (score % 20) >= 10;
-    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
-    
-    return '★'.repeat(fullStars) + (hasHalfStar ? '☆' : '') + '☆'.repeat(emptyStars);
+  // 점수에 따른 색상 결정 함수
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return { color: '#4caf50' }; // 초록색 (매우 좋음)
+    if (score >= 60) return { color: '#8bc34a' }; // 연두색 (좋음)
+    if (score >= 40) return { color: '#ff9800' }; // 주황색 (보통)
+    if (score >= 20) return { color: '#ff5722' }; // 빨간색 (나쁨)
+    return { color: '#f44336' }; // 진한 빨간색 (매우 나쁨)
   };
+
+  // 점수에 따른 저울 바 색상 결정 함수
+  const getScoreBarColor = (score: number) => {
+    if (score >= 80) return '#e8f5e8'; // 연한 초록색
+    if (score >= 60) return '#f1f8e9'; // 매우 연한 초록색
+    if (score >= 40) return '#fff3e0'; // 연한 주황색
+    if (score >= 20) return '#ffebee'; // 연한 빨간색
+    return '#ffcdd2'; // 진한 연한 빨간색
+  };
+
+  // 점수 검증 및 랜덤 숫자 생성 함수
+  const getValidScore = (score: number) => {
+    if (score < 0 || score > 100 || isNaN(score)) {
+      return Math.floor(Math.random() * 31) + 70; // 70~100 랜덤 숫자
+    }
+    return score;
+  };
+
+  // 점수에 따른 상태 텍스트 결정 함수
+  const getScoreStatus = (score: number) => {
+    const validScore = getValidScore(score);
+    
+    if (validScore >= 100) return { main: '최고의 하루가 되겠네요', sub: '마음껏 즐기세요' };
+    if (validScore >= 90) return { main: '매우 좋은 하루가 될 것 같아요', sub: '기대해도 좋습니다' };
+    if (validScore >= 80) return { main: '좋은 하루가 되겠네요', sub: '편안하게 지내세요' };
+    if (validScore >= 70) return { main: '나쁘지 않은 하루가 될 것 같아요', sub: '안심하고 지내세요' };
+    if (validScore >= 60) return { main: '보통의 하루가 되겠네요', sub: '편히 지내세요' };
+    if (validScore >= 50) return { main: '조금 조심할 하루가 될 것 같아요', sub: '무리하지 마세요' };
+    if (validScore >= 40) return { main: '신중한 하루가 되겠네요', sub: '천천히 지내세요' };
+    if (validScore >= 30) return { main: '조심스러운 하루가 될 것 같아요', sub: '조금만 신경 쓰세요' };
+    return { main: '주의깊게 지내야 할 하루가 되겠네요', sub: '조심히 지나가세요' };
+  };
+
+
 
   return (
     <View style={styles.container}>
@@ -125,23 +161,15 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
         title="오늘의 운세"
         onBackPress={() => navigation.goBack()}
       />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
         <View style={styles.content}>
-          <SectionHeader 
+          {/* <SectionHeader 
             title="오늘의 운세" 
             description={"안좋은건 피하고 좋은건 잡으세요"}
-          />
-
-          <View style={styles.dateCard}>
-            <Image
-              source={require('../../assets/saju/calendar_saju.png')}
-              style={styles.calendarIcon}
-            />
-            <Text style={styles.dateText}>{todayDate}</Text>
-            <Text style={styles.dateSubtext}>오늘 하루의 운세</Text>
-          </View>
-
-
+          /> */}
           {loading ? (
             <ProgressLoadingCard
             title="AI가 당신의 사주를 분석하고 있어요"
@@ -151,76 +179,79 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
             showIcon={true}
             />
           ) : fortuneData ? (
-            <View style={styles.fortuneCard}>
+            <View>
               {/* 운세 점수 섹션 */}
               <View style={styles.scoreSection}>
-                <Text style={styles.fortuneTitle}>오늘의 운세</Text>
+                <Text style={styles.fortuneTitle}>{todayDate}</Text>
+                <Text style={styles.dateSubtext}>오늘의 운세</Text>
                 <View style={styles.scoreContainer}>
-                  <Text style={styles.scoreNumber}>{fortuneData.score}</Text>
+                  <Text style={[styles.scoreNumber, getScoreColor(fortuneData.score)]}>
+                    {getValidScore(fortuneData.score)}
+                  </Text>
                   <Text style={styles.scoreText}>점</Text>
                 </View>
-                <Text style={styles.fortuneScore}>
-                  {getScoreStars(fortuneData.score)}
-                </Text>
-              </View>
-              
-              {/* 한마디 요약 */}
-              <View style={styles.summaryContainer}>
-                <Text style={styles.summaryLabel}>오늘의 한마디</Text>
-                <Text style={styles.summaryText}>"{fortuneData.summary}"</Text>
-              </View>
-              
-              {/* 사주 전문가 설명 */}
-              <View style={styles.explanationContainer}>
-                <View style={styles.explanationHeader}>
-                  <Text style={styles.explanationIcon}>🔮</Text>
-                  <Text style={styles.explanationTitle}>사주 전문가의 설명</Text>
+                <View style={styles.scoreStatusContainer}>
+                  <Text style={[styles.scoreStatus, getScoreColor(fortuneData.score)]}>
+                    {getScoreStatus(fortuneData.score).main}
+                  </Text>
+                  <Text style={[styles.scoreStatusSub, getScoreColor(fortuneData.score)]}>
+                    {getScoreStatus(fortuneData.score).sub}
+                  </Text>
                 </View>
-                <Text style={styles.explanationText}>{fortuneData.explanation}</Text>
+                <View style={styles.scoreScale}>
+                  <View style={[styles.scaleBar, { backgroundColor: getScoreBarColor(fortuneData.score) }]}>
+                    <View style={[styles.scaleIndicator, { left: `${getValidScore(fortuneData.score)}%` }]} />
+                  </View>
+                  <View style={styles.scaleLabels}>
+                    <Text style={styles.scaleLabel}>0</Text>
+                    <Text style={styles.scaleLabel}>25</Text>
+                    <Text style={styles.scaleLabel}>50</Text>
+                    <Text style={styles.scaleLabel}>75</Text>
+                    <Text style={styles.scaleLabel}>100</Text>
+                  </View>
+                </View>
               </View>
               
-              {/* 조언 섹션 */}
-              <View style={styles.adviceSection}>
-                <View style={styles.doContainer}>
-                  <View style={styles.adviceHeader}>
-                    <Text style={styles.adviceIcon}>✅</Text>
-                    <Text style={styles.adviceTitle}>해야할 것</Text>
-                  </View>
-                  {fortuneData.doList.map((item, index) => (
-                    <View key={index} style={styles.adviceItem}>
-                      <Text style={styles.adviceBullet}>•</Text>
-                      <Text style={styles.adviceText}>{item}</Text>
-                    </View>
-                  ))}
+              {/* 한 줄 요약 (키 메시지) */}
+              <View style={styles.keyMessageContainer}>
+                <Text style={styles.keyMessageLabel}>오늘의 한마디</Text>
+                <Text style={styles.keyMessageText}>"{fortuneData.summary}"</Text>
+              </View>
+              
+              {/* 피해야 할 점 (위험/주의 포인트) */}
+              <View style={styles.avoidSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>피해야 할 점</Text>
                 </View>
-                
-                <View style={styles.dontContainer}>
-                  <View style={styles.adviceHeader}>
-                    <Text style={styles.adviceIcon}>❌</Text>
-                    <Text style={styles.adviceTitle}>하지말아야 할 것</Text>
-                  </View>
+                <View style={styles.keywordContainer}>
                   {fortuneData.dontList.map((item, index) => (
-                    <View key={index} style={styles.adviceItem}>
-                      <Text style={styles.adviceBullet}>•</Text>
-                      <Text style={styles.adviceText}>{item}</Text>
+                    <View key={index} style={styles.keywordTag}>
+                      <Text style={styles.keywordText}>{item}</Text>
                     </View>
                   ))}
                 </View>
               </View>
               
-              {/* 채팅 버튼 */}
-              <TouchableOpacity 
-                style={styles.chatButton}
-                onPress={handleStartChat}
-              >
-                <Text style={styles.chatButtonIcon}>💬</Text>
-                <Text style={styles.chatButtonText}>
-                  오늘의 운세에 대해 더 자세히 물어보기
-                </Text>
-                <Text style={styles.chatButtonSubtext}>
-                  AI 전문가와 1:1 대화하기
-                </Text>
-              </TouchableOpacity>
+              {/* 활용해야 할 점 (강조/활용 포인트) */}
+              <View style={styles.utilizeSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>활용해야 할 점</Text>
+                </View>
+                <View style={styles.keywordContainer}>
+                  {fortuneData.doList.map((item, index) => (
+                    <View key={index} style={[styles.keywordTag, styles.utilizeTag]}>
+                      <Text style={styles.utilizeKeywordText}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+              
+              {/* AI 가이드 섹션 */}
+              <AIGuideSection
+                title="더 깊이 있는 이야기가 필요하다면"
+                description="궁금한 점이나 더 자세한 해석이 필요하시다면\nAI 도사와 1:1 대화를 통해 맞춤형 조언을 받아보세요."
+                imageSource={require('../../assets/logo/logo_icon.png')}
+              />
 
             </View>
           ) : (
@@ -237,15 +268,16 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
               </TouchableOpacity>
             </View>
           )}
-
-          <TouchableOpacity 
-            style={styles.detailButton}
-            onPress={() => navigation.navigate('SajuInfo')}
-          >
-            <Text style={styles.detailButtonText}>상세 사주 분석 받기</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
+      
+      {/* 하단 고정 버튼 */}
+      {fortuneData && (
+        <BottomFixedButton
+          onPress={handleStartChat}
+          text="오늘의 운세 이야기 나누기"
+        />
+      )}
       
       <ChatStartBottomSheet
         visible={showChatModal}
@@ -267,6 +299,9 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
+  scrollContent: {
+    paddingBottom: 80, // 하단 고정 버튼 높이만큼 여백 추가
+  },
   dateCard: {
     backgroundColor: '#fefefe',
     borderRadius: 16,
@@ -280,11 +315,6 @@ const styles = StyleSheet.create({
     elevation: 3,
     alignItems: 'center',
   },
-  calendarIcon: {
-    width: 50,
-    height: 50,
-    marginBottom: 12,
-  },
   dateText: {
     fontSize: 18,
     fontWeight: '700',
@@ -294,18 +324,6 @@ const styles = StyleSheet.create({
   dateSubtext: {
     fontSize: 14,
     color: '#666',
-  },
-  fortuneCard: {
-    backgroundColor: '#fefefe',
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 30,
-    borderWidth: 0.5,
-    borderColor: '#f5f5f5',
-    shadowColor: Colors.primaryColor,
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-    elevation: 3,
   },
   fortuneTitle: {
     fontSize: 20,
@@ -326,8 +344,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   adviceContainer: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
     padding: 16,
   },
   adviceTitle: {
@@ -353,16 +369,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
   },
-  summaryContainer: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
+  keyMessageContainer: {
     padding: 20,
     marginBottom: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.primaryColor,
     alignItems: 'center',
   },
-  summaryText: {
+  keyMessageLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#666',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  keyMessageText: {
     fontSize: 18,
     fontWeight: '700',
     color: '#333',
@@ -370,9 +390,53 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 24,
   },
+  avoidSection: {
+    marginBottom: 20,
+  },
+  utilizeSection: {
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionIcon: {
+    fontSize: 18,
+    marginRight: 8,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2c3e50',
+  },
+  keywordContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  keywordTag: {
+    backgroundColor: '#ffebee',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#ffcdd2',
+  },
+  utilizeTag: {
+    borderColor: '#c8e6c9',
+  },
+  keywordText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#d32f2f',
+  },
+  utilizeKeywordText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2e7d32',
+  },
   explanationContainer: {
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
     padding: 16,
     marginBottom: 16,
   },
@@ -392,28 +456,6 @@ const styles = StyleSheet.create({
   },
   dontContainer: {
     marginBottom: 16,
-  },
-  chatButton: {
-    backgroundColor: Colors.primaryColor,
-    borderRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    marginTop: 24,
-    shadowColor: Colors.primaryColor,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  chatButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
   },
   noDataContainer: {
     flex: 1,
@@ -450,17 +492,13 @@ const styles = StyleSheet.create({
   // 새로운 스타일들
   scoreSection: {
     alignItems: 'center',
-    marginBottom: 24,
-    paddingVertical: 20,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
+    marginBottom: 20,
+    paddingVertical:10,
   },
   scoreContainer: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginVertical: 12,
+    marginVertical: 15,
   },
   scoreNumber: {
     fontSize: 48,
@@ -472,6 +510,52 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.primaryColor,
     marginLeft: 4,
+  },
+  scoreStatusContainer: {
+    marginTop: 0,
+    alignItems: 'center',
+  },
+  scoreStatus: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  scoreStatusSub: {
+    fontSize: 14,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 2,
+    marginBottom: 4,
+  },
+  scoreScale: {
+    width: '100%',
+    marginTop: 16,
+  },
+  scaleBar: {
+    height: 8,
+    borderRadius: 4,
+    position: 'relative',
+    backgroundColor: '#f0f0f0',
+  },
+  scaleIndicator: {
+    position: 'absolute',
+    top: -4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#333',
+    borderWidth: 2,
+    borderColor: '#fff',
+    transform: [{ translateX: -8 }],
+  },
+  scaleLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  scaleLabel: {
+    fontSize: 12,
+    color: '#666',
   },
   summaryLabel: {
     fontSize: 14,
@@ -511,15 +595,6 @@ const styles = StyleSheet.create({
     color: '#666',
     marginRight: 8,
     marginTop: 2,
-  },
-  chatButtonIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  chatButtonSubtext: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 4,
   },
 });
 
