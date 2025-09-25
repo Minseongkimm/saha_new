@@ -18,6 +18,7 @@ import { SajuCache } from '../utils/sajuCache';
 import { traditionalSajuService } from '../services/ai/traditionalSajuService';
 import SajuAnalysis from '../components/SajuAnalysis';
 import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
+import ProgressLoadingCard from '../components/ProgressLoadingCard';
 import { startChatWithExpert } from '../utils/chatUtils';
 
 interface TraditionalSajuScreenProps {
@@ -30,13 +31,7 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
   const [loadingChart, setLoadingChart] = useState(false);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
   const [generatingAnalysis, setGeneratingAnalysis] = useState(false); // LLM 생성 활성화
-  const [analysisProgress, setAnalysisProgress] = useState(0);
-  const [iconScale, setIconScale] = useState(1);
   const [showChatModal, setShowChatModal] = useState(false);
-  
-  // 애니메이션 인터벌 참조
-  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const iconIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
 
   useEffect(() => {
@@ -178,34 +173,8 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
   };
 
   const generateLlmAnalysis = async (sajuData?: any) => {
-    const startTime = Date.now(); // 시작 시간 기록
-    
     try {
       setGeneratingAnalysis(true);
-      setAnalysisProgress(0);
-      
-      // 진행률 시뮬레이션 시작 (15초 기준으로 조정)
-      const startTime = Date.now();
-      const targetDuration = 15000; // 15초
-      
-      progressIntervalRef.current = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const timeBasedProgress = Math.min((elapsed / targetDuration) * 90, 90); // 90%까지 시간 기반
-        
-        setAnalysisProgress(prev => {
-          // 시간 기반 진행률과 이전 값 중 더 큰 값 사용 (뒤로 가지 않도록)
-          return Math.max(timeBasedProgress, prev);
-        });
-      }, 100); // 100ms마다 업데이트로 부드러운 진행
-      
-      // 아이콘 애니메이션 시작
-      iconIntervalRef.current = setInterval(() => {
-        setIconScale(prev => {
-          // 0.9 ~ 1.1 사이에서 부드럽게 변화
-          const time = Date.now() / 1000;
-          return 1 + Math.sin(time * 2) * 0.1;
-        });
-      }, 50); // 50ms마다 업데이트로 부드러운 애니메이션
       
       // 사용할 사주 데이터 결정 (매개변수로 받은 데이터 우선, 없으면 상태에서 가져오기)
       const dataToUse = sajuData || userSajuData;
@@ -233,28 +202,8 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
         jijiRelations: dataToUse.calculatedSaju.jijiRelations
       };
       
-      // 정통사주 해석 생성 시작
-      
       // LLM 분석 생성
       const analysis = await traditionalSajuService.generateSajuAnalysis(analysisInput);
-      
-      // 진행률 100%로 완료 (부드러운 완료 애니메이션)
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-        progressIntervalRef.current = null;
-      }
-      if (iconIntervalRef.current) {
-        clearInterval(iconIntervalRef.current);
-        iconIntervalRef.current = null;
-      }
-      
-      // 100%로 부드럽게 완료
-      setAnalysisProgress(100);
-      
-      // 완료 후 잠시 대기 (사용자가 100%를 볼 수 있도록)
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // 정통사주 해석 생성 완료
       
       // 1. 상태 업데이트
       setLlmAnalysis(analysis);
@@ -280,16 +229,6 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
     } catch (error) {
       console.error('Error generating LLM analysis:', error);
       
-      // 에러 발생 시에도 인터벌 정리
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-        progressIntervalRef.current = null;
-      }
-      if (iconIntervalRef.current) {
-        clearInterval(iconIntervalRef.current);
-        iconIntervalRef.current = null;
-      }
-      
       // 에러 발생 시 llmAnalysis를 null로 설정하여 버튼이 다시 보이도록 함
       setLlmAnalysis(null);
       
@@ -297,7 +236,6 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
       Alert.alert('오류', '사주 해석 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setGeneratingAnalysis(false);
-      setAnalysisProgress(0);
     }
   };
 
@@ -350,46 +288,13 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
               />
               
                      {generatingAnalysis && (
-                       <View style={styles.analysisLoadingContainer}>
-                         <Image 
-                           source={require('../../assets/logo/logo_icon.png')} 
-                           style={[
-                             styles.loadingIcon,
-                             { transform: [{ scale: iconScale }] }
-                           ]}
-                         />
-                         <Text style={styles.analysisLoadingText}>
-                           AI가 당신의 사주를 분석하고 있어요...{'\n'}
-                           <Text style={styles.loadingSubText}>
-                             약 15초 정도 소요됩니다
-                           </Text>
-                         </Text>
-                         <View style={styles.progressContainer}>
-                           <View style={styles.progressBar}>
-                             <View 
-                               style={[
-                                 styles.progressFill, 
-                                 { width: `${analysisProgress}%` }
-                               ]} 
-                             />
-                           </View>
-                           <Text style={styles.progressText}>
-                             {Math.round(analysisProgress)}%
-                           </Text>
-                           
-                           {/* 작은 로딩바 추가 */}
-                           <View style={styles.smallLoadingContainer}>
-                             <View style={styles.smallLoadingBar}>
-                               <View 
-                                 style={[
-                                   styles.smallLoadingFill, 
-                                   { width: `${analysisProgress}%` }
-                                 ]} 
-                               />
-                             </View>
-                           </View>
-                         </View>
-                       </View>
+                       <ProgressLoadingCard
+                         title="AI가 당신의 사주를 분석하고 있어요"
+                         description="처음 분석만 15초, 다음부터는 즉시 확인 가능해요!"
+                         duration={15000}
+                         showProgress={true}
+                         showIcon={true}
+                       />
                      )}
                      
                      {llmAnalysis && llmAnalysis.overall && (
@@ -416,6 +321,7 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
                          </Text>
                        </View>
                      )}
+
             </View>
           )}
         </View>
@@ -512,66 +418,6 @@ const styles = StyleSheet.create({
   analysisContentContainer: {
     marginTop: 15,
   },
-         analysisLoadingContainer: {
-           alignItems: 'center',
-           paddingVertical: 25,
-           paddingHorizontal: 20,
-         },
-         analysisLoadingText: {
-           fontSize: 14,
-           color: '#666',
-           marginTop: 8,
-           textAlign: 'center',
-         },
-         loadingSubText: {
-           fontSize: 12,
-           color: '#999',
-           marginTop: 4,
-         },
-  loadingIcon: {
-    width: 65,
-    height: 65,
-    marginBottom: 12,
-    marginTop: 10,
-  },
-  progressContainer: {
-    marginTop: 5,
-    alignItems: 'center',
-  },
-  progressBar: {
-    width: '80%',
-    height: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: Colors.primaryColor,
-    borderRadius: 4,
-  },
-         progressText: {
-           fontSize: 12,
-           color: Colors.primaryColor,
-           marginTop: 8,
-           fontWeight: '600',
-         },
-         smallLoadingContainer: {
-           marginTop: 8,
-           alignItems: 'center',
-         },
-         smallLoadingBar: {
-           width: 120,
-           height: 3,
-           backgroundColor: '#f0f0f0',
-           borderRadius: 2,
-           overflow: 'hidden',
-         },
-         smallLoadingFill: {
-           height: '100%',
-           backgroundColor: Colors.primaryColor,
-           borderRadius: 2,
-         },
   analysisCard: {
     backgroundColor: '#fefefe',
     borderRadius: 16,

@@ -17,6 +17,7 @@ import { SajuCache } from '../utils/sajuCache';
 import { TodayFortuneCache } from '../utils/todayFortuneCache';
 import { todayFortuneService, TodayFortuneData } from '../services/ai/todayFortuneService';
 import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
+import ProgressLoadingCard from '../components/ProgressLoadingCard';
 import { startChatWithExpert } from '../utils/chatUtils';
 
 interface TodayFortuneScreenProps {
@@ -109,6 +110,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
     startChatWithExpert(navigation, 'today_fortune');
   };
 
+
   const getScoreStars = (score: number) => {
     const fullStars = Math.floor(score / 20);
     const hasHalfStar = (score % 20) >= 10;
@@ -141,10 +143,13 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
 
 
           {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={Colors.primaryColor} />
-              <Text style={styles.loadingText}>오늘의 운세를 분석하고 있습니다...</Text>
-            </View>
+            <ProgressLoadingCard
+            title="AI가 당신의 사주를 분석하고 있어요"
+            description="처음 분석만 15초, 다음부터는 즉시 확인 가능해요!"
+            duration={15000}
+            showProgress={true}
+            showIcon={true}
+            />
           ) : fortuneData ? (
             <View style={styles.fortuneCard}>
               {/* 운세 점수 섹션 */}
@@ -216,6 +221,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
                   AI 전문가와 1:1 대화하기
                 </Text>
               </TouchableOpacity>
+
             </View>
           ) : (
             <View style={styles.noDataContainer}>
@@ -346,20 +352,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: '700',
-  },
-  loadingContainer: {
-    backgroundColor: '#fefefe',
-    borderRadius: 16,
-    padding: 40,
-    marginBottom: 20,
-    borderWidth: 0.5,
-    borderColor: '#f5f5f5',
-    alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 12,
   },
   summaryContainer: {
     backgroundColor: '#f8f9fa',
