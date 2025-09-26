@@ -1,8 +1,3 @@
-/**
- * 사주 유틸리티 클래스 (TypeScript 버전)
- * 비결만세력 프로젝트에서 추출한 오행, 지지관계 등 계산 로직
- */
-
 import { FiveElement, YinYang } from '../types';
 
 export class SajuUtils {
@@ -251,5 +246,189 @@ export class SajuUtils {
       });
     });
     return ganjiList;
+  }
+
+  /**
+   * 오늘 날짜를 간지로 변환
+   * @param date 날짜 (YYYY-MM-DD 형식)
+   * @return 오늘의 간지 정보
+   */
+  static getTodayGanji(date: string): {
+    yearGanji: string;
+    monthGanji: string;
+    dayGanji: string;
+    timeGanji: string;
+    yearHangul: string;
+    monthHangul: string;
+    dayHangul: string;
+    timeHangul: string;
+  } {
+    const targetDate = new Date(date);
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth() + 1;
+    const day = targetDate.getDate();
+    const hour = targetDate.getHours();
+
+    // 년주 계산
+    const yearGanji = this.calcYearGanji(year);
+    
+    // 월주 계산
+    const monthGanji = this.calcMonthGanji(year, month, yearGanji);
+    
+    // 일주 계산
+    const dayGanji = this.calcDayGanji(year, month, day);
+    
+    // 시주 계산
+    const timeGanji = this.calcTimeGanji(dayGanji, hour);
+
+    return {
+      yearGanji,
+      monthGanji,
+      dayGanji,
+      timeGanji,
+      yearHangul: this.getHanjaToHangulString(yearGanji),
+      monthHangul: this.getHanjaToHangulString(monthGanji),
+      dayHangul: this.getHanjaToHangulString(dayGanji),
+      timeHangul: this.getHanjaToHangulString(timeGanji)
+    };
+  }
+
+  /**
+   * 년주 계산
+   * @param year 년도
+   * @return 년주 간지
+   */
+  private static calcYearGanji(year: number): string {
+    const sibganForYear = ['庚', '辛', '壬', '癸', '甲', '乙', '丙', '丁', '戊', '己'];
+    const sibijiForYear = ['申', '酉', '戌', '亥', '子', '丑', '寅', '卯', '辰', '巳', '午', '未'];
+    
+    // 입춘 기준으로 년도 조정 (간단화: 2월 4일 기준)
+    let targetYear = year;
+    const currentDate = new Date(year, 1, 4); // 2월 4일
+    const today = new Date();
+    if (today < currentDate) {
+      targetYear--;
+    }
+    
+    const sibgan = sibganForYear[targetYear % 10];
+    const sibiji = sibijiForYear[targetYear % 12];
+    return sibgan + sibiji;
+  }
+
+  /**
+   * 월주 계산
+   * @param year 년도
+   * @param month 월
+   * @param yearGanji 년주 간지
+   * @return 월주 간지
+   */
+  private static calcMonthGanji(year: number, month: number, yearGanji: string): string {
+    const monthGanjiMap: { [key: string]: string[] } = {
+      '甲': ['丙寅', '丁卯', '戊辰', '己巳', '庚午', '辛未', '壬申', '癸酉', '甲戌', '乙亥', '丙子', '丁丑'],
+      '己': ['丙寅', '丁卯', '戊辰', '己巳', '庚午', '辛未', '壬申', '癸酉', '甲戌', '乙亥', '丙子', '丁丑'],
+      '乙': ['戊寅', '己卯', '庚辰', '辛巳', '壬午', '癸未', '甲申', '乙酉', '丙戌', '丁亥', '戊子', '己丑'],
+      '庚': ['戊寅', '己卯', '庚辰', '辛巳', '壬午', '癸未', '甲申', '乙酉', '丙戌', '丁亥', '戊子', '己丑'],
+      '丙': ['庚寅', '辛卯', '壬辰', '癸巳', '甲午', '乙未', '丙申', '丁酉', '戊戌', '己亥', '庚子', '辛丑'],
+      '辛': ['庚寅', '辛卯', '壬辰', '癸巳', '甲午', '乙未', '丙申', '丁酉', '戊戌', '己亥', '庚子', '辛丑'],
+      '丁': ['壬寅', '癸卯', '甲辰', '乙巳', '丙午', '丁未', '戊申', '己酉', '庚戌', '辛亥', '壬子', '癸丑'],
+      '壬': ['壬寅', '癸卯', '甲辰', '乙巳', '丙午', '丁未', '戊申', '己酉', '庚戌', '辛亥', '壬子', '癸丑'],
+      '戊': ['甲寅', '乙卯', '丙辰', '丁巳', '戊午', '己未', '庚申', '辛酉', '壬戌', '癸亥', '甲子', '乙丑'],
+      '癸': ['甲寅', '乙卯', '丙辰', '丁巳', '戊午', '己未', '庚申', '辛酉', '壬戌', '癸亥', '甲子', '乙丑']
+    };
+
+    const yearGan = yearGanji[0];
+    const monthGanjiList = monthGanjiMap[yearGan] || monthGanjiMap['甲'];
+    
+    // 입춘 기준으로 월 조정 (간단화: 매월 6일 기준)
+    let monthIndex = month - 1;
+    const currentDate = new Date(year, month - 1, 6);
+    const today = new Date();
+    if (today < currentDate) {
+      monthIndex--;
+    }
+    if (monthIndex < 0) monthIndex = 11;
+    
+    return monthGanjiList[monthIndex];
+  }
+
+  /**
+   * 일주 계산
+   * @param year 년도
+   * @param month 월
+   * @param day 일
+   * @return 일주 간지
+   */
+  private static calcDayGanji(year: number, month: number, day: number): string {
+    // 1900년 1월 1일을 기준으로 계산 (갑자일)
+    const baseDate = new Date(1900, 0, 1); // 1900년 1월 1일
+    const targetDate = new Date(year, month - 1, day);
+    
+    // 일수 차이 계산
+    const diffTime = targetDate.getTime() - baseDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    // 60갑자 순환 계산
+    const sibganIndex = (diffDays + 0) % 10; // 갑자일 기준
+    const sibijiIndex = (diffDays + 10) % 12; // 갑자일 기준
+    
+    return this.SIBGAN_HANJA[sibganIndex] + this.SIBIJI_HANJA[sibijiIndex];
+  }
+
+  /**
+   * 시주 계산
+   * @param dayGanji 일주 간지
+   * @param hour 시간
+   * @return 시주 간지
+   */
+  private static calcTimeGanji(dayGanji: string, hour: number): string {
+    const ganjiForTime = [
+      ['甲子', '乙丑', '丙寅', '丁卯', '戊辰', '己巳', '庚午', '辛未', '壬申', '癸酉', '甲戌', '乙亥'],
+      ['丙子', '丁丑', '戊寅', '己卯', '庚辰', '辛巳', '壬午', '癸未', '甲申', '乙酉', '丙戌', '丁亥'],
+      ['戊子', '己丑', '庚寅', '辛卯', '壬辰', '癸巳', '甲午', '乙未', '丙申', '丁酉', '戊戌', '己亥'],
+      ['庚子', '辛丑', '壬寅', '癸卯', '甲辰', '乙巳', '丙午', '丁未', '戊申', '己酉', '庚戌', '辛亥'],
+      ['壬子', '癸丑', '甲寅', '乙卯', '丙辰', '丁巳', '戊午', '己未', '庚申', '辛酉', '壬戌', '癸亥']
+    ];
+
+    const dayIdx = this.getDayIndex(dayGanji[0]);
+    const timeIdx = this.getTimeIndex(hour);
+    
+    return ganjiForTime[dayIdx][timeIdx];
+  }
+
+  /**
+   * 일간에 따른 인덱스 반환
+   * @param dayGan 일간
+   * @return 인덱스
+   */
+  private static getDayIndex(dayGan: string): number {
+    switch (dayGan) {
+      case '甲': case '己': return 0;
+      case '乙': case '庚': return 1;
+      case '丙': case '辛': return 2;
+      case '丁': case '壬': return 3;
+      case '戊': case '癸': return 4;
+      default: return 0;
+    }
+  }
+
+  /**
+   * 시간에 따른 인덱스 반환
+   * @param hour 시간
+   * @return 인덱스
+   */
+  private static getTimeIndex(hour: number): number {
+    if (hour >= 23 || hour < 1) return 0;      // 자시 (23-01)
+    if (hour >= 1 && hour < 3) return 1;       // 축시 (01-03)
+    if (hour >= 3 && hour < 5) return 2;       // 인시 (03-05)
+    if (hour >= 5 && hour < 7) return 3;       // 묘시 (05-07)
+    if (hour >= 7 && hour < 9) return 4;        // 진시 (07-09)
+    if (hour >= 9 && hour < 11) return 5;      // 사시 (09-11)
+    if (hour >= 11 && hour < 13) return 6;     // 오시 (11-13)
+    if (hour >= 13 && hour < 15) return 7;    // 미시 (13-15)
+    if (hour >= 15 && hour < 17) return 8;    // 신시 (15-17)
+    if (hour >= 17 && hour < 19) return 9;    // 유시 (17-19)
+    if (hour >= 19 && hour < 21) return 10;   // 술시 (19-21)
+    if (hour >= 21 && hour < 23) return 11;   // 해시 (21-23)
+    return 0;
   }
 }

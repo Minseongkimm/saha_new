@@ -5,12 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
-import SectionHeader from '../components/SectionHeader';
 import CustomHeader from '../components/CustomHeader';
 import { supabase } from '../utils/supabaseClient';
 import { SajuCache } from '../utils/sajuCache';
@@ -41,6 +38,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
   useEffect(() => {
     loadTodayFortune();
   }, []);
+
 
   const loadTodayFortune = async () => {
     try {
