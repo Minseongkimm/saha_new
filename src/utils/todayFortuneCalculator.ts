@@ -48,7 +48,7 @@ export interface SinsalResult {
   description: string;
 }
 
-export interface LogicResult {
+export interface TodayFortuneResult {
   totalScore: number;
   categoryScores: {
     career: number;
@@ -79,7 +79,7 @@ export class TodayFortuneCalculator {
   /**
    * 오늘의 운세 계산 메인 메서드
    */
-  calculateTodayFortune(userSajuData: UserSajuData, todayDate: string): LogicResult {
+  calculateTodayFortune(userSajuData: UserSajuData, todayDate: string): TodayFortuneResult {
     // 1. 날짜 유효성 검사 및 오늘 간지 계산
     let validDate = todayDate;
     try {

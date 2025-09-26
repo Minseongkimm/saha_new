@@ -194,6 +194,7 @@ const EXPERT_PROMPTS: Record<ExpertCategory, string> = {
 말투 특징
 - 정중한 존댓말 + 고풍스러운 표현 혼합
 - 매번 같은 접속어나 종결어 반복 금지
+- **쉼표(,) 사용 금지 - 쉼표 대신 마침표(.)나 공백 사용**
 - 200~350자 내외
 >> - 글자 수는 참고용 가이드일 뿐, 답변은 맥락에 맞게 자유롭게 조정 가능.
 
@@ -255,6 +256,7 @@ const EXPERT_PROMPTS: Record<ExpertCategory, string> = {
 주의:
 - 존댓말 사용, 라벨(전문가:, 질문자:) 금지, 자연스러운 문장
 - 단정/예단 금지, 가능성·경향 위주 표현
+- **쉼표(,) 사용 금지 - 쉼표 대신 마침표(.)나 공백 사용**
 - 길이: 약 {target_len}자 내외
 
 말투(후시도령·사극체):
@@ -399,6 +401,7 @@ const EXPERT_PROMPTS: Record<ExpertCategory, string> = {
 말투 특징
 - 정중한 존댓말 + 격식 있는 표현 혼합
 - 매번 같은 접속어나 종결어 반복 금지
+- **쉼표(,) 사용 금지 - 쉼표 대신 마침표(.)나 공백 사용**
 - 200~350자 내외
 - 글자 수는 참고용 가이드일 뿐, 답변은 맥락에 맞게 자유롭게 조정 가능.
 
@@ -465,6 +468,7 @@ const EXPERT_PROMPTS: Record<ExpertCategory, string> = {
 말투 특징
 - 친근한 존댓말 + 현대적 표현 혼합
 - 매번 같은 접속어나 종결어 반복 금지
+- **쉼표(,) 사용 금지 - 쉼표 대신 마침표(.)나 공백 사용**
 - 200~350자 내외
 - 글자 수는 참고용 가이드일 뿐, 답변은 맥락에 맞게 자유롭게 조정 가능.
 
@@ -572,30 +576,58 @@ export const getTraditionalSajuPrompt = (sajuData: any): string => {
 };
 
 /**
- * 오늘의 운세 프롬프트 생성
+ * 오늘의 운세 프롬프트 생성 (계산된 데이터 기반)
  */
-export const getTodayFortunePrompt = (sajuData: any, todayDate: string): string => {
-  return `사용자의 사주 정보를 바탕으로 ${todayDate}의 운세를 분석해주세요.
+export const getTodayFortunePrompt = (calculatedFortune: any, sajuData: any, todayDate: string): string => {
+  return `당신은 전문 사주명리학자입니다. 계산된 오늘의 운세 데이터를 바탕으로 더 자세하고 실용적인 조언을 제공해주세요.
 
-## 사주 정보
-${JSON.stringify(sajuData, null, 2)}
+## 계산된 오늘의 운세 데이터
+- 전체 운세 점수: ${calculatedFortune.totalScore}점
+- 카테고리별 점수: 
+  * 직업운: ${calculatedFortune.categoryScores.career}점
+  * 연애운: ${calculatedFortune.categoryScores.love}점
+  * 재물운: ${calculatedFortune.categoryScores.wealth}점
+  * 인간관계: ${calculatedFortune.categoryScores.relationship}점
+
+## 오늘의 간지 정보
+- 오늘 간지: ${calculatedFortune.todayGanji.dayGanji}
+- 개인 사주: ${calculatedFortune.personalSaju.dayGanji}
+
+## 상호작용 분석
+- 천간 상호작용: ${calculatedFortune.interactions.ganInteraction.type} (${calculatedFortune.interactions.ganInteraction.score}점)
+- 지지 상호작용: ${calculatedFortune.interactions.jiInteraction.type} (${calculatedFortune.interactions.jiInteraction.score}점)
+- 신살 상호작용: ${calculatedFortune.interactions.sinsalInteraction.activated ? '발동' : '미발동'} (${calculatedFortune.interactions.sinsalInteraction.score}점)
+
+## 활성화된 요소들
+- 신살: ${calculatedFortune.personalSaju.sinsal.join(', ')}
+- 귀인: ${calculatedFortune.personalSaju.guin.join(', ')}
+- 지지관계: ${calculatedFortune.personalSaju.jijiRelations.join(', ')}
 
 ## 요청사항
-다음 형식으로 오늘의 운세를 제공해주세요:
+위 데이터를 바탕으로 다음을 JSON 형태로 생성해주세요:
 
-**점수**: [1-100 사이의 점수]
-**요약**: [한 줄 요약 - "과감하게 정진하세요" 같은 형태]
-**설명**: [사주 전문적 설명 - 왜 그런 운세인지 설명]
-**해야할**: [구체적인 행동 지침 3-5개]
-**하지말아야할**: [피해야 할 행동 3-5개]
+**중요: 모든 텍스트에서 쉼표(,)를 사용하지 마세요. 쉼표 대신 마침표(.)나 공백을 사용하세요.**
+
+{
+  "summary": "한 줄 요약 (10-15글자 예: '과감하게 밀어붙이세요')",
+  "explanation": "사주 전문적 설명 (2-3줄 왜 그런 운세인지 구체적으로 설명)",
+  "categories": {
+    "career": "직업운 상세 설명 (2-3줄 ${calculatedFortune.categoryScores.career}점 기반)",
+    "love": "연애운 상세 설명 (2-3줄 ${calculatedFortune.categoryScores.love}점 기반)",
+    "wealth": "재물운 상세 설명 (2-3줄 ${calculatedFortune.categoryScores.wealth}점 기반)",
+    "relationship": "인간관계 상세 설명 (2-3줄 ${calculatedFortune.categoryScores.relationship}점 기반)"
+  },
+  "doList": ["해야할 것1 (1줄)", "해야할 것2 (1줄)", "해야할 것3 (1줄)"],
+  "dontList": ["하지말아야 할 것1 (1줄)", "하지말아야 할 것2 (1줄)", "하지말아야 할 것3 (1줄)"]
+}
 
 ## 분석 기준
-1. 오늘의 날짜와 사주의 관계
-2. 일간의 오늘 운세
-3. 십이운성과 신살의 영향
-4. 대운과 세운의 조화
-5. 오행의 균형과 불균형
+1. 계산된 점수와 상호작용 분석을 바탕으로 한 설명
+2. 오늘의 간지와 개인 사주의 관계
+3. 활성화된 신살과 귀인의 영향
+4. 카테고리별 구체적인 조언
+5. 실용적이고 실행 가능한 행동 지침
 
-실용적이고 구체적인 조언을 제공해주세요.`;
+전문적이면서도 이해하기 쉬운 조언을 제공해주세요.`;
 };
 

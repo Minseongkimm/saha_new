@@ -39,7 +39,6 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
     loadTodayFortune();
   }, []);
 
-
   const loadTodayFortune = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -61,37 +60,17 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
         return;
       }
 
-      // 3. 오늘의 운세 생성 (임시 주석)
+      // 3. 오늘의 운세 생성
       setLoading(true);
-      // const fortune = await todayFortuneService.generateTodayFortune(user.id, sajuData);
+      const fortune = await todayFortuneService.generateTodayFortune(user.id, sajuData);
       
-      // 4. 캐시에 저장 (임시 주석)
-      // await TodayFortuneCache.setCachedTodayFortune(user.id, fortune);
+      // 4. 캐시에 저장
+      await TodayFortuneCache.setCachedTodayFortune(user.id, fortune);
       
-      // 5. DB에 저장 (임시 주석)
-      // await todayFortuneService.saveTodayFortuneToDatabase(user.id, fortune);
+      // 5. DB에 저장
+      await todayFortuneService.saveTodayFortuneToDatabase(user.id, fortune);
       
-      // 임시 더미 데이터
-      const dummyFortune = {
-        score: 85,
-        summary: "과감하게 정진하세요",
-        explanation: "오늘은 일간이 강한 날로, 새로운 도전을 시작하기에 좋은 시기입니다. 십이운성과 신살의 조화가 이루어져 긍정적인 에너지가 흐르고 있습니다.",
-        doList: [
-          "새로운 프로젝트를 시작해보세요",
-          "주변 사람들과 소통을 늘려보세요",
-          "긍정적인 마음가짐을 유지하세요"
-        ],
-        dontList: [
-          "성급한 결정을 피하세요",
-          "과도한 스트레스를 받지 마세요",
-          "무리한 일정을 잡지 마세요"
-        ],
-        generatedAt: new Date().toISOString(),
-        date: today,
-        llmModel: "gpt-4o-mini"
-      };
-      
-      setFortuneData(dummyFortune);
+      setFortuneData(fortune);
     } catch (error) {
       console.error('오늘의 운세 로드 실패:', error);
       Alert.alert('오류', '오늘의 운세를 불러올 수 없습니다.');
@@ -150,21 +129,21 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
     return { main: '주의깊게 지내야 할 하루가 되겠네요', sub: '조심히 지나가세요' };
   };
 
-  // 카테고리별 점수에 따른 표현 결정 함수 (1-5점)
+  // 카테고리별 점수에 따른 표현 결정 함수 (0-100점)
   const getCategoryScoreText = (score: number) => {
-    if (score >= 5) return "최고";
-    if (score >= 4) return "좋음";
-    if (score >= 3) return "보통";
-    if (score >= 2) return "주의";
+    if (score >= 80) return "최고";
+    if (score >= 60) return "좋음";
+    if (score >= 40) return "보통";
+    if (score >= 20) return "주의";
     return "위험";
   };
 
   const getCategoryScoreColor = (score: number) => {
-    if (score >= 5) return { color: '#2e7d32' }; // 진한 초록색 (80-100점과 동일)
-    if (score >= 4) return { color: '#4caf50' }; // 초록색 (60-79점과 동일)
-    if (score >= 3) return { color: '#ff9800' }; // 주황색 (40-59점과 동일)
-    if (score >= 2) return { color: '#f44336' }; // 빨간색 (20-39점과 동일)
-    return { color: '#d32f2f' }; // 진한 빨간색 (0-19점과 동일)
+    if (score >= 80) return { color: '#2e7d32' }; // 진한 초록색
+    if (score >= 60) return { color: '#4caf50' }; // 초록색
+    if (score >= 40) return { color: '#ff9800' }; // 주황색
+    if (score >= 20) return { color: '#f44336' }; // 빨간색
+    return { color: '#d32f2f' }; // 진한 빨간색
   };
 
   return (
@@ -173,6 +152,8 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
         title="오늘의 운세"
         onBackPress={() => navigation.goBack()}
       />
+      
+      
       <ScrollView 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -234,6 +215,16 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
                 </View>
               </View>
               
+              {/* 사주 전문적 설명 */}
+              <View style={styles.explanationCard}>
+                <View style={styles.explanationHeader}>
+                  <Text style={styles.explanationLabel}>사주 전문가 해석</Text>
+                </View>
+                <View style={styles.explanationContent}>
+                  <Text style={styles.explanationText}>{fortuneData.explanation}</Text>
+                </View>
+              </View>
+              
               {/* 오늘의 사주 분석 */}
               <View style={styles.sajuAnalysisCard}>
                 <View style={styles.sajuAnalysisHeader}>
@@ -241,24 +232,32 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
                 </View>
                 <View style={styles.sajuAnalysisContent}>
                   <View style={styles.analysisItem}>
-                    <Text style={styles.analysisLabel}>직업운</Text>
-                    <Text style={[styles.analysisValue, getCategoryScoreColor(4)]}>{getCategoryScoreText(4)}</Text>
-                    <Text style={styles.analysisDescription}>새로운 프로젝트나 업무에서 좋은 성과를 낼 수 있는 날입니다. 상사와의 관계도 원만해질 것 같아요</Text>
+                    <View style={styles.analysisHeader}>
+                      <Text style={styles.analysisLabel}>직업운 /</Text>
+                      <Text style={[styles.analysisValue, getCategoryScoreColor(fortuneData.categories?.career?.score || 60)]}>{getCategoryScoreText(fortuneData.categories?.career?.score || 60)}</Text>
+                    </View>
+                    <Text style={styles.analysisDescription}>{fortuneData.categories?.career?.description || '새로운 프로젝트나 업무에서 좋은 성과를 낼 수 있는 날입니다. 상사와의 관계도 원만해질 것 같아요'}</Text>
                   </View>
                   <View style={styles.analysisItem}>
-                    <Text style={styles.analysisLabel}>연애운</Text>
-                    <Text style={[styles.analysisValue, getCategoryScoreColor(5)]}>{getCategoryScoreText(5)}</Text>
-                    <Text style={styles.analysisDescription}>연인과의 관계가 더 깊어질 수 있는 날입니다. 솔직한 대화를 나누면 관계 발전에 도움이 될 것 같아요</Text>
+                    <View style={styles.analysisHeader}>
+                      <Text style={styles.analysisLabel}>연애운 /</Text>
+                      <Text style={[styles.analysisValue, getCategoryScoreColor(fortuneData.categories?.love?.score || 60)]}>{getCategoryScoreText(fortuneData.categories?.love?.score || 60)}</Text>
+                    </View>
+                    <Text style={styles.analysisDescription}>{fortuneData.categories?.love?.description || '연인과의 관계가 더 깊어질 수 있는 날입니다. 솔직한 대화를 나누면 관계 발전에 도움이 될 것 같아요'}</Text>
                   </View>
                   <View style={styles.analysisItem}>
-                    <Text style={styles.analysisLabel}>인간관계</Text>
-                    <Text style={[styles.analysisValue, getCategoryScoreColor(3)]}>{getCategoryScoreText(3)}</Text>
-                    <Text style={styles.analysisDescription}>새로운 인연이 생기거나 기존 관계가 더 돈독해질 수 있는 날입니다. 주변 사람들과의 소통을 늘려보세요</Text>
+                    <View style={styles.analysisHeader}>
+                      <Text style={styles.analysisLabel}>인간관계 /</Text>
+                      <Text style={[styles.analysisValue, getCategoryScoreColor(fortuneData.categories?.relationship?.score || 60)]}>{getCategoryScoreText(fortuneData.categories?.relationship?.score || 60)}</Text>
+                    </View>
+                    <Text style={styles.analysisDescription}>{fortuneData.categories?.relationship?.description || '새로운 인연이 생기거나 기존 관계가 더 돈독해질 수 있는 날입니다. 주변 사람들과의 소통을 늘려보세요'}</Text>
                   </View>
                   <View style={styles.analysisItem}>
-                    <Text style={styles.analysisLabel}>재물운</Text>
-                    <Text style={[styles.analysisValue, getCategoryScoreColor(4)]}>{getCategoryScoreText(4)}</Text>
-                    <Text style={styles.analysisDescription}>재정적으로 안정적인 하루가 될 것 같습니다. 불필요한 지출을 피하고 계획적인 소비를 하세요</Text>
+                    <View style={styles.analysisHeader}>
+                      <Text style={styles.analysisLabel}>재물운 /</Text>
+                      <Text style={[styles.analysisValue, getCategoryScoreColor(fortuneData.categories?.wealth?.score || 60)]}>{getCategoryScoreText(fortuneData.categories?.wealth?.score || 60)}</Text>
+                    </View>
+                    <Text style={styles.analysisDescription}>{fortuneData.categories?.wealth?.description || '재정적으로 안정적인 하루가 될 것 같습니다. 불필요한 지출을 피하고 계획적인 소비를 하세요'}</Text>
                   </View>
                 </View>
               </View>
@@ -456,6 +455,45 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     lineHeight: 28,
   },
+  // 사주 전문적 설명 카드 스타일
+  explanationCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+    overflow: 'hidden',
+  },
+  explanationHeader: {
+    backgroundColor: '#f0f8ff',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  explanationLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#2c3e50',
+    textAlign: 'center',
+  },
+  explanationContent: {
+    padding: 20,
+  },
+  explanationText: {
+    fontSize: 14,
+    color: '#333',
+    lineHeight: 20,
+    textAlign: 'left',
+  },
   sajuAnalysisCard: {
     backgroundColor: 'white',
     borderRadius: 16,
@@ -494,6 +532,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f8f9fa',
   },
+  analysisHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   analysisLabel: {
     fontSize: 14,
     fontWeight: '600',
@@ -507,6 +550,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#2c3e50',
     marginBottom: 6,
+    marginLeft:7,
   },
   analysisDescription: {
     fontSize: 14,
@@ -568,11 +612,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#333',
     marginBottom: 8,
-  },
-  explanationText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
   },
   doContainer: {
     marginBottom: 16,
@@ -686,11 +725,6 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 8,
     textAlign: 'center',
-  },
-  explanationHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
   },
   explanationIcon: {
     fontSize: 20,
