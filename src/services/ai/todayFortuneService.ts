@@ -297,35 +297,78 @@ class TodayFortuneService {
   }
 
   /**
-   * 오늘의 운세를 DB에 저장
+   * 오늘의 운세를 saju_analyses 테이블에 저장
+   * daily_fortune 필드에 JSON으로 저장
    */
   public async saveTodayFortuneToDatabase(
     userId: string, 
+    birthInfoId: string,
     fortuneData: TodayFortuneData
   ): Promise<boolean> {
     try {
-      const { error } = await supabase
-        .from('today_fortunes')
-        .insert({
-          user_id: userId,
-          date: fortuneData.date,
-          score: fortuneData.score,
-          summary: fortuneData.summary,
-          explanation: fortuneData.explanation,
-          do_list: fortuneData.doList,
-          dont_list: fortuneData.dontList,
-          generated_at: fortuneData.generatedAt,
-          llm_model: fortuneData.llmModel
-        });
+      // 1. 기존 saju_analyses 레코드 확인
+      const { data: existingAnalysis, error: fetchError } = await supabase
+        .from('saju_analyses')
+        .select('id, daily_fortune')
+        .eq('user_id', userId)
+        .eq('birth_info_id', birthInfoId)
+        .single();
 
-      if (error) {
-        console.error('오늘의 운세 DB 저장 실패:', error);
+      if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows found
+        console.error('saju_analyses 조회 실패:', fetchError);
         return false;
       }
 
+      // 2. daily_fortune JSON 구조 생성
+      const dailyFortuneJson = {
+        date: fortuneData.date,
+        score: fortuneData.score,
+        summary: fortuneData.summary,
+        explanation: fortuneData.explanation,
+        doList: fortuneData.doList,
+        dontList: fortuneData.dontList,
+        categories: fortuneData.categories,
+        generatedAt: fortuneData.generatedAt,
+        llmModel: fortuneData.llmModel
+      };
+
+      if (existingAnalysis) {
+        // 3-1. 기존 레코드가 있으면 daily_fortune 업데이트
+        const { error: updateError } = await supabase
+          .from('saju_analyses')
+          .update({
+            daily_fortune: dailyFortuneJson,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', userId)
+          .eq('birth_info_id', birthInfoId);
+
+        if (updateError) {
+          console.error('daily_fortune 업데이트 실패:', updateError);
+          return false;
+        }
+      } else {
+        // 3-2. 기존 레코드가 없으면 새로 생성
+        const { error: insertError } = await supabase
+          .from('saju_analyses')
+          .insert({
+            user_id: userId,
+            birth_info_id: birthInfoId,
+            daily_fortune: dailyFortuneJson,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+
+        if (insertError) {
+          console.error('saju_analyses 생성 실패:', insertError);
+          return false;
+        }
+      }
+
       return true;
+
     } catch (error) {
-      console.error('오늘의 운세 DB 저장 중 오류:', error);
+      console.error('daily_fortune 저장 중 오류:', error);
       return false;
     }
   }

@@ -26,6 +26,7 @@ interface TodayFortuneScreenProps {
 const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) => {
   const [fortuneData, setFortuneData] = useState<TodayFortuneData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [generatingFortune, setGeneratingFortune] = useState(false); // LLM 생성 상태 추가
   const [showChatModal, setShowChatModal] = useState(false);
 
   const todayDate = new Date().toLocaleDateString('ko-KR', {
@@ -41,34 +42,125 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
 
   const loadTodayFortune = async () => {
     try {
+      setLoading(true); // 로딩 시작
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
       const today = new Date().toISOString().split('T')[0];
       
-      // 1. 캐시에서 먼저 확인
+      // 1. 캐시에서 오늘 운세 데이터 확인
       const cachedFortune = await TodayFortuneCache.getCachedTodayFortune(user.id, today);
       if (cachedFortune) {
         setFortuneData(cachedFortune);
         return;
       }
 
-      // 2. 캐시가 없으면 사주 데이터 가져오기
+      // 2. DB에서 오늘 운세 데이터 확인 (한 번의 쿼리로 최적화)
+      let analysisData = null;
+      try {
+        const { data, error: analysisError } = await supabase
+          .from('saju_analyses')
+          .select('daily_fortune, birth_info_id')
+          .eq('user_id', user.id)
+          .not('daily_fortune', 'is', null)
+          .single();
+
+        analysisData = data;
+
+        if (!analysisError && data?.daily_fortune) {
+          const dbFortune = data.daily_fortune;
+          // DB 데이터의 날짜가 오늘 날짜와 같은지 확인
+          if (dbFortune.date === today) {
+            setFortuneData(dbFortune);
+            return;
+          }
+        }
+      } catch (error) {
+        // DB 조회 실패 시 무시하고 새로 생성
+      }
+
+      // 3. 캐시와 DB에 오늘 데이터가 없으면 사주 데이터 가져오기
       const sajuData = await SajuCache.getCachedCalculatedSaju(user.id);
       if (!sajuData) {
         Alert.alert('알림', '사주 정보가 없습니다. 먼저 사주 정보를 입력해주세요.');
         return;
       }
 
-      // 3. 오늘의 운세 생성
-      setLoading(true);
-      const fortune = await todayFortuneService.generateTodayFortune(user.id, sajuData);
+
+      // 사주 데이터 구조 변환 (calculatedSaju에서 추출)
+      const calculatedSaju = sajuData.calculatedSaju;
+      if (!calculatedSaju) {
+        Alert.alert('오류', '사주 계산 데이터가 없습니다. 사주 정보를 다시 입력해주세요.');
+        return;
+      }
+
+      // TodayFortuneCalculator가 기대하는 형태로 변환
+      const transformedSajuData = {
+        yearGanji: calculatedSaju.yearHangulGanji,
+        monthGanji: calculatedSaju.monthHangulGanji,
+        dayGanji: calculatedSaju.dayHangulGanji,
+        timeGanji: calculatedSaju.timeHangulGanji,
+        sinsal: calculatedSaju.sinsal,
+        guin: calculatedSaju.guin,
+        jijiRelations: calculatedSaju.jijiRelations,
+        fiveProperties: {
+          yearProperty: calculatedSaju.fiveProperties.yearProperty,
+          monthProperty: calculatedSaju.fiveProperties.monthProperty,
+          dayProperty: calculatedSaju.fiveProperties.dayProperty,
+          timeProperty: calculatedSaju.fiveProperties.timeProperty
+        },
+        gongmang: calculatedSaju.gongmang
+      };
       
-      // 4. 캐시에 저장
+      // 필수 필드 확인
+      if (!transformedSajuData.yearGanji || !transformedSajuData.monthGanji || !transformedSajuData.dayGanji || !transformedSajuData.timeGanji) {
+        Alert.alert('오류', '사주 데이터가 불완전합니다. 사주 정보를 다시 입력해주세요.');
+        return;
+      }
+
+      // 4. 오늘의 운세 생성
+      setGeneratingFortune(true);
+      
+      // 최소 로딩 시간 보장 (사용자가 로딩바를 볼 수 있도록)
+      const minLoadingTime = 3000; // 3초
+      const startTime = Date.now();
+      
+      const fortune = await todayFortuneService.generateTodayFortune(user.id, transformedSajuData);
+      
+      // 최소 로딩 시간이 지나지 않았다면 대기
+      const elapsed = Date.now() - startTime;
+      if (elapsed < minLoadingTime) {
+        await new Promise(resolve => setTimeout(resolve, minLoadingTime - elapsed));
+      }
+      
+      // 5. 캐시에 저장
       await TodayFortuneCache.setCachedTodayFortune(user.id, fortune);
       
-      // 5. DB에 저장
-      await todayFortuneService.saveTodayFortuneToDatabase(user.id, fortune);
+      // 6. saju_analyses 테이블에 저장 (이미 조회한 데이터 활용)
+      try {
+        // 이미 위에서 조회한 analysisData가 있으면 그 birth_info_id 사용
+        if (analysisData && analysisData.birth_info_id) {
+          await todayFortuneService.saveTodayFortuneToDatabase(user.id, analysisData.birth_info_id, fortune);
+        } else {
+          // analysisData가 없으면 birth_infos에서 조회
+          const { data: birthInfo, error: birthError } = await supabase
+            .from('birth_infos')
+            .select('id')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (!birthError && birthInfo) {
+            await todayFortuneService.saveTodayFortuneToDatabase(user.id, birthInfo.id, fortune);
+          }
+        }
+      } catch (error) {
+        console.error('DB 저장 실패:', error);
+      }
       
       setFortuneData(fortune);
     } catch (error) {
@@ -76,12 +168,14 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
       Alert.alert('오류', '오늘의 운세를 불러올 수 없습니다.');
     } finally {
       setLoading(false);
+      setGeneratingFortune(false);
     }
   };
 
   const handleStartChat = () => {
     setShowChatModal(true);
   };
+
 
   const onStartChat = () => {
     setShowChatModal(false);
@@ -163,14 +257,16 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
             title="오늘의 운세" 
             description={"안좋은건 피하고 좋은건 잡으세요"}
           /> */}
-          {loading ? (
-            <ProgressLoadingCard
-            title="AI가 당신의 사주를 분석하고 있어요"
-            description="처음 분석만 15초, 다음부터는 즉시 확인 가능해요!"
-            duration={15000}
-            showProgress={true}
-            showIcon={true}
-            />
+          {generatingFortune ? (
+            <View style={styles.loadingContainer}>
+              <ProgressLoadingCard
+                title="AI가 당신의 사주를 분석하고 있어요"
+                description="처음 분석만 3초, 다음부터는 즉시 확인 가능해요!"
+                duration={3000}
+                showProgress={true}
+                showIcon={true}
+              />
+            </View>
           ) : fortuneData ? (
             <View>
               {/* 운세 점수 섹션 */}
@@ -315,6 +411,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
         </View>
       </ScrollView>
       
+
       {/* 하단 고정 버튼 */}
       {fortuneData && (
         <BottomFixedButton
@@ -339,6 +436,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    minHeight: 400,
+    width: '100%',
   },
   content: {
     padding: 20,
