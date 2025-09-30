@@ -582,6 +582,7 @@ export const getTodayFortunePrompt = (calculatedFortune: any, sajuData: any, tod
   return `당신은 전문 사주명리학자입니다. 계산된 오늘의 운세 데이터를 바탕으로 더 자세하고 실용적인 조언을 제공해주세요.
 
 ## 계산된 오늘의 운세 데이터
+모든 점수는 정수로 표현됩니다. 소수점 안됌.
 - 전체 운세 점수: ${calculatedFortune.totalScore}점
 - 카테고리별 점수: 
   * 직업운: ${calculatedFortune.categoryScores.career}점

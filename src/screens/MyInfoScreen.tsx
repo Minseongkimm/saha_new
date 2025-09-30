@@ -91,7 +91,8 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
           onPress: async () => {
             try {
               await supabase.auth.signOut();
-              navigation.replace('Login');
+              // navigation.replace 대신 세션 상태 변경을 기다림
+              // App.tsx의 onAuthStateChange가 자동으로 Login 화면으로 전환
             } catch (error) {
               console.error('로그아웃 오류:', error);
               Alert.alert('오류', '로그아웃에 실패했습니다.');
