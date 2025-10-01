@@ -14,7 +14,7 @@ import { useSajuData } from './useSajuData';
  */
 export const useTodayFortune = () => {
   // 사주 데이터 로딩
-  const { sajuData, loading: sajuLoading, error: sajuError } = useSajuData();
+  const { sajuData, loading: sajuLoading, initializing: sajuInitializing, error: sajuError } = useSajuData();
   
   // 스트리밍 관리
   const { streamingData, finalData, isStreaming, startStreaming } = useStreamingData<TodayFortuneData>(
@@ -76,7 +76,7 @@ export const useTodayFortune = () => {
       const dbFortune = await checkDatabase(user.id, undefined, today);
       if (dbFortune) {
         // 캐시에도 저장
-        await saveToCache(TodayFortuneCache.setCachedTodayFortune, user.id, dbFortune);
+        await TodayFortuneCache.setCachedTodayFortune(user.id, dbFortune);
         setFortuneLoading(false);
         return;
       }
@@ -146,7 +146,7 @@ export const useTodayFortune = () => {
 
       if (birthData) {
         // 캐시에 저장
-        await saveToCache(TodayFortuneCache.setCachedTodayFortune, user.id, fortune);
+        await TodayFortuneCache.setCachedTodayFortune(user.id, fortune);
         
         // DB에 저장
         await saveToDatabase(user.id, birthData.id, fortune);
@@ -160,6 +160,7 @@ export const useTodayFortune = () => {
   return {
     sajuData,
     sajuLoading,
+    sajuInitializing,
     sajuError,
     fortuneData,
     fortuneLoading,

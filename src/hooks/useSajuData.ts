@@ -11,6 +11,7 @@ import { formatSajuData } from '../utils/sajuDataUtils';
 export const useSajuData = () => {
   const [sajuData, setSajuData] = useState<SajuData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initializing, setInitializing] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -30,10 +31,12 @@ export const useSajuData = () => {
       const cachedData = await SajuCache.getCachedCalculatedSaju(user.id);
       if (cachedData) {
         setSajuData(cachedData);
+        setInitializing(false);
         return cachedData;
       }
 
       // 2. 캐시가 없을 때만 로딩 상태 시작
+      setInitializing(false);
       setLoading(true);
 
       // 3. DB에서 조회
@@ -61,10 +64,11 @@ export const useSajuData = () => {
     } catch (err) {
       console.error('Error loading saju data:', err);
       setError('사주 데이터 로딩 중 오류가 발생했습니다.');
+      setInitializing(false);
       setLoading(false);
       return null;
     }
   };
 
-  return { sajuData, loading, error, loadSajuData };
+  return { sajuData, loading, initializing, error, loadSajuData };
 };

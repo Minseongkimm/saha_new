@@ -13,7 +13,7 @@ import { initialTraditionalSajuData, traditionalSajuStreamingConfig } from '../c
  */
 export const useTraditionalSaju = () => {
   // 사주 데이터 로딩
-  const { sajuData, loading: sajuLoading, error: sajuError } = useSajuData();
+  const { sajuData, loading: sajuLoading, initializing: sajuInitializing, error: sajuError } = useSajuData();
   
   // 스트리밍 관리
   const { streamingData, finalData, isStreaming, startStreaming } = useStreamingData<TraditionalSajuData>(
@@ -79,7 +79,7 @@ export const useTraditionalSaju = () => {
         const dbAnalysis = await checkDatabase(user.id, birthData.id);
         if (dbAnalysis) {
           // 캐시에도 저장
-          await saveToCache(SajuCache.setCachedAnalysis, user.id, dbAnalysis);
+          await SajuCache.setCachedAnalysis(user.id, dbAnalysis);
           setAnalysisLoading(false);
           return;
         }
@@ -137,7 +137,7 @@ export const useTraditionalSaju = () => {
 
         if (birthData) {
           // 캐시에 저장
-          await saveToCache(SajuCache.setCachedAnalysis, user.id, analysis);
+          await SajuCache.setCachedAnalysis(user.id, analysis);
           
           // DB에 저장
           await saveToDatabase(user.id, birthData.id, analysis);
@@ -151,6 +151,7 @@ export const useTraditionalSaju = () => {
   return {
     sajuData,
     sajuLoading,
+    sajuInitializing,
     sajuError,
     analysisData,
     analysisLoading,

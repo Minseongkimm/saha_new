@@ -26,6 +26,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
   const {
     sajuData,
     sajuLoading,
+    sajuInitializing,
     fortuneData,
     streamingData,
     finalData,
@@ -259,7 +260,22 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
 
   // === 로딩 UI ===
   
-  // 1단계: 사주 데이터 로딩
+  // 0단계: 초기화 중 (캐시 확인 중)
+  if (sajuInitializing) {
+    return (
+      <View style={styles.container}>
+        <CustomHeader 
+          title="오늘의 운세"
+          onBackPress={() => navigation.goBack()}
+        />
+        <View style={styles.centerContainer}>
+          {/* 캐시 확인 중에는 빈 화면 (깜빡임 방지) */}
+        </View>
+      </View>
+    );
+  }
+  
+  // 1단계: 사주 데이터 로딩 (DB 조회 중)
   if (sajuLoading) {
     return (
       <View style={styles.container}>
