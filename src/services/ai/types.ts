@@ -1,4 +1,4 @@
-export type ExpertCategory = 'residence' | 'love' | 'life' | 'wealth' | 'traditional_saju' | 'today_fortune';
+export type ExpertCategory = 'residence' | 'love' | 'life' | 'wealth' | 'traditional_saju' | 'today_fortune' | 'newyear_fortune';
 
 export interface BirthInfo {
   year: number;

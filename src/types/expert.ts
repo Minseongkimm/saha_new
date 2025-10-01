@@ -1,7 +1,7 @@
 export interface Expert {
   id: string;
   name: string;
-  category: 'residence' | 'love' | 'life' | 'wealth' | 'traditional_saju' | 'today_fortune';
+  category: 'residence' | 'love' | 'life' | 'wealth' | 'traditional_saju' | 'today_fortune' | 'newyear_fortune';
   title: string;
   description: string;
   image_name: string;

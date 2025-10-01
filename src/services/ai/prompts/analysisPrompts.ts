@@ -1,0 +1,214 @@
+/**
+ * 분석/생성용 프롬프트
+ * - 정통사주 해석
+ * - 오늘의 운세 생성
+ * - 신년운세 생성
+ */
+
+/**
+ * 정통사주 해석용 프롬프트
+ */
+export const getTraditionalSajuPrompt = (sajuData: any): string => {
+  return `당신은 전문 정통사주명리학자입니다. 다음 사주 정보를 바탕으로 상세한 해석을 제공해주세요.
+
+## 사주 정보
+- 이름: ${sajuData.name}
+- 생년월일시: ${sajuData.birthInfo}
+- 사주팔자: ${sajuData.yearGanji} ${sajuData.monthGanji} ${sajuData.dayGanji} ${sajuData.timeGanji}
+- 십신: ${sajuData.stemSasin?.join(', ') || '없음'}
+- 십이운성: ${sajuData.sibun?.join(', ') || '없음'}
+- 오행: ${JSON.stringify(sajuData.fiveProperties) || '없음'}
+- 신살: ${JSON.stringify(sajuData.sinsal) || '없음'}
+- 귀인: ${JSON.stringify(sajuData.guin) || '없음'}
+- 공망: ${sajuData.gongmang || '없음'}
+- 지지암장간: ${JSON.stringify(sajuData.jijiAmjangan) || '없음'}
+- 지지관계: ${JSON.stringify(sajuData.jijiRelations) || '없음'}
+
+## 해석 요청사항
+다음 구조로 상세한 해석을 제공해주세요:
+
+### 1. 전체적인 풀이
+- 사주의 전체적인 특징과 성향을 상세히 분석 (4-5문장)
+- **일간**의 특성과 **사주팔자**의 조화 관계
+- 전반적인 성격과 운명의 흐름
+- 인생에서 주목해야 할 핵심 포인트
+
+### 2. 일간 풀이  
+- **일간**의 오행 특성과 성격 분석 (3-4문장)
+- 강점과 약점을 구체적으로 설명
+- 일간이 받는 **십신**의 영향
+- 성격 형성에 미치는 요소들
+
+### 3. 오행 균형
+- 각 오행의 강약 분석을 구체적으로 설명 (3-4문장)
+- **목화토금수** 오행의 균형 상태
+- 보완이 필요한 부분과 그 이유
+- 오행 불균형이 미치는 영향
+
+### 4. 십성 구조
+- 주요 **십신**들의 의미와 영향 (3-4문장)
+- **비견, 겁재, 식신, 상관, 편재, 정재, 편관, 정관, 편인, 정인**의 역할
+- 성격과 운세에 미치는 구체적인 영향
+- 십신 조화와 갈등 관계
+
+### 5. 신살 해석
+- 주요 **신살**들의 의미와 영향 (3-4문장)
+- **천을귀인, 천덕귀인, 월덕귀인, 복성귀인** 등의 역할
+- 주의사항과 구체적인 조언
+- 신살이 인생에 미치는 영향
+
+### 6. 종합 조언
+- 인생 전반에 대한 구체적인 조언과 방향성 (4-5문장)
+- 직업, 연애, 건강, 인간관계 등 각 영역별 조언
+- 대운과 세운을 고려한 인생 전략
+
+각 섹션은 간결하게, 전체적으로는 800-1000자 내외로 작성해주세요.
+전문 용어는 **굵게** 표시하되, 이해하기 쉽게 설명해주세요.`;
+};
+
+/**
+ * 오늘의 운세 프롬프트 생성 (계산된 데이터 기반)
+ */
+export const getTodayFortunePrompt = (calculatedFortune: any, sajuData: any, todayDate: string): string => {
+  return `당신은 전문 사주명리학자입니다. 계산된 오늘의 운세 데이터를 바탕으로 더 자세하고 실용적인 조언을 제공해주세요.
+
+## 계산된 오늘의 운세 데이터
+모든 점수는 정수로 표현됩니다. 소수점 안됌.
+- 전체 운세 점수: ${calculatedFortune.totalScore}점
+- 카테고리별 점수: 
+  * 직업운: ${calculatedFortune.categoryScores.career}점
+  * 연애운: ${calculatedFortune.categoryScores.love}점
+  * 재물운: ${calculatedFortune.categoryScores.wealth}점
+  * 인간관계: ${calculatedFortune.categoryScores.relationship}점
+
+## 오늘의 간지 정보
+- 오늘 간지: ${calculatedFortune.todayGanji.dayGanji}
+- 개인 사주: ${calculatedFortune.personalSaju.dayGanji}
+
+## 상호작용 분석
+- 천간 상호작용: ${calculatedFortune.interactions.ganInteraction.type} (${calculatedFortune.interactions.ganInteraction.score}점)
+- 지지 상호작용: ${calculatedFortune.interactions.jiInteraction.type} (${calculatedFortune.interactions.jiInteraction.score}점)
+- 신살 상호작용: ${calculatedFortune.interactions.sinsalInteraction.activated ? '발동' : '미발동'} (${calculatedFortune.interactions.sinsalInteraction.score}점)
+
+## 활성화된 요소들
+- 신살: ${calculatedFortune.personalSaju.sinsal.join(', ')}
+- 귀인: ${calculatedFortune.personalSaju.guin.join(', ')}
+- 지지관계: ${calculatedFortune.personalSaju.jijiRelations.join(', ')}
+
+## 요청사항
+위 데이터를 바탕으로 다음을 JSON 형태로 생성해주세요:
+
+**중요: 모든 텍스트에서 쉼표(,)를 사용하지 마세요. 쉼표 대신 마침표(.)나 공백을 사용하세요.**
+
+{
+  "summary": "한 줄 요약 (10-15글자 예: '과감하게 밀어붙이세요')",
+  "explanation": "사주 전문적 설명 (2-3줄 왜 그런 운세인지 구체적으로 설명)",
+  "categories": {
+    "career": "직업운 상세 설명 (2-3줄 ${calculatedFortune.categoryScores.career}점 기반)",
+    "love": "연애운 상세 설명 (2-3줄 ${calculatedFortune.categoryScores.love}점 기반)",
+    "wealth": "재물운 상세 설명 (2-3줄 ${calculatedFortune.categoryScores.wealth}점 기반)",
+    "relationship": "인간관계 상세 설명 (2-3줄 ${calculatedFortune.categoryScores.relationship}점 기반)"
+  },
+  "doList": ["해야할 것1 (1줄)", "해야할 것2 (1줄)", "해야할 것3 (1줄)"],
+  "dontList": ["하지말아야 할 것1 (1줄)", "하지말아야 할 것2 (1줄)", "하지말아야 할 것3 (1줄)"]
+}
+
+## 분석 기준
+1. 계산된 점수와 상호작용 분석을 바탕으로 한 설명
+2. 오늘의 간지와 개인 사주의 관계
+3. 활성화된 신살과 귀인의 영향
+4. 카테고리별 구체적인 조언
+5. 실용적이고 실행 가능한 행동 지침
+
+전문적이면서도 이해하기 쉬운 조언을 제공해주세요.`;
+};
+
+/**
+ * 신년운세 프롬프트 생성
+ */
+export const getNewYearFortunePrompt = (
+  calculatedResult: any,
+  sajuData: any,
+  targetYear: number
+): string => {
+  const { interactions, monthlyFortunes, luckyMonths, cautiousMonths, yearGanji, yearName, yearDescription } = calculatedResult;
+
+  // 길한 달 상위 2개만 추출
+  const topLuckyMonths = luckyMonths.slice(0, 2);
+  const luckyMonthDetails = monthlyFortunes
+    .filter((m: any) => topLuckyMonths.includes(m.month))
+    .map((m: any) => `${m.month}월(${m.interaction.type}. ${m.summary})`)
+    .join('. ');
+
+  // 조심할 달 상위 2개만 추출
+  const topCautiousMonths = cautiousMonths.slice(0, 2);
+  const cautiousMonthDetails = monthlyFortunes
+    .filter((m: any) => topCautiousMonths.includes(m.month))
+    .map((m: any) => `${m.month}월(${m.interaction.type}. ${m.summary})`)
+    .join('. ');
+
+  return `당신은 전문 사주명리학자입니다. 계산된 신년운세 데이터를 바탕으로 ${targetYear}년 ${yearName} 운세를 해석해주세요.
+
+## 사용자 사주 정보
+- 생년월일: ${sajuData.birthYear || '미상'}년생
+- 일간: ${sajuData.dayHanjaGanji?.[0] || '미상'}
+- 일지: ${sajuData.dayHanjaGanji?.[1] || '미상'}
+- 사주팔자: ${sajuData.yearHangulGanji || ''} ${sajuData.monthHangulGanji || ''} ${sajuData.dayHangulGanji || ''} ${sajuData.timeHangulGanji || ''}
+
+## ${targetYear}년 ${yearName} 정보
+- 년간: ${yearGanji.yearGanji[0]}
+- 년지: ${yearGanji.yearGanji[1]}
+- 오행: ${yearGanji.element}
+- 상징: ${yearGanji.animal}
+- 특징: ${yearDescription}
+
+## 상호작용 분석
+1. 천간 상호작용: ${interactions.yearInteraction.type}
+   - 설명: ${interactions.yearInteraction.description}
+   
+2. 지지 상호작용: ${interactions.elementInteraction.type}
+   - 설명: ${interactions.elementInteraction.description}
+   
+3. 대운 조화: ${interactions.daewoonInteraction.type}
+   - 설명: ${interactions.daewoonInteraction.description}
+   
+4. 신살/귀인: ${interactions.sinsalInteraction.type}
+   - 설명: ${interactions.sinsalInteraction.description}
+
+## 월별 특이사항
+- 길한 달: ${luckyMonthDetails}
+- 조심할 달: ${cautiousMonthDetails}
+
+## 요청사항
+위 데이터를 바탕으로 다음을 JSON 형태로 생성해주세요:
+
+**중요: 모든 텍스트에서 쉼표(,)를 사용하지 마세요. 쉼표 대신 마침표(.)나 공백을 사용하세요.**
+
+\`\`\`json
+{
+  "overall": "전체 운세 해석 (300자 이내). 천간과 지지 상호작용을 중심으로 한 해의 큰 흐름 설명",
+  "categories": {
+    "love": "연애운 해석 (150자). 상호작용 분석 반영",
+    "wealth": "재물운 해석 (150자). 상호작용 분석 반영",
+    "health": "건강운 해석 (150자). 상호작용 분석 반영",
+    "career": "직장운 해석 (150자). 상호작용 분석 반영"
+  },
+  "luckyMonths": [
+    { "month": ${topLuckyMonths[0]}, "advice": "${topLuckyMonths[0]}월 구체적 조언 (100-150자). 반드시 해당 월의 상호작용 타입 언급" },
+    { "month": ${topLuckyMonths[1]}, "advice": "${topLuckyMonths[1]}월 구체적 조언 (100-150자). 반드시 해당 월의 상호작용 타입 언급" }
+  ],
+  "cautiousMonths": [
+    { "month": ${topCautiousMonths[0]}, "advice": "${topCautiousMonths[0]}월 구체적 조언 (100-150자). 반드시 해당 월의 상호작용 타입 언급" },
+    { "month": ${topCautiousMonths[1]}, "advice": "${topCautiousMonths[1]}월 구체적 조언 (100-150자). 반드시 해당 월의 상호작용 타입 언급" }
+  ]
+}
+\`\`\`
+
+**주의사항:**
+1. 반드시 JSON 형식으로만 응답
+2. 쉼표(,) 사용 금지 - 마침표(.)나 공백 사용
+3. 상호작용 타입(식상. 인성. 충. 형 등)을 반드시 언급
+4. 구체적이고 실용적인 조언 제공
+5. 사주 용어를 자연스럽게 설명에 포함`;
+};
+
