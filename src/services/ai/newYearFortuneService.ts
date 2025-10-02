@@ -17,6 +17,7 @@ export interface NewYearFortuneData {
   year: number;
   yearName: string;
   yearDescription: string;
+  summary: string;
   overall: string;
   categories: {
     love: string;
@@ -65,17 +66,40 @@ class NewYearFortuneService {
     targetYear: number
   ): Promise<NewYearFortuneData> {
     try {
+      // 한글 간지를 한자로 변환하는 헬퍼 함수
+      const convertHangulToHanja = (hangulGanji: string): string => {
+        if (!hangulGanji || hangulGanji.length < 2) return '';
+        
+        const heavenlyStems: { [key: string]: string } = {
+          '갑': '甲', '을': '乙', '병': '丙', '정': '丁', '무': '戊', 
+          '기': '己', '경': '庚', '신': '辛', '임': '壬', '계': '癸'
+        };
+        
+        const earthlyBranches: { [key: string]: string } = {
+          '자': '子', '축': '丑', '인': '寅', '묘': '卯', '진': '辰', 
+          '사': '巳', '오': '午', '미': '未', '신': '申', '유': '酉', 
+          '술': '戌', '해': '亥'
+        };
+        
+        const heavenly = heavenlyStems[hangulGanji[0]] || '';
+        const earthly = earthlyBranches[hangulGanji[1]] || '';
+        
+        return heavenly + earthly;
+      };
+
       // 1. 사주 데이터를 UserSajuData 형식으로 변환
+      const calculatedSaju = sajuData.calculatedSaju || sajuData;
+      
       const userSajuData: UserSajuData = {
-        yearGanji: sajuData.yearHanjaGanji,
-        monthGanji: sajuData.monthHanjaGanji,
-        dayGanji: sajuData.dayHanjaGanji,
-        timeGanji: sajuData.timeHanjaGanji,
-        sinsal: sajuData.sinsal || {},
-        guin: sajuData.guin || {},
-        jijiRelations: sajuData.jijiRelations || {},
-        fiveProperties: sajuData.fiveProperties || {},
-        daewoon: sajuData.daewoon || [],
+        yearGanji: convertHangulToHanja(calculatedSaju.yearHangulGanji || ''),
+        monthGanji: convertHangulToHanja(calculatedSaju.monthHangulGanji || ''),
+        dayGanji: convertHangulToHanja(calculatedSaju.dayHangulGanji || ''),
+        timeGanji: convertHangulToHanja(calculatedSaju.timeHangulGanji || ''),
+        sinsal: calculatedSaju.sinsal || {},
+        guin: calculatedSaju.guin || {},
+        jijiRelations: calculatedSaju.jijiRelations || {},
+        fiveProperties: calculatedSaju.fiveProperties || {},
+        daewoon: calculatedSaju.daewoon || [],
         birthYear: sajuData.birthYear || new Date().getFullYear() - 30,
       };
 
@@ -123,6 +147,7 @@ class NewYearFortuneService {
         yearName: calculatedResult.yearName,
         yearDescription: calculatedResult.yearDescription,
         yearGanji: calculatedResult.yearGanji,
+        summary: parsed.summary,
         overall: parsed.overall,
         categories: parsed.categories,
         luckyMonths: parsed.luckyMonths,
@@ -151,6 +176,7 @@ class NewYearFortuneService {
    * LLM 응답 파싱
    */
   private parseResponse(response: string): {
+    summary: string;
     overall: string;
     categories: {
       love: string;
@@ -169,6 +195,7 @@ class NewYearFortuneService {
       const parsed = JSON.parse(jsonString);
       
       return {
+        summary: parsed.summary || '한 해의 운세를 준비하세요',
         overall: parsed.overall || '운세 정보를 생성하는 중 오류가 발생했습니다.',
         categories: {
           love: parsed.categories?.love || '연애운 정보가 없습니다.',

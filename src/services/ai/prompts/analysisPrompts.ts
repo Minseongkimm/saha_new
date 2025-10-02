@@ -186,6 +186,7 @@ export const getNewYearFortunePrompt = (
 
 \`\`\`json
 {
+  "summary": "한 줄 요약 (20자 이내)",
   "overall": "전체 운세 해석 (300자 이내). 천간과 지지 상호작용을 중심으로 한 해의 큰 흐름 설명",
   "categories": {
     "love": "연애운 해석 (150자). 상호작용 분석 반영",
