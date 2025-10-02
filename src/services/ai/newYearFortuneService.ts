@@ -213,20 +213,18 @@ class NewYearFortuneService {
   }
 
   /**
-   * DB 저장
+   * DB 저장 (saju_analyses 테이블의 new_year_fortune 컬럼)
    */
   private async saveToDatabase(userId: string, data: NewYearFortuneData): Promise<boolean> {
     try {
       const { error } = await supabase
-        .from('newyear_fortunes')
+        .from('saju_analyses')
         .upsert({
           user_id: userId,
-          year: data.year,
-          fortune_data: data,
-          created_at: new Date().toISOString(),
+          new_year_fortune: data,
           updated_at: new Date().toISOString(),
         }, {
-          onConflict: 'user_id,year'
+          onConflict: 'user_id'
         });
 
       if (error) {
@@ -242,22 +240,27 @@ class NewYearFortuneService {
   }
 
   /**
-   * DB에서 신년운세 조회
+   * DB에서 신년운세 조회 (saju_analyses 테이블의 new_year_fortune 컬럼)
    */
   public async getFromDatabase(userId: string, year: number): Promise<NewYearFortuneData | null> {
     try {
       const { data, error } = await supabase
-        .from('newyear_fortunes')
-        .select('fortune_data')
+        .from('saju_analyses')
+        .select('new_year_fortune')
         .eq('user_id', userId)
-        .eq('year', year)
         .single();
 
-      if (error || !data) {
+      if (error || !data || !data.new_year_fortune) {
         return null;
       }
 
-      return data.fortune_data as NewYearFortuneData;
+      // 연도가 일치하는지 확인
+      const fortuneData = data.new_year_fortune as NewYearFortuneData;
+      if (fortuneData.year !== year) {
+        return null;
+      }
+
+      return fortuneData;
     } catch (error) {
       console.error('DB 조회 오류:', error);
       return null;

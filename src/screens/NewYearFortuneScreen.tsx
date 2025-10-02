@@ -16,6 +16,7 @@ import AIGuideSection from '../components/AIGuideSection';
 import BottomFixedButton from '../components/BottomFixedButton';
 import SimpleYearInteraction from '../components/SimpleYearInteraction';
 import { startChatWithExpert } from '../utils/chatUtils';
+import { useNewYearFortune } from '../hooks/useNewYearFortune';
 
 interface NewYearFortuneScreenProps {
   navigation: any;
@@ -23,6 +24,17 @@ interface NewYearFortuneScreenProps {
 
 const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation }) => {
   const [showChatModal, setShowChatModal] = useState(false);
+
+  // 실제 데이터 훅 사용
+  const { 
+    fortuneData: displayData, 
+    sajuData, 
+    loading, 
+    sajuLoading, 
+    sajuInitializing, 
+    error, 
+    refetch 
+  } = useNewYearFortune(2026);
 
   const handleStartChat = () => {
     setShowChatModal(true);
@@ -32,63 +44,6 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
     setShowChatModal(false);
     startChatWithExpert(navigation, 'newyear_fortune');
   };
-
-  // Mock 사주 데이터
-  const mockSajuData = {
-    name: "홍길동",
-    birthYear: 1990,
-    birthMonth: 5,
-    birthDay: 15,
-    birthHour: 14,
-    birthMinute: 30,
-    gender: "male",
-    calendarType: "solar",
-    calculatedSaju: {
-      yearHangulGanji: "경오",
-      monthHangulGanji: "신사",
-      dayHangulGanji: "무진",
-      timeHangulGanji: "기미",
-      sinsal: {},
-      guin: {},
-      jijiRelations: {},
-      fiveProperties: { wood: 1, fire: 3, earth: 2, metal: 1, water: 1 },
-      daewoon: []
-    }
-  };
-
-  // Mock 신년운세 데이터
-  const mockFortuneData = {
-    year: 2026,
-    yearName: "병오년",
-    yearDescription: "적마의 해. 열정과 도약의 기운",
-    yearGanji: {
-      yearGanji: "丙午",
-      element: "火",
-      animal: "적마"
-    },
-    summary: "배움과 성장의 해. 차근차근 준비하세요",
-    overall: "2026년은 당신에게 인성의 해입니다. 병오년의 적마 기운이 당신의 사주를 생조하여 배움과 성장의 시기가 됩니다. 천간의 화생토 작용으로 지식 습득과 자기계발이 강조되는 한 해입니다. 대운과의 조화로 안정적인 흐름 속에서 새로운 배움을 얻을 수 있는 시기이며 스승이나 멘토의 도움도 기대할 수 있습니다. 다만 일부 달에는 충의 영향으로 신중함이 필요하니 급하게 서두르지 말고 차근차근 나아가세요.",
-    categories: {
-      love: "연애운은 인성의 작용으로 진중하고 깊이 있는 만남이 기대됩니다. 가벼운 만남보다는 진지한 관계를 추구하게 될 것입니다. 5월과 8월이 좋은 인연을 만날 수 있는 시기입니다. 상대방의 내면을 중요하게 여기며 다가가면 좋은 결과가 있을 것입니다.",
-      wealth: "재물운은 상승세입니다. 화의 기운으로 활발한 활동과 수입 증가가 예상됩니다. 다만 지출도 많아질 수 있으니 계획적인 관리가 필요합니다. 특히 봄철에는 재물 관리에 신경을 쓰고 여름에는 투자 기회가 올 수 있습니다. 신중한 판단으로 재물을 불려나가세요.",
-      health: "건강운은 양호합니다. 화의 기운으로 활력이 넘치는 한 해가 될 것입니다. 다만 과도한 열정으로 무리하지 않도록 주의하세요. 여름철에는 심장과 혈압 관리가 필요하고 적당한 휴식이 중요합니다. 스트레스 해소를 위해 야외 활동을 추천합니다. 균형잡힌 생활로 건강을 유지하세요.",
-      career: "직장운은 인성의 영향으로 배움과 성장이 강조되는 해입니다. 새로운 기술이나 자격증 취득에 도전해보세요. 상반기에는 학습 기간이고 하반기에는 그 성과가 나타날 것입니다. 상사나 선배의 조언을 잘 받아들이면 큰 도움이 됩니다. 성실함과 겸손함으로 인정받을 수 있습니다."
-    },
-    luckyMonths: [
-      { month: 5, advice: "5월은 삼합의 좋은 기운이 작용하여 중요한 결정이나 새로운 계약을 하기에 최적의 시기입니다. 적극적으로 행동하고 새로운 도전을 시작해보세요. 협력과 동업의 기회도 찾아올 수 있으니 인맥 관리에 신경을 쓰면 좋은 성과를 얻을 수 있습니다." },
-      { month: 8, advice: "8월은 매우 안정적인 흐름이 이어지는 달입니다. 화의 기운이 왕성하여 활발한 활동이 가능하며 인맥 확장과 네트워킹에 신경을 쓰면 좋은 성과를 얻을 수 있습니다. 계획했던 일을 추진하고 새로운 프로젝트를 시작하기에도 좋은 시기입니다." }
-    ],
-    cautiousMonths: [
-      { month: 12, advice: "12월은 충의 영향으로 주의가 필요한 시기입니다. 갈등을 피하고 조화를 추구하는 것이 중요합니다. 급한 결정보다는 차분히 마무리에 집중하고 내년을 준비하는 데 시간을 할애하세요. 연말에는 무리한 계획보다 현실적인 목표를 세우는 것이 좋습니다." },
-      { month: 1, advice: "1월은 연초의 불안정한 기운으로 서두르지 말고 신중하게 행동해야 합니다. 충동적인 결정은 피하고 차분히 상황을 분석하는 것이 중요합니다. 이 시기에는 계획을 세우고 준비하는 데 집중하며 2월 이후 본격적으로 움직이는 것을 추천합니다." }
-    ],
-    generatedAt: new Date().toISOString(),
-    llmModel: "mock"
-  };
-
-  // Mock 데이터 사용
-  const displayData = mockFortuneData;
-  const sajuData = mockSajuData;
 
   // 사주 데이터에서 일간 추출
   const parseGanji = (ganjiStr: string) => {
@@ -103,9 +58,10 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
     return { heavenly, earthly: '' };
   };
 
+  // displayData null 체크 후에 변수 추출
   const myDayGanji = sajuData?.calculatedSaju?.dayHangulGanji || '';
   const myDayGan = parseGanji(myDayGanji).heavenly;
-  const yearGanjiChar = displayData.yearGanji?.yearGanji || '丙午';
+  const yearGanjiChar = displayData?.yearGanji?.yearGanji || '丙午';
   const yearGan = yearGanjiChar[0];
   const yearJi = yearGanjiChar[1];
 
@@ -117,6 +73,62 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
     health: { color: '#45B7D1', label: '건강운' },
     career: { color: '#96CEB4', label: '직장운' },
   };
+
+  // 로딩 상태 처리
+  if (sajuInitializing || sajuLoading || loading) {
+    return (
+      <View style={styles.container}>
+        <CustomHeader 
+          title="신년운세"
+          onBackPress={() => navigation.goBack()}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primaryColor} />
+          <Text style={styles.loadingText}>
+            {sajuInitializing ? '사주 데이터를 불러오는 중...' : 
+             sajuLoading ? '사주를 계산하는 중...' : 
+             '신년운세를 생성하는 중...'}
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  // 에러 상태 처리
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <CustomHeader 
+          title="신년운세"
+          onBackPress={() => navigation.goBack()}
+        />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={refetch}>
+            <Text style={styles.retryButtonText}>다시 시도</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  // 데이터가 없을 때 처리
+  if (!displayData || !sajuData) {
+    return (
+      <View style={styles.container}>
+        <CustomHeader 
+          title="신년운세"
+          onBackPress={() => navigation.goBack()}
+        />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>신년운세 데이터를 불러올 수 없습니다.</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={refetch}>
+            <Text style={styles.retryButtonText}>다시 시도</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -414,6 +426,19 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  retryButton: {
+    backgroundColor: Colors.primaryColor,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
   keyPointsCard: {
     backgroundColor: 'white',
