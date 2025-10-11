@@ -217,19 +217,46 @@ class NewYearFortuneService {
    */
   private async saveToDatabase(userId: string, data: NewYearFortuneData): Promise<boolean> {
     try {
-      const { error } = await supabase
+      // 먼저 기존 데이터가 있는지 확인
+      const { data: existingData, error: selectError } = await supabase
         .from('saju_analyses')
-        .upsert({
-          user_id: userId,
-          new_year_fortune: data,
-          updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id'
-        });
+        .select('id')
+        .eq('user_id', userId)
+        .single();
 
-      if (error) {
-        console.error('DB 저장 오류:', error);
+      if (selectError && selectError.code !== 'PGRST116') {
+        console.error('기존 데이터 조회 오류:', selectError);
         return false;
+      }
+
+      if (existingData) {
+        // 기존 데이터가 있으면 업데이트
+        const { error: updateError } = await supabase
+          .from('saju_analyses')
+          .update({
+            new_year_fortune: data,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId);
+
+        if (updateError) {
+          console.error('DB 업데이트 오류:', updateError);
+          return false;
+        }
+      } else {
+        // 기존 데이터가 없으면 새로 삽입
+        const { error: insertError } = await supabase
+          .from('saju_analyses')
+          .insert({
+            user_id: userId,
+            new_year_fortune: data,
+            updated_at: new Date().toISOString(),
+          });
+
+        if (insertError) {
+          console.error('DB 삽입 오류:', insertError);
+          return false;
+        }
       }
 
       return true;
