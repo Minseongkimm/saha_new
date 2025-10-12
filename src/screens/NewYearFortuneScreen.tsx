@@ -25,16 +25,67 @@ interface NewYearFortuneScreenProps {
 const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation }) => {
   const [showChatModal, setShowChatModal] = useState(false);
 
+  // 실시간 JSON 파싱 함수 (모든 필드 실시간 추출)
+  const parseStreamingJson = (jsonText: string, calcResult: any) => {
+    if (!calcResult) return null;
+    
+    try {
+      const cleanedText = jsonText.replace(/```json|```/g, '').trim();
+      
+      // 각 필드별로 regex 추출
+      const summaryMatch = cleanedText.match(/"summary"\s*:\s*"([^"]*)"/);
+      const overallMatch = cleanedText.match(/"overall"\s*:\s*"([^"]*)"/);
+      
+      // categories 추출
+      const loveMatch = cleanedText.match(/"love"\s*:\s*"([^"]*)"/);
+      const wealthMatch = cleanedText.match(/"wealth"\s*:\s*"([^"]*)"/);
+      const healthMatch = cleanedText.match(/"health"\s*:\s*"([^"]*)"/);
+      const careerMatch = cleanedText.match(/"career"\s*:\s*"([^"]*)"/);
+      
+      return {
+        year: calcResult.year,
+        yearName: calcResult.yearName,
+        yearDescription: calcResult.yearDescription,
+        yearGanji: calcResult.yearGanji,
+        summary: summaryMatch ? summaryMatch[1] : '',
+        overall: overallMatch ? overallMatch[1] : '',
+        categories: {
+          love: loveMatch ? loveMatch[1] : '',
+          wealth: wealthMatch ? wealthMatch[1] : '',
+          health: healthMatch ? healthMatch[1] : '',
+          career: careerMatch ? careerMatch[1] : '',
+        },
+        luckyMonths: [],
+        cautiousMonths: [],
+        generatedAt: '',
+        llmModel: '',
+      };
+    } catch (e) {
+      return null;
+    }
+  };
+
   // 실제 데이터 훅 사용
   const { 
-    fortuneData: displayData, 
+    fortuneData, 
     sajuData, 
     loading, 
     sajuLoading, 
-    sajuInitializing, 
+    sajuInitializing,
+    isStreaming,
+    streamingJsonText,
+    calculatedResult: streamingCalcResult,
     error, 
     refetch 
   } = useNewYearFortune(2026);
+
+  // 스트리밍 중이면 실시간 파싱, 아니면 fortuneData 사용
+  const displayData = React.useMemo(() => {
+    if (isStreaming && streamingJsonText) {
+      return parseStreamingJson(streamingJsonText, streamingCalcResult);
+    }
+    return fortuneData;
+  }, [isStreaming, streamingJsonText, streamingCalcResult, fortuneData]);
 
   const handleStartChat = () => {
     setShowChatModal(true);
@@ -62,8 +113,8 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
   const myDayGanji = sajuData?.calculatedSaju?.dayHangulGanji || '';
   const myDayGan = parseGanji(myDayGanji).heavenly;
   const yearGanjiChar = displayData?.yearGanji?.yearGanji || '丙午';
-  const yearGan = yearGanjiChar[0];
-  const yearJi = yearGanjiChar[1];
+  const yearGan = yearGanjiChar ? yearGanjiChar[0] : '';
+  const yearJi = yearGanjiChar ? yearGanjiChar[1] : '';
 
   // 카테고리 색상 매핑
   const categoryConfig = {
@@ -74,8 +125,8 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
     career: { color: '#96CEB4', label: '직장운' },
   };
 
-  // 로딩 상태 처리
-  if (sajuInitializing || sajuLoading || loading) {
+  // 로딩 상태 처리 (스트리밍 중이 아닐 때만)
+  if ((sajuInitializing || sajuLoading || loading) && !isStreaming) {
     return (
       <View style={styles.container}>
         <CustomHeader 
@@ -87,7 +138,7 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
           <Text style={styles.loadingText}>
             {sajuInitializing ? '사주 데이터를 불러오는 중...' : 
              sajuLoading ? '사주를 계산하는 중...' : 
-             '신년운세를 생성하는 중...'}
+             '신년운세를 확인하는 중...'}
           </Text>
         </View>
       </View>
@@ -112,8 +163,8 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
     );
   }
 
-  // 데이터가 없을 때 처리
-  if (!displayData || !sajuData) {
+  // 데이터가 없을 때 처리 (스트리밍 중이 아닐 때만)
+  if ((!displayData || !sajuData) && !isStreaming) {
     return (
       <View style={styles.container}>
         <CustomHeader 
@@ -146,8 +197,16 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
             description="새해를 맞아 한 해 운세를 미리 확인해보세요"
           />
 
-          {/* 간단한 일간-신년 상호작용 */}
-          {myDayGan && yearGan && (
+          {/* 스트리밍 인디케이터 - 항상 위에 표시 */}
+          {isStreaming && (
+            <View style={styles.streamingIndicatorContainer}>
+              <ActivityIndicator size="small" color={Colors.primaryColor} style={{ marginRight: 8 }} />
+              <Text style={styles.streamingIndicator}>AI가 신년운세를 분석하는 중...</Text>
+            </View>
+          )}
+
+          {/* 간단한 일간-신년 상호작용 - 스트리밍 중에도 표시 */}
+          {displayData && myDayGan && yearGan && (
             <SimpleYearInteraction 
               myDayGan={myDayGan}
               yearGan={yearGan}
@@ -158,7 +217,7 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
           )}
 
           {/* 한 줄 요약 */}
-          {displayData.summary && (
+          {displayData?.summary && (
             <View style={styles.keyMessageCard}>
               <View style={styles.keyMessageHeader}>
                 <Text style={styles.keyMessageLabel}>한 해의 한마디</Text>
@@ -170,7 +229,7 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
           )}
 
           {/* 전체 운세 */}
-          {displayData.overall && (
+          {displayData?.overall && (
             <View style={styles.overallCard}>
               <Text style={styles.overallTitle}>한 해 전체 운세</Text>
               <Text style={styles.overallText}>{displayData.overall}</Text>
@@ -178,7 +237,7 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
           )}
 
           {/* 분야별 운세 */}
-          {displayData.categories && (
+          {displayData?.categories && (
             <View style={styles.fortuneContainer}>
               <Text style={styles.sectionTitle}>분야별 운세</Text>
               
@@ -225,7 +284,7 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
           )}
 
           {/* 길한 달 */}
-          {displayData.luckyMonths && displayData.luckyMonths.length > 0 && (
+          {displayData?.luckyMonths && displayData.luckyMonths.length > 0 && (
             <View style={styles.keyPointsCard}>
               <Text style={styles.keyPointsTitle}>길한 달</Text>
               {displayData.luckyMonths.map((item: any, index: number) => (
@@ -238,7 +297,7 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
           )}
 
           {/* 주의할 달 */}
-          {displayData.cautiousMonths && displayData.cautiousMonths.length > 0 && (
+          {displayData?.cautiousMonths && displayData.cautiousMonths.length > 0 && (
             <View style={styles.keyPointsCard}>
               <Text style={styles.keyPointsTitle}>주의할 달</Text>
               {displayData.cautiousMonths.map((item: any, index: number) => (
@@ -465,6 +524,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333',
     lineHeight: 22,
+  },
+  streamingIndicatorContainer: {
+    backgroundColor: '#f0f7ff',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  streamingIndicator: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primaryColor,
   },
 });
 

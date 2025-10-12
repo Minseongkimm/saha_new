@@ -1,35 +1,32 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { SajuCache } from '../utils/sajuCache';
-import { traditionalSajuService } from '../services/ai/traditionalSajuService';
+import { streamTraditionalSaju } from '../services/ai/edgeFunctionClient';
 import { useSajuData } from './useSajuData';
-import { useStreamingData } from './useStreamingData';
 import { useAnalysisData } from './useAnalysisData';
 import { TraditionalSajuData } from '../types/streaming';
-import { initialTraditionalSajuData, traditionalSajuStreamingConfig } from '../config/streamingConfigs';
 
 /**
- * 정통사주 데이터 및 스트리밍 관리 훅
+ * 정통사주 데이터 및 스트리밍 관리 훅 (Edge Function 버전)
  */
 export const useTraditionalSaju = () => {
   // 사주 데이터 로딩
   const { sajuData, loading: sajuLoading, initializing: sajuInitializing, error: sajuError } = useSajuData();
   
-  // 스트리밍 관리
-  const { streamingData, finalData, isStreaming, startStreaming } = useStreamingData<TraditionalSajuData>(
-    initialTraditionalSajuData,
-    traditionalSajuStreamingConfig
-  );
+  // Edge Function 스트리밍 상태
+  const [streamingText, setStreamingText] = useState<string>('');
+  const [isStreaming, setIsStreaming] = useState<boolean>(false);
+  const [streamingError, setStreamingError] = useState<Error | null>(null);
   
   // 분석 데이터 관리
   const {
     data: analysisData,
     loading: analysisLoading,
     setLoading: setAnalysisLoading,
+    setData: setAnalysisData,
     checkCache,
     checkDatabase,
     saveToDatabase,
-    saveToCache
   } = useAnalysisData<TraditionalSajuData>(
     'traditional_analysis',
     'saju_analyses',
@@ -95,12 +92,16 @@ export const useTraditionalSaju = () => {
   };
 
   /**
-   * 정통사주 분석 생성
+   * Edge Function으로 정통사주 분석 생성 (실시간 스트리밍)
    */
   const generateAnalysis = async () => {
     if (!sajuData) return;
 
     try {
+      setIsStreaming(true);
+      setStreamingError(null);
+      setStreamingText('');
+
       // 분석 입력 데이터 구성
       const analysisInput = {
         name: sajuData.name,
@@ -120,11 +121,16 @@ export const useTraditionalSaju = () => {
         jijiRelations: sajuData.calculatedSaju.jijiRelations
       };
 
-      // LLM 분석 생성
-      const analysis = await traditionalSajuService.generateSajuAnalysis(analysisInput);
+      let fullText = '';
 
-      // 스트리밍 시작
-      startStreaming(analysis);
+      // Edge Function 실시간 스트리밍 (React Native 콜백 방식)
+      fullText = await streamTraditionalSaju(analysisInput, (chunk) => {
+        setStreamingText((prev) => prev + chunk);
+      });
+
+      // 스트리밍 완료 - 섹션별로 파싱
+      const parsedAnalysis = parseTraditionalSajuText(fullText);
+      setAnalysisData(parsedAnalysis);
 
       // 저장
       const { data: { user } } = await supabase.auth.getUser();
@@ -136,16 +142,52 @@ export const useTraditionalSaju = () => {
           .single();
 
         if (birthData) {
-          // 캐시에 저장
-          await SajuCache.setCachedAnalysis(user.id, analysis);
-          
-          // DB에 저장
-          await saveToDatabase(user.id, birthData.id, analysis);
+          await SajuCache.setCachedAnalysis(user.id, parsedAnalysis);
+          await saveToDatabase(user.id, birthData.id, parsedAnalysis);
         }
       }
+
+      setIsStreaming(false);
     } catch (error) {
       console.error('정통사주 분석 생성 실패:', error);
+      setStreamingError(error instanceof Error ? error : new Error('Unknown error'));
+      setIsStreaming(false);
     }
+  };
+
+  /**
+   * 스트리밍된 텍스트를 섹션별로 파싱
+   */
+  const parseTraditionalSajuText = (text: string): TraditionalSajuData => {
+    const extractSection = (sectionTitle: string): string => {
+      const patterns = [
+        new RegExp(`###\\s*\\d*\\.?\\s*${sectionTitle}[\\s\\S]*?(?=###|$)`),
+        new RegExp(`${sectionTitle}[\\s\\S]*?(?=###|$)`),
+      ];
+
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          let content = match[0];
+          content = content.replace(new RegExp(`###\\s*\\d*\\.?\\s*${sectionTitle}`, 'g'), '');
+          content = content.replace(new RegExp(`${sectionTitle}`, 'g'), '');
+          return content.trim() || '해당 섹션 내용이 비어있습니다.';
+        }
+      }
+
+      return '해당 섹션을 찾을 수 없습니다.';
+    };
+
+    return {
+      overall: extractSection('전체적인 풀이'),
+      dayStem: extractSection('일간 풀이'),
+      fiveElements: extractSection('오행 균형'),
+      sasin: extractSection('십성 구조'),
+      sinsal: extractSection('신살 해석'),
+      comprehensiveAdvice: extractSection('종합 조언'),
+      generatedAt: new Date().toISOString(),
+      llmModel: 'gpt-4o (Edge Function)',
+    };
   };
 
   return {
@@ -155,9 +197,9 @@ export const useTraditionalSaju = () => {
     sajuError,
     analysisData,
     analysisLoading,
-    streamingData,
-    finalData,
+    streamingText,
     isStreaming,
+    streamingError,
     generateAnalysis
   };
 };

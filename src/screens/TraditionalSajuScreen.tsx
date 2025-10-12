@@ -32,57 +32,50 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
     sajuLoading,
     sajuInitializing,
     analysisData,
-    streamingData,
-    finalData,
+    streamingText,
     isStreaming,
+    streamingError,
   } = useTraditionalSaju();
 
-  // 스트리밍 데이터 렌더링 함수
-  const renderStreamingAnalysis = (data: any) => (
-    <View style={styles.analysisContentContainer}>
-      {data.overall && (
-        <View style={styles.analysisSection}>
-          <Text style={styles.analysisSectionTitle}>전체 운세</Text>
-          <Text style={styles.analysisSectionText}>{data.overall}</Text>
+  // 실시간 스트리밍 텍스트를 섹션별로 파싱하여 렌더링
+  const renderStreamingText = (text: string) => {
+    // 실시간으로 섹션 추출
+    const extractSection = (sectionTitle: string): string => {
+      const patterns = [
+        new RegExp(`###\\s*\\d*\\.?\\s*${sectionTitle}[\\s\\S]*?(?=###|$)`),
+      ];
+
+      for (const pattern of patterns) {
+        const match = text.match(pattern);
+        if (match) {
+          let content = match[0];
+          content = content.replace(new RegExp(`###\\s*\\d*\\.?\\s*${sectionTitle}`, 'g'), '');
+          return content.trim();
+        }
+      }
+      return '';
+    };
+
+    const streamingData = {
+      overall: extractSection('전체적인 풀이'),
+      dayStem: extractSection('일간 풀이'),
+      fiveElements: extractSection('오행 균형'),
+      sasin: extractSection('십성 구조'),
+      sinsal: extractSection('신살 해석'),
+      comprehensiveAdvice: extractSection('종합 조언'),
+      generatedAt: '',
+      llmModel: '',
+    };
+
+    return (
+      <View style={styles.analysisContentContainer}>
+        <View style={styles.streamingIndicatorContainer}>
+          <Text style={styles.streamingIndicator}>✨ AI가 분석하는 중...</Text>
         </View>
-      )}
-      
-      {data.dayStem && (
-        <View style={styles.analysisSection}>
-          <Text style={styles.analysisSectionTitle}>일간 분석</Text>
-          <Text style={styles.analysisSectionText}>{data.dayStem}</Text>
-        </View>
-      )}
-      
-      {data.fiveElements && (
-        <View style={styles.analysisSection}>
-          <Text style={styles.analysisSectionTitle}>오행 분석</Text>
-          <Text style={styles.analysisSectionText}>{data.fiveElements}</Text>
-        </View>
-      )}
-      
-      {data.sasin && (
-        <View style={styles.analysisSection}>
-          <Text style={styles.analysisSectionTitle}>십이신살</Text>
-          <Text style={styles.analysisSectionText}>{data.sasin}</Text>
-        </View>
-      )}
-      
-      {data.sinsal && (
-        <View style={styles.analysisSection}>
-          <Text style={styles.analysisSectionTitle}>신살 분석</Text>
-          <Text style={styles.analysisSectionText}>{data.sinsal}</Text>
-        </View>
-      )}
-      
-      {data.comprehensiveAdvice && (
-        <View style={styles.analysisSection}>
-          <Text style={styles.analysisSectionTitle}>종합 조언</Text>
-          <Text style={styles.analysisSectionText}>{data.comprehensiveAdvice}</Text>
-        </View>
-      )}
-    </View>
-  );
+        <SajuAnalysis analysis={streamingData} />
+      </View>
+    );
+  };
 
   // === 로딩 UI ===
   
@@ -168,13 +161,13 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
               description="인공지능이 당신의 사주를 깊이 있게 분석해드립니다"
             />
             
-            {/* 스트리밍 중 */}
-            {isStreaming && streamingData && renderStreamingAnalysis(streamingData)}
+            {/* 실시간 스트리밍 중 */}
+            {isStreaming && streamingText && renderStreamingText(streamingText)}
             
-            {/* 캐시/DB 데이터 또는 최종 데이터 표시 */}
-            {!isStreaming && (analysisData || finalData) && (
+            {/* 캐시/DB 데이터 표시 */}
+            {!isStreaming && analysisData && (
               <View style={styles.analysisContentContainer}>
-                <SajuAnalysis analysis={(analysisData || finalData)!} />
+                <SajuAnalysis analysis={analysisData} />
                 
                 <AIGuideSection
                   title="더 깊이 있는 이야기가 필요하다면"
@@ -185,10 +178,17 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
             )}
 
             {/* 로딩 중 (데이터가 하나도 없을 때만) */}
-            {!isStreaming && !analysisData && !finalData && (
+            {!isStreaming && !analysisData && (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={Colors.primaryColor} />
                 <Text style={styles.loadingText}>사주 해석을 확인하는 중...</Text>
+              </View>
+            )}
+            
+            {/* 에러 표시 */}
+            {streamingError && (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>⚠️ {streamingError.message}</Text>
               </View>
             )}
           </View>
@@ -291,6 +291,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
+  },
+  streamingIndicatorContainer: {
+    backgroundColor: '#f0f7ff',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  streamingIndicator: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primaryColor,
+  },
+  errorContainer: {
+    backgroundColor: '#fee',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 20,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#c33',
+    textAlign: 'center',
   },
 });
 

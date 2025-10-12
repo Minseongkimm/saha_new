@@ -69,6 +69,11 @@ yarn-error.log
 # Environment variables
 src/config/env.ts
 
+# Supabase
+supabase/.env.local
+supabase/.temp/
+supabase/.branches/
+
 # Yarn
 .yarn/*
 !.yarn/patches

@@ -58,6 +58,58 @@ class NewYearFortuneService {
   }
 
   /**
+   * 신년운세 계산만 수행 (LLM 없이)
+   * Edge Function에서 사용하기 위한 public 메서드
+   */
+  public calculateNewYearFortuneOnly(
+    sajuData: any,
+    targetYear: number
+  ): NewYearFortuneResult {
+    const userSajuData = this.convertToUserSajuData(sajuData);
+    return this.calculator.calculateNewYearFortune(userSajuData, targetYear);
+  }
+
+  /**
+   * 사주 데이터를 UserSajuData 형식으로 변환 (재사용 가능)
+   */
+  private convertToUserSajuData(sajuData: any): UserSajuData {
+    const convertHangulToHanja = (hangulGanji: string): string => {
+      if (!hangulGanji || hangulGanji.length < 2) return '';
+      
+      const heavenlyStems: { [key: string]: string } = {
+        '갑': '甲', '을': '乙', '병': '丙', '정': '丁', '무': '戊', 
+        '기': '己', '경': '庚', '신': '辛', '임': '壬', '계': '癸'
+      };
+      
+      const earthlyBranches: { [key: string]: string } = {
+        '자': '子', '축': '丑', '인': '寅', '묘': '卯', '진': '辰', 
+        '사': '巳', '오': '午', '미': '未', '신': '申', '유': '酉', 
+        '술': '戌', '해': '亥'
+      };
+      
+      const heavenly = heavenlyStems[hangulGanji[0]] || '';
+      const earthly = earthlyBranches[hangulGanji[1]] || '';
+      
+      return heavenly + earthly;
+    };
+
+    const calculatedSaju = sajuData.calculatedSaju || sajuData;
+    
+    return {
+      yearGanji: convertHangulToHanja(calculatedSaju.yearHangulGanji || ''),
+      monthGanji: convertHangulToHanja(calculatedSaju.monthHangulGanji || ''),
+      dayGanji: convertHangulToHanja(calculatedSaju.dayHangulGanji || ''),
+      timeGanji: convertHangulToHanja(calculatedSaju.timeHangulGanji || ''),
+      sinsal: calculatedSaju.sinsal || {},
+      guin: calculatedSaju.guin || {},
+      jijiRelations: calculatedSaju.jijiRelations || {},
+      fiveProperties: calculatedSaju.fiveProperties || {},
+      daewoon: calculatedSaju.daewoon || [],
+      birthYear: sajuData.birthYear || new Date().getFullYear() - 30,
+    };
+  }
+
+  /**
    * 신년운세 생성 메인 메서드
    */
   public async generateNewYearFortune(
@@ -66,42 +118,8 @@ class NewYearFortuneService {
     targetYear: number
   ): Promise<NewYearFortuneData> {
     try {
-      // 한글 간지를 한자로 변환하는 헬퍼 함수
-      const convertHangulToHanja = (hangulGanji: string): string => {
-        if (!hangulGanji || hangulGanji.length < 2) return '';
-        
-        const heavenlyStems: { [key: string]: string } = {
-          '갑': '甲', '을': '乙', '병': '丙', '정': '丁', '무': '戊', 
-          '기': '己', '경': '庚', '신': '辛', '임': '壬', '계': '癸'
-        };
-        
-        const earthlyBranches: { [key: string]: string } = {
-          '자': '子', '축': '丑', '인': '寅', '묘': '卯', '진': '辰', 
-          '사': '巳', '오': '午', '미': '未', '신': '申', '유': '酉', 
-          '술': '戌', '해': '亥'
-        };
-        
-        const heavenly = heavenlyStems[hangulGanji[0]] || '';
-        const earthly = earthlyBranches[hangulGanji[1]] || '';
-        
-        return heavenly + earthly;
-      };
-
       // 1. 사주 데이터를 UserSajuData 형식으로 변환
-      const calculatedSaju = sajuData.calculatedSaju || sajuData;
-      
-      const userSajuData: UserSajuData = {
-        yearGanji: convertHangulToHanja(calculatedSaju.yearHangulGanji || ''),
-        monthGanji: convertHangulToHanja(calculatedSaju.monthHangulGanji || ''),
-        dayGanji: convertHangulToHanja(calculatedSaju.dayHangulGanji || ''),
-        timeGanji: convertHangulToHanja(calculatedSaju.timeHangulGanji || ''),
-        sinsal: calculatedSaju.sinsal || {},
-        guin: calculatedSaju.guin || {},
-        jijiRelations: calculatedSaju.jijiRelations || {},
-        fiveProperties: calculatedSaju.fiveProperties || {},
-        daewoon: calculatedSaju.daewoon || [],
-        birthYear: sajuData.birthYear || new Date().getFullYear() - 30,
-      };
+      const userSajuData = this.convertToUserSajuData(sajuData);
 
       // 2. 기본 계산 수행
       const calculatedResult = this.calculator.calculateNewYearFortune(userSajuData, targetYear);
@@ -214,8 +232,9 @@ class NewYearFortuneService {
 
   /**
    * DB 저장 (saju_analyses 테이블의 new_year_fortune 컬럼)
+   * Edge Function에서도 사용할 수 있도록 public으로 변경
    */
-  private async saveToDatabase(userId: string, data: NewYearFortuneData): Promise<boolean> {
+  public async saveToDatabase(userId: string, data: NewYearFortuneData): Promise<boolean> {
     try {
       // 먼저 기존 데이터가 있는지 확인
       const { data: existingData, error: selectError } = await supabase
