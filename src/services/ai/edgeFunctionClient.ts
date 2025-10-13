@@ -238,3 +238,60 @@ export async function streamChat(
   });
 }
 
+/**
+ * 오늘의 운세 스트리밍 (Edge Function 사용)
+ */
+export async function streamTodayFortune(
+  calculatedFortune: Record<string, unknown>,
+  sajuData: Record<string, unknown>,
+  todayDate: string,
+  onChunk: (chunk: string) => void
+): Promise<string> {
+  const url = `${SUPABASE_URL}/functions/v1/today-fortune-stream`;
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('Authorization', `Bearer ${SUPABASE_ANON_KEY}`);
+    
+    let fullText = '';
+    let lastPosition = 0;
+    
+    xhr.onprogress = () => {
+      const newData = xhr.responseText.substring(lastPosition);
+      lastPosition = xhr.responseText.length;
+      
+      const lines = newData.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6).trim();
+          if (data === '[DONE]') continue;
+          
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              fullText += content;
+              onChunk(content);
+            }
+          } catch (e) {
+            // 파싱 에러 무시
+          }
+        }
+      }
+    };
+    
+    xhr.onerror = () => reject(new Error('오늘의 운세 스트리밍 요청 실패'));
+    xhr.onload = () => {
+      if (xhr.status === 200) {
+        resolve(fullText);
+      } else {
+        reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
+      }
+    };
+    
+    xhr.send(JSON.stringify({ calculatedFortune, sajuData, todayDate }));
+  });
+}
+

@@ -10,12 +10,16 @@ functions/
 │   ├── error-handler.ts
 │   ├── openai-streaming.ts
 │   ├── prompts.ts
+│   ├── chat-prompts.ts
 │   └── config.ts
 │
 ├── traditional-saju-stream/
 │   └── index.ts
 │
 ├── new-year-fortune-stream/
+│   └── index.ts
+│
+├── today-fortune-stream/
 │   └── index.ts
 │
 └── chat-stream/
@@ -33,12 +37,14 @@ supabase secrets set OPENAI_API_KEY=your_openai_api_key
 ```bash
 supabase functions deploy traditional-saju-stream
 supabase functions deploy new-year-fortune-stream
+supabase functions deploy today-fortune-stream
 supabase functions deploy chat-stream
 ```
 
 ### 3. 로컬 테스트
 ```bash
 supabase functions serve traditional-saju-stream
+supabase functions serve today-fortune-stream
 ```
 
 ## 📝 클라이언트 사용법

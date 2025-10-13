@@ -197,6 +197,102 @@ export function getNewYearFortunePrompt(
 }
 
 /**
+ * 오늘의 운세 프롬프트 생성
+ */
+export function getTodayFortunePrompt(
+  calculatedFortune: Record<string, unknown>,
+  sajuData: Record<string, unknown>,
+  todayDate: string
+): string {
+  const fortune = calculatedFortune as {
+    totalScore?: number;
+    categoryScores?: {
+      career?: number;
+      love?: number;
+      wealth?: number;
+      relationship?: number;
+    };
+    todayGanji?: {
+      dayGanji?: string;
+    };
+    personalSaju?: {
+      dayGanji?: string;
+      sinsal?: string[];
+      guin?: string[] | Record<string, string[]>;
+      jijiRelations?: string[];
+    };
+    interactions?: {
+      ganInteraction?: { type?: string; score?: number };
+      jiInteraction?: { type?: string; score?: number };
+      sinsalInteraction?: { activated?: boolean; score?: number };
+    };
+  };
+
+  // guin이 객체인 경우 배열로 변환
+  let guinArray: string[] = [];
+  if (fortune.personalSaju?.guin) {
+    if (Array.isArray(fortune.personalSaju.guin)) {
+      guinArray = fortune.personalSaju.guin;
+    } else {
+      // 객체인 경우 모든 값들을 배열로 변환
+      guinArray = Object.values(fortune.personalSaju.guin).flat();
+    }
+  }
+
+  return `당신은 전문 사주명리학자입니다. 계산된 오늘의 운세 데이터를 바탕으로 더 자세하고 실용적인 조언을 제공해주세요.
+
+## 계산된 오늘의 운세 데이터
+모든 점수는 정수로 표현됩니다. 소수점 안됌.
+- 전체 운세 점수: ${fortune.totalScore || 0}점
+- 카테고리별 점수: 
+  * 직업운: ${fortune.categoryScores?.career || 0}점
+  * 연애운: ${fortune.categoryScores?.love || 0}점
+  * 재물운: ${fortune.categoryScores?.wealth || 0}점
+  * 인간관계: ${fortune.categoryScores?.relationship || 0}점
+
+## 오늘의 간지 정보
+- 오늘 간지: ${fortune.todayGanji?.dayGanji || ''}
+- 개인 사주: ${fortune.personalSaju?.dayGanji || ''}
+
+## 상호작용 분석
+- 천간 상호작용: ${fortune.interactions?.ganInteraction?.type || ''} (${fortune.interactions?.ganInteraction?.score || 0}점)
+- 지지 상호작용: ${fortune.interactions?.jiInteraction?.type || ''} (${fortune.interactions?.jiInteraction?.score || 0}점)
+- 신살 상호작용: ${fortune.interactions?.sinsalInteraction?.activated ? '발동' : '미발동'} (${fortune.interactions?.sinsalInteraction?.score || 0}점)
+
+## 활성화된 요소들
+- 신살: ${fortune.personalSaju?.sinsal?.join(', ') || ''}
+- 귀인: ${guinArray.join(', ') || ''}
+- 지지관계: ${fortune.personalSaju?.jijiRelations?.join(', ') || ''}
+
+## 요청사항
+위 데이터를 바탕으로 다음을 JSON 형태로 생성해주세요:
+
+**중요: 모든 텍스트에서 쉼표(,)를 사용하지 마세요. 쉼표 대신 마침표(.)나 공백을 사용하세요.**
+
+{
+  "summary": "한 줄 요약 (10-15글자 예: '과감하게 밀어붙이세요')",
+  "explanation": "사주 전문적 설명 (2-3줄 왜 그런 운세인지 구체적으로 설명)",
+  "categories": {
+    "career": "직업운 상세 설명 (2-3줄 ${fortune.categoryScores?.career || 0}점 기반)",
+    "love": "연애운 상세 설명 (2-3줄 ${fortune.categoryScores?.love || 0}점 기반)",
+    "wealth": "재물운 상세 설명 (2-3줄 ${fortune.categoryScores?.wealth || 0}점 기반)",
+    "relationship": "인간관계 상세 설명 (2-3줄 ${fortune.categoryScores?.relationship || 0}점 기반)"
+  },
+  "doList": ["해야할 것1 (1줄)", "해야할 것2 (1줄)", "해야할 것3 (1줄)"],
+  "dontList": ["하지말아야 할 것1 (1줄)", "하지말아야 할 것2 (1줄)", "하지말아야 할 것3 (1줄)"]
+}
+
+## 분석 기준
+1. 계산된 점수와 상호작용 분석을 바탕으로 한 설명
+2. 오늘의 간지와 개인 사주의 관계
+3. 활성화된 신살과 귀인의 영향
+4. 카테고리별 구체적인 조언
+5. 실용적이고 실행 가능한 행동 지침
+
+전문적이면서도 이해하기 쉬운 조언을 제공해주세요.`;
+}
+
+/**
  * 채팅 프롬프트는 chat-prompts.ts 파일 참조
  */
 export { getExpertPrompt } from './chat-prompts.ts';

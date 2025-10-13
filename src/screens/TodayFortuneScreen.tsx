@@ -36,10 +36,72 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
     sajuLoading,
     sajuInitializing,
     fortuneData,
-    streamingData,
-    finalData,
     isStreaming,
+    streamingJsonText,
+    calculatedResult,
   } = useTodayFortune();
+
+  // 스트리밍 중 실시간 파싱 (신년운세와 동일한 방식)
+  const displayData = React.useMemo(() => {
+    if (!isStreaming || !streamingJsonText || !calculatedResult) {
+      return fortuneData;
+    }
+
+    // regex로 즉시 부분 추출 (신년운세 방식)
+    const cleanedText = streamingJsonText.replace(/```json|```/g, '').trim();
+    
+    const summaryMatch = cleanedText.match(/"summary"\s*:\s*"([^"]*)"/);
+    const explanationMatch = cleanedText.match(/"explanation"\s*:\s*"([^"]*)"/);
+    
+    // categories 추출
+    const careerMatch = cleanedText.match(/"career"\s*:\s*"([^"]*)"/);
+    const loveMatch = cleanedText.match(/"love"\s*:\s*"([^"]*)"/);
+    const wealthMatch = cleanedText.match(/"wealth"\s*:\s*"([^"]*)"/);
+    const relationshipMatch = cleanedText.match(/"relationship"\s*:\s*"([^"]*)"/);
+    
+    // doList, dontList 추출 (배열)
+    const doListMatch = cleanedText.match(/"doList"\s*:\s*\[(.*?)\]/s);
+    const dontListMatch = cleanedText.match(/"dontList"\s*:\s*\[(.*?)\]/s);
+    
+    const parseList = (match: RegExpMatchArray | null): string[] => {
+      if (!match) return [];
+      try {
+        const items = match[1].match(/"([^"]+)"/g);
+        return items ? items.map(item => item.replace(/"/g, '')) : [];
+      } catch (e) {
+        return [];
+      }
+    };
+
+    return {
+      score: calculatedResult.totalScore,
+      summary: summaryMatch ? summaryMatch[1] : '',
+      explanation: explanationMatch ? explanationMatch[1] : '',
+      doList: parseList(doListMatch),
+      dontList: parseList(dontListMatch),
+      categories: {
+        career: { 
+          score: calculatedResult.categoryScores.career, 
+          description: careerMatch ? careerMatch[1] : '' 
+        },
+        love: { 
+          score: calculatedResult.categoryScores.love, 
+          description: loveMatch ? loveMatch[1] : '' 
+        },
+        wealth: { 
+          score: calculatedResult.categoryScores.wealth, 
+          description: wealthMatch ? wealthMatch[1] : '' 
+        },
+        relationship: { 
+          score: calculatedResult.categoryScores.relationship, 
+          description: relationshipMatch ? relationshipMatch[1] : '' 
+        }
+      },
+      generatedAt: new Date().toISOString(),
+      date: new Date().toISOString().split('T')[0],
+      llmModel: 'gpt-4o'
+    };
+  }, [isStreaming, streamingJsonText, calculatedResult, fortuneData]);
 
   const todayDate = new Date().toLocaleDateString('ko-KR', {
     year: 'numeric',
@@ -282,10 +344,15 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
         contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.content}>
-          {isStreaming && streamingData ? (
-            renderFortuneContent(streamingData)
-          ) : (fortuneData || finalData) ? (
-            renderFortuneContent(fortuneData || finalData)
+          {displayData ? (
+            <>
+              {isStreaming && (
+                <View style={styles.streamingIndicatorBox}>
+                  <Text style={styles.streamingIndicator}>✨ AI가 분석하는 중...</Text>
+                </View>
+              )}
+              {renderFortuneContent(displayData)}
+            </>
           ) : (
             <View style={styles.centerContainer}>
               <ActivityIndicator size="large" color={Colors.primaryColor} />
@@ -296,7 +363,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
       </ScrollView>
       
       {/* 하단 고정 버튼 */}
-      {(fortuneData || finalData || streamingData) && (
+      {displayData && (
         <BottomFixedButton
           onPress={handleStartChat}
           text="오늘의 운세 이야기 나누기"
@@ -615,6 +682,18 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 14,
     fontWeight: '600',
+  },
+  streamingIndicatorBox: {
+    backgroundColor: '#f0f7ff',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  streamingIndicator: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.primaryColor,
   },
 });
 

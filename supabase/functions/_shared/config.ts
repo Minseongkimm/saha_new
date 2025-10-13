@@ -9,6 +9,7 @@ export const AI_CONFIG = {
   DEFAULT_MODEL: 'gpt-4o',
   TRADITIONAL_SAJU_MODEL: 'gpt-4o',
   NEW_YEAR_FORTUNE_MODEL: 'gpt-4o',
+  TODAY_FORTUNE_MODEL: 'gpt-4o',
   CHAT_MODEL: 'gpt-4o',
   
   TEMPERATURE: 0.7,
