@@ -36,12 +36,35 @@ serve(async (req: Request) => {
 
     // 전문가별 시스템 프롬프트 가져오기
     const systemPrompt = getExpertPrompt(expertCategory as any);
+    
+    // 사주 정보가 saju_data 안에 중첩되어 있는 경우 처리
+    const actualSajuData = sajuData.saju_data || sajuData;
+    
+    // 기존 방식과 동일하게 사주 정보를 프롬프트에 치환
+    const birthInfoStr = JSON.stringify(actualSajuData, null, 2);
+    const lastQuestion = messages.length > 0 ? messages[messages.length - 1].content : '질문 없음';
+    const prevHistory = messages.length > 1 ? messages.slice(0, -1).map(m => m.content).join('\n') : '이전 대화 없음';
+    
+  const filledPrompt = systemPrompt
+    .replace('{target_len}', '300')
+    .replace('{birth_info}', birthInfoStr)
+    .replace('{gongmang}', actualSajuData.gongmang || '없음')
+    .replace('{five_properties}', JSON.stringify(actualSajuData.fiveProperties) || '없음')
+    .replace('{jiji_amjangan}', JSON.stringify(actualSajuData.jijiAmjangan) || '없음')
+    .replace('{sal_analysis}', JSON.stringify(actualSajuData.sal) || '없음')
+    .replace('{guin_analysis}', JSON.stringify(actualSajuData.guin) || '없음')
+    .replace('{jiji_relations}', JSON.stringify(actualSajuData.jijiRelations) || '없음')
+    .replace('{daewoon_info}', JSON.stringify(actualSajuData.daewoon) || '없음')
+    .replace('{history}', prevHistory)
+    .replace('{question}', lastQuestion);
+
+
 
     // 메시지 구성
     const openaiMessages: OpenAIMessage[] = [
       {
         role: 'system',
-        content: systemPrompt,
+        content: filledPrompt,
       },
       ...messages,
     ];
@@ -56,7 +79,7 @@ serve(async (req: Request) => {
       frequencyPenalty: AI_CONFIG.FREQUENCY_PENALTY,
       presencePenalty: AI_CONFIG.PRESENCE_PENALTY,
     });
-
+    
     const sseStream = transformToSSE(openaiStream);
 
     return new Response(sseStream, {

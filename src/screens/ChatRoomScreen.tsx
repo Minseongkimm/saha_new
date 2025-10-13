@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, memo, useMemo } from 'react';
 import {
   View,
   Text,
@@ -22,8 +22,10 @@ import { Colors } from '../constants/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ChatMessage, ChatMessageDB } from '../types/chat';
 import { getExpertImage } from '../utils/getExpertImage';
-import { expertAIService, BirthInfo } from '../services/ai';
+import { BirthInfo } from '../services/ai';
 import { INITIAL_QUESTIONS } from '../services/ai/prompts';
+import { streamChat } from '../services/ai/edgeFunctionClient';
+import { expertAIService } from '../services/ai';
 import { supabase } from '../utils/supabaseClient';
 import { getCachedMessages, setCachedMessages } from '../utils/chatCache';
 import { markChatListNeedsRefresh, updateChatListPreview } from '../utils/chatListCache';
@@ -31,7 +33,7 @@ import { markChatListNeedsRefresh, updateChatListPreview } from '../utils/chatLi
 interface ChatRoomScreenProps {
   navigation: any;
   route: any;
-}
+  }
 
 interface Message {
   id: string;
@@ -77,16 +79,60 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     });
   };
 
-  // 초기 인사말 생성
+  // 팔로업 질문 추출 함수
+  const extractFollowUpQuestions = (text: string): string[] => {
+    const followUpQuestions: string[] = [];
+    
+    // 형식 1: "팔로업 질문:" 형식 (4개)
+    const format1Regex = /팔로업\s*질문:\s*\n\s*1\.\s*([^\n]+)\s*\n\s*2\.\s*([^\n]+)\s*\n\s*3\.\s*([^\n]+)\s*\n\s*4\.\s*([^\n]+)/;
+    const format1Match = text.match(format1Regex);
+    
+    // 형식 2: "다음으로 궁금하신 점은 무엇인지요?" 형식 (4개)
+    const format2Regex = /다음으로\s*궁금하신\s*점은\s*무엇인지요\?[\s\S]*?1\.\s*([^\n]+)[\s\S]*?2\.\s*([^\n]+)[\s\S]*?3\.\s*([^\n]+)[\s\S]*?4\.\s*([^\n]+)/;
+    const format2Match = text.match(format2Regex);
+    
+    // 형식 3: 단순히 1. 2. 3. 4. 형식
+    const format3Regex = /1\.\s*([^\n]+)[\s\S]*?2\.\s*([^\n]+)[\s\S]*?3\.\s*([^\n]+)[\s\S]*?4\.\s*([^\n]+)/;
+    const format3Match = text.match(format3Regex);
+
+    if (format1Match && format1Match[1] && format1Match[2] && format1Match[3] && format1Match[4]) {
+      followUpQuestions.push(format1Match[1].trim(), format1Match[2].trim(), format1Match[3].trim(), format1Match[4].trim());
+    } else if (format2Match && format2Match[1] && format2Match[2] && format2Match[3] && format2Match[4]) {
+      followUpQuestions.push(format2Match[1].trim(), format2Match[2].trim(), format2Match[3].trim(), format2Match[4].trim());
+    } else if (format3Match && format3Match[1] && format3Match[2] && format3Match[3] && format3Match[4]) {
+      followUpQuestions.push(format3Match[1].trim(), format3Match[2].trim(), format3Match[3].trim(), format3Match[4].trim());
+    }
+    
+    return followUpQuestions;
+  };
+
+  // 팔로업 질문 제거 함수
+  const removeFollowUpQuestionsFromText = (text: string): string => {
+    let cleanText = text;
+    
+    // 형식 1 제거
+    cleanText = cleanText.replace(/팔로업\s*질문:[\s\S]*$/, '').trim();
+    
+    // 형식 2 제거
+    cleanText = cleanText.replace(/다음으로\s*궁금하신\s*점은\s*무엇인지요\?[\s\S]*$/, '').trim();
+    
+    // 형식 3 제거 (끝부분의 1. 2. 3. 4. 패턴)
+    cleanText = cleanText.replace(/\n\s*1\.\s*[^\n]+[\s\S]*?4\.\s*[^\n]+[\s\S]*$/, '').trim();
+    
+    return cleanText;
+  };
+
+  // 초기 인사말 생성 (ExpertAIService 사용)
   const generateWelcomeMessage = async () => {
     try {
-      const welcomeText = await expertAIService.generateWelcomeMessage(expert.category);
+      // ExpertAIService를 사용하여 환영 메시지 생성 (내부적으로 에러 처리됨)
+      const welcomeText = await expertAIService.generateWelcomeMessage(expert.category as any);
       
       const welcomeMessage = {
         id: `welcome_${Date.now()}`,
         chat_room_id: roomId,
         sender_type: 'expert' as const,
-        message: welcomeText,
+        message: welcomeText.trim(),
         created_at: new Date().toISOString()
       };
 
@@ -166,7 +212,15 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         (payload) => {
           // 새 메시지를 바로 추가 (전체 새로고침 없이)
           setMessages(prev => {
-            const next = [...prev, payload.new as ChatMessage];
+            const newMessage = payload.new as ChatMessage;
+            // 실시간으로 온 메시지는 follow_up_questions가 없을 수 있으므로
+            // 기존 메시지에서 같은 ID를 가진 메시지가 있다면 follow_up_questions를 보존
+            const existingMessage = prev.find(msg => msg.id === newMessage.id);
+            const messageWithFollowUp = existingMessage 
+              ? { ...newMessage, follow_up_questions: existingMessage.follow_up_questions }
+              : newMessage;
+            
+            const next = [...prev.filter(msg => msg.id !== newMessage.id), messageWithFollowUp];
             setCachedMessages(roomId, next);
             return next;
           });
@@ -291,8 +345,17 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       // AI 응답 생성 시작
       setIsAiResponding(true);
 
-      // 이전 대화 내용 수집 (최근 5개 메시지)
-      const recentMessages = messages.slice(-5).map(msg => msg.message);
+      // 이전 대화 내용 수집 (최근 10개 메시지를 OpenAI 형식으로 변환)
+      const recentChatMessages = messages.slice(-10).map(msg => ({
+        role: msg.sender_type === 'user' ? 'user' as const : 'assistant' as const,
+        content: msg.message
+      }));
+      
+      // 현재 사용자 메시지 추가
+      const currentMessages = [
+        ...recentChatMessages,
+        { role: 'user' as const, content: text.trim() }
+      ];
 
       // AI 응답을 위한 임시 메시지 생성 (식별 가능한 임시 ID 부여)
       const tempId = `temp_ai_${Date.now()}`;
@@ -308,40 +371,48 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       setMessages(prev => [...prev, tempAiMessage as ChatMessage]);
       scrollToBottom(true);
 
-      // AI 응답 생성 (스트리밍)
-      const { error: aiError, message: aiFinalText, followUpQuestions } = await expertAIService.generateResponse({
-        expertCategory: expert.category,
-        birthInfo: userBirthInfo,
-        recentMessages: [...recentMessages, text.trim()]
-      }, (chunk: string) => {
-        // 스트리밍으로 받은 텍스트를 메시지에 추가
-        setMessages(prev => prev.map(msg => 
-          (msg as any).id === tempId
-            ? { ...msg, message: (msg as any).message + chunk }
-            : msg
-        ));
-      });
-
-      if (aiError) {
-        throw new Error(aiError);
+      // Edge Function 스트리밍 응답 생성
+      let aiFinalText = '';
+      
+      try {
+        aiFinalText = await streamChat(
+          expert.category,
+          currentMessages,
+          (userBirthInfo || {}) as Record<string, unknown>,
+          (chunk: string) => {
+            // 스트리밍으로 받은 텍스트를 메시지에 추가
+            setMessages(prev => prev.map(msg => 
+              (msg as any).id === tempId
+                ? { ...msg, message: (msg as any).message + chunk }
+                : msg
+            ));
+          }
+        );
+      } catch (error) {
+        throw new Error('AI 응답 생성 실패');
       }
 
-      // 스트리밍 누락 방지: 최종 텍스트로 임시 버블을 확정
+      // 팔로업 질문 파싱
+      const followUpQuestions = extractFollowUpQuestions(aiFinalText);
+      
+      // 팔로업 질문 제거한 최종 메시지
+      const cleanedMessage = removeFollowUpQuestionsFromText(aiFinalText);
+
+      // 스트리밍 완료 후 최종 메시지로 업데이트
       setMessages(prev => prev.map(msg => 
         (msg as any).id === tempId
-          ? { ...msg, message: aiFinalText || '', follow_up_questions: followUpQuestions }
+          ? { ...msg, message: cleanedMessage, follow_up_questions: followUpQuestions }
           : msg
       ));
 
       // 최종 메시지를 DB에 저장
-      // DB 저장 시 임시 id는 제외하고 저장
-      const { id: _ignoreTempId, ...dbAiMessage } = tempAiMessage as any;
+      // DB 저장 시 임시 id와 follow_up_questions는 제외하고 저장 (DB 스키마에 없음)
+      const { id: _ignoreTempId, follow_up_questions: _ignoreFollowUp, ...dbAiMessage } = tempAiMessage as any;
       const { error: aiMessageError } = await supabase
         .from('chat_messages')
         .insert({
           ...dbAiMessage,
-          message: aiFinalText || ''
-          // follow_up_questions는 UI에서만 사용 (DB 저장 안함)
+          message: cleanedMessage,
         });
 
       if (aiMessageError) throw aiMessageError;
@@ -392,8 +463,17 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       // AI 응답 생성 시작
       setIsAiResponding(true);
 
-      // 이전 대화 내용 수집 (최근 5개 메시지)
-      const recentMessages = messages.slice(-5).map(msg => msg.message);
+      // 이전 대화 내용 수집 (최근 10개 메시지를 OpenAI 형식으로 변환)
+      const recentChatMessages = messages.slice(-10).map(msg => ({
+        role: msg.sender_type === 'user' ? 'user' as const : 'assistant' as const,
+        content: msg.message
+      }));
+      
+      // 현재 사용자 메시지 추가
+      const currentMessages = [
+        ...recentChatMessages,
+        { role: 'user' as const, content: message.trim() }
+      ];
 
       // AI 응답을 위한 임시 메시지 생성 (식별 가능한 임시 ID 부여)
       const tempId = `temp_ai_${Date.now()}`;
@@ -409,41 +489,48 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       setMessages(prev => [...prev, tempAiMessage as ChatMessage]);
       scrollToBottom(true);
 
-      // AI 응답 생성 (스트리밍)
-      const { error: aiError, message: aiFinalText, followUpQuestions } = await expertAIService.generateResponse({
-        expertCategory: expert.category,
-        birthInfo: userBirthInfo,
-        recentMessages: [...recentMessages, message.trim()]
-      }, (chunk: string) => {
-        // 스트리밍으로 받은 텍스트를 메시지에 추가
-        setMessages(prev => prev.map(msg => 
-          (msg as any).id === tempId
-            ? { ...msg, message: (msg as any).message + chunk }
-            : msg
-        ));
-      });
-
-      if (aiError) {
-        throw new Error(aiError);
+      // Edge Function 스트리밍 응답 생성
+      let aiFinalText = '';
+      
+      try {
+        aiFinalText = await streamChat(
+          expert.category,
+          currentMessages,
+          (userBirthInfo || {}) as Record<string, unknown>,
+          (chunk: string) => {
+            // 스트리밍으로 받은 텍스트를 메시지에 추가
+            setMessages(prev => prev.map(msg => 
+              (msg as any).id === tempId
+                ? { ...msg, message: (msg as any).message + chunk }
+                : msg
+            ));
+          }
+        );
+      } catch (error) {
+        throw new Error('AI 응답 생성 실패');
       }
 
-      console.log('Setting message with follow-up questions:', followUpQuestions);
+      // 팔로업 질문 파싱
+      const followUpQuestions = extractFollowUpQuestions(aiFinalText);
       
-      // 스트리밍 누락 방지: 최종 텍스트로 임시 버블을 확정
+      // 팔로업 질문 제거한 최종 메시지
+      const cleanedMessage = removeFollowUpQuestionsFromText(aiFinalText);
+
+      // 스트리밍 완료 후 최종 메시지로 업데이트
       setMessages(prev => prev.map(msg => 
         (msg as any).id === tempId
-          ? { ...msg, message: aiFinalText || '', follow_up_questions: followUpQuestions }
+          ? { ...msg, message: cleanedMessage, follow_up_questions: followUpQuestions }
           : msg
       ));
 
       // 최종 메시지를 DB에 저장
-      // DB 저장 시 임시 id는 제외하고 저장
-      const { id: _ignoreTempId, ...dbAiMessage } = tempAiMessage as any;
+      // DB 저장 시 임시 id와 follow_up_questions는 제외하고 저장 (DB 스키마에 없음)
+      const { id: _ignoreTempId, follow_up_questions: _ignoreFollowUp, ...dbAiMessage } = tempAiMessage as any;
       const { error: aiMessageError } = await supabase
         .from('chat_messages')
         .insert({
           ...dbAiMessage,
-          message: aiFinalText || ''
+          message: cleanedMessage,
         });
 
       if (aiMessageError) throw aiMessageError;
@@ -466,11 +553,11 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     }
   };
 
-  // 메시지 변경 시 항상 최신으로 스크롤
+  // 메시지 변경 시 항상 최신으로 스크롤 (메시지 개수 변경 시만)
   useEffect(() => {
     if (messages.length === 0) return;
     scrollToBottom(true);
-  }, [messages]);
+  }, [messages.length]);
 
   const TypingIndicator: React.FC = () => {
     const dot1Opacity = useRef(new Animated.Value(0)).current;
@@ -519,40 +606,84 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     );
   };
 
-  const renderMessage = ({ item }: { item: ChatMessage }) => (
-    <View style={styles.messageContainer}>
-      {item.sender_type === 'expert' && (
-        <View style={styles.expertInfo}>
-          <Image source={getExpertImage(expert.image_name)} style={styles.messageExpertImage} />
-          <Text style={styles.expertName}>{expert.name}</Text>
-        </View>
-      )}
-      <View style={[
-        styles.messageBubble,
-        item.sender_type === 'user' ? styles.userMessage : styles.expertMessage
-      ]}>
-        {item.sender_type === 'expert' && !item.message?.trim() && isAiResponding ? (
-          <TypingIndicator />
-        ) : (
+  const MessageItem = memo(({ item, expertImage, expertName }: { 
+    item: ChatMessage; 
+    expertImage: any;
+    expertName: string;
+  }) => {
+    const formattedText = useMemo(() => renderFormattedText(item.message), [item.message]);
+    const timestamp = useMemo(() => 
+      new Date(item.created_at).toLocaleTimeString('ko-KR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      }), [item.created_at]
+    );
+
+    return (
+      <View style={styles.messageContainer}>
+        {item.sender_type === 'expert' && (
+          <View style={styles.expertInfo}>
+            <Image source={expertImage} style={styles.messageExpertImage} />
+            <Text style={styles.expertName}>{expertName}</Text>
+          </View>
+        )}
+        <View style={[
+          styles.messageBubble,
+          item.sender_type === 'user' ? styles.userMessage : styles.expertMessage
+        ]}>
           <Text style={[
             styles.messageText,
             item.sender_type === 'user' ? styles.userMessageText : styles.expertMessageText
           ]}>
-            {renderFormattedText(item.message)}
+            {formattedText}
           </Text>
-        )}
+        </View>
+        <Text style={[
+          styles.timestampBase,
+          item.sender_type === 'user' ? styles.timestampUser : styles.timestampExpert
+        ]}>
+          {timestamp}
+        </Text>
       </View>
-      <Text style={[
-        styles.timestampBase,
-        item.sender_type === 'user' ? styles.timestampUser : styles.timestampExpert
-      ]}>
-        {new Date(item.created_at).toLocaleTimeString('ko-KR', { 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        })}
-      </Text>
-    </View>
-  );
+    );
+  }, (prevProps, nextProps) => {
+    // 커스텀 비교: message 내용이 같으면 재렌더링 안 함
+    return prevProps.item.message === nextProps.item.message &&
+           prevProps.item.id === nextProps.item.id;
+  });
+
+  const expertImage = useMemo(() => getExpertImage(expert.image_name), [expert.image_name]);
+  
+  const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
+    // 빈 메시지이고 AI 응답 중이면 타이핑 인디케이터 표시
+    if (item.sender_type === 'expert' && !item.message?.trim() && isAiResponding) {
+      return (
+        <View style={styles.messageContainer}>
+          <View style={styles.expertInfo}>
+            <Image source={expertImage} style={styles.messageExpertImage} />
+            <Text style={styles.expertName}>{expert.name}</Text>
+          </View>
+          <View style={[styles.messageBubble, styles.expertMessage]}>
+            <TypingIndicator />
+          </View>
+          <Text style={[styles.timestampBase, styles.timestampExpert]}>
+            {new Date(item.created_at).toLocaleTimeString('ko-KR', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}
+          </Text>
+        </View>
+      );
+    }
+    
+    return (
+      <MessageItem 
+        item={item} 
+        expertImage={expertImage}
+        expertName={expert.name}
+      />
+    );
+  }, [isAiResponding, expertImage, expert.name]);
 
   const ListEmptyThinking = () => (
     <View style={styles.messageContainer}>
@@ -597,14 +728,11 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
             onLayout={() => scrollToBottom(false)}
             onScrollBeginDrag={() => setShouldAutoScroll(false)}
             onScrollEndDrag={() => {
-              // 스크롤이 맨 아래 근처에 있으면 자동 스크롤 다시 활성화
               setTimeout(() => setShouldAutoScroll(true), 1000);
             }}
             onMomentumScrollEnd={() => {
-              // 스크롤이 맨 아래 근처에 있으면 자동 스크롤 다시 활성화
               setTimeout(() => setShouldAutoScroll(true), 1000);
             }}
-            removeClippedSubviews={false}
             ListEmptyComponent={loading ? ListEmptyThinking : null}
           />
         

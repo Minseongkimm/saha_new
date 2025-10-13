@@ -211,9 +211,9 @@ export async function streamChat(
           const data = line.slice(6).trim();
           if (data === '[DONE]') continue;
           
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content;
+            try {
+              const parsed = JSON.parse(data);
+              const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               fullText += content;
               onChunk(content);

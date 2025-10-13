@@ -7,7 +7,10 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "deploy:chat": "npx supabase functions deploy chat-stream",
+    "supabase:start": "supabase start && supabase functions serve",
+    "supabase:stop": "supabase stop"
   },
   "dependencies": {
     "@langchain/community": "^0.3.55",
