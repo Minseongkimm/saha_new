@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { TodayFortuneData } from '../services/ai/todayFortuneService';
+import { TodayFortuneData } from '../types/streaming';
 
 export interface CachedTodayFortune {
   fortuneData: TodayFortuneData;
