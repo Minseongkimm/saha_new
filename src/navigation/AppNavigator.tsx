@@ -15,6 +15,7 @@ import CompatibilityScreen from '../screens/CompatibilityScreen';
 import TraditionalSajuScreen from '../screens/TraditionalSajuScreen';
 import TodayFortuneScreen from '../screens/TodayFortuneScreen';
 import NewYearFortuneScreen from '../screens/NewYearFortuneScreen';
+import LoadingScreen from '../screens/LoadingScreen';
 // import ChargeScreen from '../screens/ChargeScreen';
 import BirthInfoScreen from '../screens/BirthInfoScreen';
 import { RootStackParamList } from '../types/navigation';
@@ -143,6 +144,13 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
             <Stack.Screen
               name="NewYearFortune"
               component={NewYearFortuneScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="Loading"
+              component={LoadingScreen}
               options={{
                 headerShown: false,
               }}

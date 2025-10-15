@@ -11,6 +11,7 @@ export type RootStackParamList = {
   JeongtongSaju: undefined;
   TodayFortune: undefined;
   NewYearFortune: undefined;
+  Loading: undefined;
   // Charge: undefined; // 결제 기능 임시 비활성화
   BirthInfo: { userId: string };
 };

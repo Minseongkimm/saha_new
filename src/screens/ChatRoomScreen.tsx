@@ -33,14 +33,6 @@ import { markChatListNeedsRefresh, updateChatListPreview } from '../utils/chatLi
 interface ChatRoomScreenProps {
   navigation: any;
   route: any;
-  }
-
-interface Message {
-  id: string;
-  text: string;
-  isUser: boolean;
-  timestamp: Date;
-  isImage?: boolean;
 }
 
 const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
