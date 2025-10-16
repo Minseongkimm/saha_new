@@ -60,8 +60,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
       if (error) throw error;
       const list = data || [];
+      
       setExperts(list);
-      setExpertListCache(list); // 성공 시에만 캐시
+      setExpertListCache(list);
     } catch (error) {
       console.error('Error fetching experts:', error);
       Alert.alert('오류', '전문가 목록을 불러오는데 실패했습니다.');

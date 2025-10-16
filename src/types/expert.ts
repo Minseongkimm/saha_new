@@ -1,3 +1,5 @@
+export type BadgeType = 'popular' | 'new' | 'best';
+
 export interface Expert {
   id: string;
   name: string;
@@ -7,6 +9,10 @@ export interface Expert {
   image_name: string;
   is_online: boolean;
   created_at: string;
+  specialty_tags?: string[];
+  expert_quote?: string;
+  signature_phrase?: string;
+  badge_type?: BadgeType;
 }
 
 export const EXPERT_CATEGORIES = {
