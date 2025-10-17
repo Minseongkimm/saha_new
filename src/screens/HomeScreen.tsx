@@ -37,7 +37,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const categoryRefs = useRef<{ [key: string]: View | null }>({});
 
   useEffect(() => {
-    const FRESH_MS = 60 * 1000; // 60s
+    const FRESH_MS = 30 * 60 * 1000; // 30분
     if (isExpertListFresh(FRESH_MS)) {
       const cached = getExpertListCache();
       if (cached) {
@@ -55,7 +55,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     try {
       const { data, error } = await supabase
         .from('experts')
-        .select('*')
+        .select(`
+          *,
+          expert_details(*)
+        `)
         .order('created_at', { ascending: true });
 
       if (error) throw error;

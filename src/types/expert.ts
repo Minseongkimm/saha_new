@@ -3,7 +3,7 @@ export type BadgeType = 'popular' | 'new' | 'best';
 export interface Expert {
   id: string;
   name: string;
-  category: 'comprehensive' | 'love' | 'career' | 'relationship' | 'residence' | 'traditional_saju' | 'today_fortune' | 'newyear_fortune';
+  category: 'comprehensive' | 'love' | 'career' | 'health' | 'residence' | 'traditional_saju' | 'today_fortune' | 'newyear_fortune';
   title: string;
   description: string;
   image_name: string;
@@ -26,20 +26,20 @@ export const EXPERT_CATEGORIES = {
     label: '연애',
     description: '연애운과 애정운을 자세히 봐드립니다'
   },
+  residence: {
+    key: 'residence',
+    label: '금전운',
+    description: '재물운과 금전운을 분석해드립니다'
+  },
   career: {
     key: 'career',
     label: '커리어',
     description: '직장운과 사업운을 분석해드립니다'
   },
-  relationship: {
-    key: 'relationship',
-    label: '인간관계',
-    description: '인간관계와 가족운을 살펴드립니다'
-  },
-  residence: {
-    key: 'residence',
-    label: '금전운',
-    description: '재물운과 금전운을 분석해드립니다'
+  health: {
+    key: 'health',
+    label: '건강운',
+    description: '건강운과 질병 시기를 살펴드립니다'
   },
   traditional_saju: {
     key: 'traditional_saju',

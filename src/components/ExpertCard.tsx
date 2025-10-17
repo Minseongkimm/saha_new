@@ -41,12 +41,7 @@ const ExpertCard: React.FC<ExpertCardProps> = ({ expert, onPress }) => {
           source={getExpertImage(expert.image_name)}
           style={styles.image}
           resizeMode="cover"
-        />
-        {/* 온라인 상태 배지 (현재 미사용) */}
-        {/* <View style={[styles.statusBadge, 
-          expert.is_online ? styles.statusOnline : styles.statusOffline
-        ]} /> */}
-        
+        />        
         {/* 배지 */}
         {expert.badge_type && (
           <View style={[
@@ -72,10 +67,10 @@ const ExpertCard: React.FC<ExpertCardProps> = ({ expert, onPress }) => {
         {/* 직함 (현재 미사용 - 전문분야 태그로 대체) */}
         {/* <Text style={styles.subtitle}>{expert.title}</Text> */}
         
-        {/* 전문 분야 태그 */}
+        {/* 전문 분야 태그 (최대 2개만 표시) */}
         {expert.specialty_tags && expert.specialty_tags.length > 0 && (
           <View style={styles.specialtyTagsContainer}>
-            {expert.specialty_tags.map((tag, index) => (
+            {expert.specialty_tags.slice(0, 2).map((tag, index) => (
               <View key={index} style={styles.specialtyTag}>
                 <Text style={styles.specialtyTagText}>{tag}</Text>
               </View>

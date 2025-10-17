@@ -23,6 +23,17 @@ interface ExpertDetailScreenProps {
   route: any;
 }
 
+interface Review {
+  text: string;
+  daysAgo: number;
+  userId: string;
+}
+
+interface ConsultationCase {
+  situation: string;
+  result: string;
+}
+
 interface ExpertWithDetails extends Expert {
   expert_details: {
     message: string;
@@ -30,6 +41,9 @@ interface ExpertWithDetails extends Expert {
     ai_accuracy: number;
     consultation_count: number;
     satisfaction_rate: number;
+    recent_reviews?: Review[];
+    monthly_topics?: string[];
+    consultation_cases?: ConsultationCase[];
   };
 }
 
@@ -42,10 +56,14 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
     const cached = getExpertListCache();
     if (cached) {
       const found = cached.find((e) => e.id === expertId);
-      if (found) {
-        setExpert({ ...(found as Expert), expert_details: { message: '', introduction: '', ai_accuracy: 0, consultation_count: 0, satisfaction_rate: 0 } });
+      if (found && (found as any).expert_details) {
+        // 캐시에 expert_details가 있으면 DB 조회 없이 바로 사용
+        setExpert(found as ExpertWithDetails);
+        setLoading(false);
+        return;
       }
     }
+    // 캐시가 없거나 expert_details가 없으면 DB 조회
     fetchExpertDetails();
   }, []);
 
@@ -66,6 +84,8 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
         .single();
 
       if (error) throw error;
+      
+      // DB에서 가져온 데이터를 그대로 사용
       setExpert(data);
     } catch (error) {
       console.error('Error fetching expert details:', error);
@@ -103,54 +123,96 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
 
         {/* 도사 정보 */}
         <View style={styles.content}>
-          <Text style={styles.title}>{expert.name}</Text>
-          <View style={styles.subtitleContainer}>
-            {expert.title.split(',').map((tag: string, index: number) => (
-              <View key={index} style={styles.tagItem}>
-                <Text style={styles.subtitle}>{tag.trim()}</Text>
-              </View>
-            ))}
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>{expert.name}</Text>
+            {expert.signature_phrase && (
+              <Text style={styles.hashtagText}>
+                {expert.signature_phrase.split('·').map(phrase => `#${phrase.trim().replace(/\s/g, '')}`).join(' ')}
+              </Text>
+            )}
           </View>
           
+          {expert.specialty_tags && expert.specialty_tags.length > 0 && (
+            <View style={styles.specialtyTagsContainer}>
+              {expert.specialty_tags.map((tag: string, index: number) => (
+                <View key={`specialty-${index}`} style={styles.specialtyTag}>
+                  <Text style={styles.specialtyTagText}>{tag}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
           {/* 도사님 한마디 섹션 */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionIcon}>💬</Text>
               <Text style={styles.sectionTitle}>도사님 한마디</Text>
             </View>
-            <Text style={styles.messageText}>"{expert.expert_details.message}"</Text>
+            <View style={styles.quoteBorder}>
+              <Text style={styles.quoteBorderText}>
+                {expert.expert_details.message.split('.').filter(s => s.trim()).map(sentence => sentence.trim() + '.').join('\n')}
+              </Text>
+            </View>
           </View>
 
           {/* 도사님 소개 섹션 */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionIcon}>👨‍🏫</Text>
               <Text style={styles.sectionTitle}>도사님 소개</Text>
             </View>
             <Text style={styles.introText}>{expert.expert_details.introduction}</Text>
           </View>
 
-          {/* AI 정확도 및 상담 통계 섹션 */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionIcon}>📊</Text>
-              <Text style={styles.sectionTitle}>상담 통계</Text>
-            </View>
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{expert.expert_details.ai_accuracy}%</Text>
-                <Text style={styles.statLabel}>AI 정확도</Text>
+          {/* 7. 이달의 상담 주제 */}
+          {expert.expert_details.monthly_topics && expert.expert_details.monthly_topics.length > 0 && (
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>이달의 주요 상담 주제</Text>
               </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{expert.expert_details.consultation_count}</Text>
-                <Text style={styles.statLabel}>상담 건수</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{expert.expert_details.satisfaction_rate}</Text>
-                <Text style={styles.statLabel}>만족도</Text>
+              <View style={styles.topicsContainer}>
+                {expert.expert_details.monthly_topics.map((topic, index) => (
+                  <View key={index} style={styles.topicItem}>
+                    <Text style={styles.topicBullet}>•</Text>
+                    <Text style={styles.topicText}>{topic}</Text>
+                  </View>
+                ))}
               </View>
             </View>
-          </View>
+          )}
+
+          {/* 실제 상담 사례 */}
+          {expert.expert_details.consultation_cases && expert.expert_details.consultation_cases.length > 0 && (
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>이런 분들이 찾아오십니다</Text>
+              </View>
+              {expert.expert_details.consultation_cases.map((consultCase, index) => (
+                <View key={index} style={styles.caseItem}>
+                  <Text style={styles.caseLabel}>상황</Text>
+                  <Text style={styles.caseText}>{consultCase.situation}</Text>
+                  <Text style={styles.caseLabel}>상담 후</Text>
+                  <Text style={styles.caseResultText}>{consultCase.result}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* 5. 최근 리뷰 */}
+          {expert.expert_details.recent_reviews && expert.expert_details.recent_reviews.length > 0 && (
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>최근 상담 후기</Text>
+              </View>
+              {expert.expert_details.recent_reviews.map((review, index) => (
+                <View key={index} style={styles.reviewItem}>
+                  <Text style={styles.reviewText}>{review.text}</Text>
+                  <View style={styles.reviewFooter}>
+                    <Text style={styles.reviewUserId}>{review.userId}</Text>
+                    <Text style={styles.reviewDate}>{review.daysAgo}일 전</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
 
           <TouchableOpacity 
             style={styles.consultButton}
@@ -167,7 +229,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'white',
   },
   loadingContainer: {
     justifyContent: 'center',
@@ -188,71 +250,168 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   content: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
-    textAlign: 'left',
-    marginBottom: 10,
+    flex: 1,
   },
-  subtitleContainer: {
+  hashtagText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.primaryColor,
+    letterSpacing: -0.2,
+  },
+  specialtyTagsContainer: {
     flexDirection: 'row',
+    alignItems: 'center',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  tagItem: {
-    backgroundColor: Colors.primaryColor,
+  specialtyTag: {
+    backgroundColor: Colors.primaryColor + '0D',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 14,
+    marginRight: 6,
+    marginBottom: 4,
+    borderWidth: 0.3,
+    borderColor: Colors.primaryColor + '30',
   },
-  subtitle: {
-    fontSize: 14,
-    color: 'white',
-    fontWeight: 'bold',
-    textAlign: 'center',
+  specialtyTagText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.primaryColor,
+    letterSpacing: -0.2,
   },
-
-
-  messageText: {
-    fontSize: 16,
-    color: '#000',
+  quoteBorder: {
+    borderWidth: 0.5,
+    borderColor: Colors.primaryColor + '20',
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: Colors.primaryColor + '08',
+    shadowColor: Colors.primaryColor,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  quoteBorderText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#555',
     lineHeight: 24,
+    textAlign: 'center',
+    letterSpacing: -0.2,
+  },
+  messageText: {
+    fontSize: 14,
+    color: '#000',
+    lineHeight: 22,
     textAlign: 'left',
   },
   sectionContainer: {
-    backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    paddingTop: 10,
+    paddingBottom: 24,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionIcon: {
-    fontSize: 24,
-    marginRight: 7,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
   },
   introText: {
-    fontSize: 16,
-    color: '#000',
+    fontSize: 14,
+    color: '#444',
     lineHeight: 24,
-    textAlign: 'left',
+  },
+  topicsContainer: {
+    gap: 10,
+  },
+  topicItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  topicBullet: {
+    fontSize: 14,
+    color: Colors.primaryColor,
+    marginRight: 8,
+    fontWeight: 'bold',
+  },
+  topicText: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+    lineHeight: 20,
+  },
+  reviewItem: {
+    backgroundColor: '#F8F9FA',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  reviewText: {
+    fontSize: 13,
+    color: '#333',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  reviewFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  reviewUserId: {
+    fontSize: 11,
+    color: '#666',
+    fontWeight: '500',
+  },
+  reviewDate: {
+    fontSize: 11,
+    color: '#999',
+  },
+  caseItem: {
+    backgroundColor: '#F8F9FA',
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 12,
+  },
+  caseLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#999',
+    marginBottom: 4,
+    marginTop: 8,
+  },
+  caseText: {
+    fontSize: 13,
+    color: '#333',
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  caseResultText: {
+    fontSize: 13,
+    color: Colors.primaryColor,
+    lineHeight: 20,
+    fontWeight: '500',
   },
   placeholderContainer: {
     backgroundColor: '#f8f9fa',
@@ -283,24 +442,6 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 18,
     fontWeight: '600',
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 10,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: Colors.primaryColor,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: '#666',
   },
 });
 
