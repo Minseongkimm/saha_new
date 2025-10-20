@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import CustomHeader from '../components/CustomHeader';
+import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
 import { supabase } from '../utils/supabaseClient';
 import { Expert } from '../types/expert';
 
@@ -51,6 +52,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
   const { expertId } = route.params;
   const [loading, setLoading] = useState(true);
   const [expert, setExpert] = useState<ExpertWithDetails | null>(null);
+  const [showChatBottomSheet, setShowChatBottomSheet] = useState(false);
 
   useEffect(() => {
     const cached = getExpertListCache();
@@ -67,9 +69,15 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
     fetchExpertDetails();
   }, []);
 
-  const handleStartChat = async () => {
+  const handleStartChat = () => {
     if (!expert) return;
-    await startChatWithExpert(navigation, expert.category);
+    setShowChatBottomSheet(true);
+  };
+
+  const handleConfirmChat = async () => {
+    if (!expert) return;
+    setShowChatBottomSheet(false);
+    await startChatWithExpert(navigation, expert.id);
   };
 
   const fetchExpertDetails = async () => {
@@ -222,6 +230,16 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* 채팅 시작 바텀시트 */}
+      <ChatStartBottomSheet
+        visible={showChatBottomSheet}
+        onClose={() => setShowChatBottomSheet(false)}
+        onStartChat={handleConfirmChat}
+        title={`${expert?.name}님과 이야기 나누기`}
+        description="궁금한 점이나 더 자세한 해석이 필요하시다면 AI 도사와 1:1 대화를 통해 맞춤형 조언을 받아보세요."
+        buttonText="채팅 시작하기"
+      />
     </View>
   );
 };

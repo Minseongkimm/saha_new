@@ -4,7 +4,7 @@ import { Alert } from 'react-native';
 
 export const startChatWithExpert = async (
   navigation: any,
-  expertCategory: string
+  expertId: string
 ) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -13,11 +13,11 @@ export const startChatWithExpert = async (
   }
 
   try {
-    // 1. 전문가 정보 가져오기 (카테고리로 조회)
+    // 1. 전문가 정보 가져오기 (ID로 조회)
     const { data: expert, error: expertError } = await supabase
       .from('experts')
       .select('*')
-      .eq('category', expertCategory)
+      .eq('id', expertId)
       .single();
 
     if (expertError || !expert) {

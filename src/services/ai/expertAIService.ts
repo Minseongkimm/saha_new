@@ -128,9 +128,9 @@ class ExpertAIService {
       ]) as any;
       
       const content = (result && (result as any).content) ?? '';
-      const response = Array.isArray(content)
+      const response = Array.isArray(content) && content.length > 0
         ? content.map((c: any) => (typeof c === 'string' ? c : c.text ?? '')).join('')
-        : String(content);
+        : String(content || '');
       
       return response.trim();
     } catch (error) {
