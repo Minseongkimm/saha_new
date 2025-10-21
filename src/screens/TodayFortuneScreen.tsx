@@ -13,9 +13,8 @@ import CustomHeader from '../components/CustomHeader';
 import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
 import AIGuideSection from '../components/AIGuideSection';
 import BottomFixedButton from '../components/BottomFixedButton';
-import { startChatWithExpert } from '../utils/chatUtils';
+import { startChatWithExpert, getExpertByCategory } from '../utils/chatUtils';
 import { useTodayFortune } from '../hooks/useTodayFortune';
-import { supabase } from '../utils/supabaseClient';
 import { formatBoldText, removeBoldMarks } from '../utils/textFormatUtils';
 import {
   getScoreColor,
@@ -32,6 +31,7 @@ interface TodayFortuneScreenProps {
 
 const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) => {
   const [showChatModal, setShowChatModal] = useState(false);
+  const [expertName, setExpertName] = useState<string>('');
 
   // 커스텀 훅으로 모든 로직 처리
   const {
@@ -113,20 +113,21 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
     weekday: 'long',
   });
 
-  const handleStartChat = () => {
-    setShowChatModal(true);
+  const handleStartChat = async () => {
+    const expert = await getExpertByCategory('today_fortune');
+    
+    if (expert) {
+      setExpertName(expert.name);
+      setShowChatModal(true);
+    } else {
+      Alert.alert('오류', '전문가를 찾을 수 없습니다.');
+    }
   };
 
   const onStartChat = async () => {
     setShowChatModal(false);
     
-    // 카테고리로 전문가 조회 (사주 풀이 전문가는 is_online과 무관하게 항상 사용 가능)
-    const { data: expert } = await supabase
-      .from('experts')
-      .select('id')
-      .eq('category', 'today_fortune')
-      .single();
-    
+    const expert = await getExpertByCategory('today_fortune');
     if (expert?.id) {
       startChatWithExpert(navigation, expert.id);
     } else {
@@ -401,8 +402,8 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
         visible={showChatModal}
         onClose={() => setShowChatModal(false)}
         onStartChat={onStartChat}
-        title="오늘의 운세 전문가와 대화하기"
-        description="오늘의 운세에 대해 더 자세히 물어보고 싶은 것이 있나요?"
+        title={`${expertName}님과 대화하기`}
+        description={`궁금한 점이나 더 자세한 해석이 필요하시다면${'\n'}AI 도사와 대화해보세요.`}
         buttonText="대화 시작하기"
       />
     </View>

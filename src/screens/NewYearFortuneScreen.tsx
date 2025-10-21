@@ -16,9 +16,8 @@ import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
 import AIGuideSection from '../components/AIGuideSection';
 import BottomFixedButton from '../components/BottomFixedButton';
 import SimpleYearInteraction from '../components/SimpleYearInteraction';
-import { startChatWithExpert } from '../utils/chatUtils';
+import { startChatWithExpert, getExpertByCategory } from '../utils/chatUtils';
 import { useNewYearFortune } from '../hooks/useNewYearFortune';
-import { supabase } from '../utils/supabaseClient';
 import { formatBoldText, removeBoldMarks } from '../utils/textFormatUtils';
 
 interface NewYearFortuneScreenProps {
@@ -27,6 +26,7 @@ interface NewYearFortuneScreenProps {
 
 const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation }) => {
   const [showChatModal, setShowChatModal] = useState(false);
+  const [expertName, setExpertName] = useState<string>('');
 
   // 실시간 JSON 파싱 함수 (모든 필드 실시간 추출)
   const parseStreamingJson = (jsonText: string, calcResult: any) => {
@@ -90,20 +90,21 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
     return fortuneData;
   }, [isStreaming, streamingJsonText, streamingCalcResult, fortuneData]);
 
-  const handleStartChat = () => {
-    setShowChatModal(true);
+  const handleStartChat = async () => {
+    const expert = await getExpertByCategory('newyear_fortune');
+    
+    if (expert) {
+      setExpertName(expert.name);
+      setShowChatModal(true);
+    } else {
+      Alert.alert('오류', '전문가를 찾을 수 없습니다.');
+    }
   };
 
   const onStartChat = async () => {
     setShowChatModal(false);
     
-    // 카테고리로 전문가 조회 (사주 풀이 전문가는 is_online과 무관하게 항상 사용 가능)
-    const { data: expert } = await supabase
-      .from('experts')
-      .select('id')
-      .eq('category', 'newyear_fortune')
-      .single();
-    
+    const expert = await getExpertByCategory('newyear_fortune');
     if (expert?.id) {
       startChatWithExpert(navigation, expert.id);
     } else {
@@ -360,8 +361,8 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
         visible={showChatModal}
         onClose={() => setShowChatModal(false)}
         onStartChat={onStartChat}
-        title="신년운세 전문가와 대화하기"
-        description="신년운세에 대해 더 자세히 물어보고 싶은 것이 있나요?"
+        title={`${expertName}님과 대화하기`}
+        description={`궁금한 점이나 더 자세한 해석이 필요하시다면${'\n'}AI 도사와 대화해보세요.`}
         buttonText="대화 시작하기"
       />
     </View>

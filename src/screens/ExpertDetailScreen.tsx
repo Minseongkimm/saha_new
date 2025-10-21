@@ -237,9 +237,9 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
         visible={showChatBottomSheet}
         onClose={() => setShowChatBottomSheet(false)}
         onStartChat={handleConfirmChat}
-        title={`${expert?.name}님과 이야기 나누기`}
-        description="더 자세한 해석이 필요하시다면&#10;AI 도사와 1:1 대화를 통해 맞춤형 조언을 받아보세요."
-        buttonText="채팅 시작하기"
+        title={`${expert?.name}님과 대화하기`}
+        description={`궁금한 점이나 더 자세한 해석이 필요하시다면${'\n'}AI 도사와 대화해보세요.`}
+        buttonText="대화 시작하기"
       />
     </View>
   );

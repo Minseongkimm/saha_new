@@ -2,6 +2,36 @@ import { supabase } from './supabaseClient';
 import { markChatListNeedsRefresh } from './chatListCache';
 import { Alert } from 'react-native';
 
+/**
+ * 카테고리로 전문가 조회
+ * @param category - 전문가 카테고리 (today_fortune, newyear_fortune, traditional_saju 등)
+ * @returns 전문가 정보 (id, name) 또는 null
+ */
+export const getExpertByCategory = async (category: string): Promise<{ id: string; name: string } | null> => {
+  try {
+    const { data: expert, error } = await supabase
+      .from('experts')
+      .select('id, name')
+      .eq('category', category)
+      .single();
+
+    if (error || !expert) {
+      console.error('Expert lookup error:', error, 'Category:', category);
+      return null;
+    }
+
+    return expert;
+  } catch (error) {
+    console.error('Error in getExpertByCategory:', error);
+    return null;
+  }
+};
+
+/**
+ * 전문가와 채팅 시작
+ * @param navigation - 네비게이션 객체
+ * @param expertId - 전문가 ID
+ */
 export const startChatWithExpert = async (
   navigation: any,
   expertId: string

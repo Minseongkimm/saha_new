@@ -16,9 +16,8 @@ import SajuAnalysis from '../components/SajuAnalysis';
 import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
 import AIGuideSection from '../components/AIGuideSection';
 import BottomFixedButton from '../components/BottomFixedButton';
-import { startChatWithExpert } from '../utils/chatUtils';
+import { startChatWithExpert, getExpertByCategory } from '../utils/chatUtils';
 import { useTraditionalSaju } from '../hooks/useTraditionalSaju';
-import { supabase } from '../utils/supabaseClient';
 
 
 interface TraditionalSajuScreenProps {
@@ -27,6 +26,7 @@ interface TraditionalSajuScreenProps {
 
 const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigation }) => {
   const [showChatModal, setShowChatModal] = useState(false);
+  const [expertName, setExpertName] = useState<string>('');
   
   // 커스텀 훅으로 모든 로직 처리
   const {
@@ -199,7 +199,16 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
       
       {/* 하단 고정 버튼 */}
       <BottomFixedButton
-        onPress={() => setShowChatModal(true)}
+        onPress={async () => {
+          const expert = await getExpertByCategory('traditional_saju');
+          
+          if (expert) {
+            setExpertName(expert.name);
+            setShowChatModal(true);
+          } else {
+            Alert.alert('오류', '전문가를 찾을 수 없습니다.');
+          }
+        }}
         text="AI 도사와 이야기 나누기"
       />
       
@@ -210,22 +219,16 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
         onStartChat={async () => {
           setShowChatModal(false);
           
-          // 카테고리로 전문가 조회 (사주 풀이 전문가는 is_online과 무관하게 항상 사용 가능)
-          const { data: expert } = await supabase
-            .from('experts')
-            .select('id')
-            .eq('category', 'traditional_saju')
-            .single();
-          
+          const expert = await getExpertByCategory('traditional_saju');
           if (expert?.id) {
             startChatWithExpert(navigation, expert.id);
           } else {
             Alert.alert('오류', '전문가를 찾을 수 없습니다.');
           }
         }}
-        title="AI 사주 전문가와 이야기하기"
-        description="당신의 사주를 기반으로 AI가 인생의 실마리를 드립니다."
-        buttonText="시작하기"
+        title={`${expertName}님과 대화하기`}
+        description={`궁금한 점이나 더 자세한 해석이 필요하시다면${'\n'}AI 도사와 대화해보세요.`}
+        buttonText="대화 시작하기"
       />
     </View>
   );
