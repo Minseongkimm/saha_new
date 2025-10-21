@@ -19,10 +19,7 @@ import { Colors } from '../constants/colors';
 import { supabase } from '../utils/supabaseClient';
 import { Expert, EXPERT_CATEGORIES } from '../types/expert';
 import { getExpertListCache, setExpertListCache, isExpertListFresh } from '../utils/expertListCache';
-import { getCachedNewYearFortune, clearNewYearFortuneCache } from '../utils/newYearFortuneCache';
-import { SajuCache } from '../utils/sajuCache';
-import { TodayFortuneCache } from '../utils/todayFortuneCache';
-import LoadingScreen from './LoadingScreen';
+// import CacheDebugPanel from '../components/CacheDebugPanel'; // 디버깅이 필요할 때 주석 해제
 
 interface HomeScreenProps {
   navigation: any;
@@ -74,93 +71,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   };
 
-  // 캐시 정보 확인
-  const checkCacheInfo = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const sajuCache = await SajuCache.getCachedCalculatedSaju(user.id);
-    const todayCache = await TodayFortuneCache.getCachedTodayFortune(user.id, new Date().toISOString().split('T')[0]);
-    const newYearCache = await getCachedNewYearFortune(user.id, 2026);
-
-    console.log('=== 캐시 정보 ===');
-    console.log('사주 캐시:', sajuCache ? '있음' : '없음');
-    console.log('오늘운세 캐시:', todayCache ? '있음' : '없음');
-    console.log('신년운세 캐시:', newYearCache ? '있음' : '없음');
-    
-    if (sajuCache) {
-      console.log('사주 캐시 데이터:', sajuCache);
-    }
-    if (todayCache) {
-      console.log('오늘운세 캐시 데이터:', todayCache);
-    }
-    if (newYearCache) {
-      console.log('신년운세 캐시 데이터:', newYearCache);
-    }
-    console.log('================');
-  };
-
-  // 모든 캐시 삭제
-  const clearAllCache = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    try {
-      console.log('=== 캐시 삭제 시작 ===');
-      await SajuCache.clearCalculatedSajuCache(user.id);
-      console.log('사주 캐시 삭제 완료');
-      
-      await TodayFortuneCache.clearTodayFortuneCache(user.id);
-      console.log('오늘운세 캐시 삭제 완료');
-      
-      await clearNewYearFortuneCache(user.id, 2026);
-      console.log('신년운세 캐시 삭제 완료');
-      
-      console.log('=== 모든 캐시 삭제 완료 ===');
-    } catch (error) {
-      console.error('캐시 삭제 중 오류:', error);
-    }
-  };
-
-  // 개별 캐시 삭제 함수들
-  const clearSajuCache = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    try {
-      console.log('=== 사주 캐시 삭제 ===');
-      await SajuCache.clearCalculatedSajuCache(user.id);
-      console.log('사주 캐시 삭제 완료');
-    } catch (error) {
-      console.error('사주 캐시 삭제 중 오류:', error);
-    }
-  };
-
-  const clearTodayCache = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    try {
-      console.log('=== 오늘운세 캐시 삭제 ===');
-      await TodayFortuneCache.clearTodayFortuneCache(user.id);
-      console.log('오늘운세 캐시 삭제 완료');
-    } catch (error) {
-      console.error('오늘운세 캐시 삭제 중 오류:', error);
-    }
-  };
-
-  const clearNewYearCache = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    try {
-      console.log('=== 신년운세 캐시 삭제 ===');
-      await clearNewYearFortuneCache(user.id, 2026);
-      console.log('신년운세 캐시 삭제 완료');
-    } catch (error) {
-      console.error('신년운세 캐시 삭제 중 오류:', error);
-    }
-  };
 
   const handleExpertPress = (expert: Expert) => {
     navigation.navigate('ExpertDetail', { expertId: expert.id });
@@ -192,10 +102,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     }
   };
 
-  // 로딩 화면 테스트 함수
-  const testLoading = () => {
-    navigation.navigate('Loading');
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -270,54 +176,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
           </View>
 
-          {/* 캐시 관리 버튼 */}
-          {/* <View style={styles.cacheSection}>
-            <TouchableOpacity 
-              style={styles.cacheButton} 
-              onPress={checkCacheInfo}
-            >
-              <Text style={styles.cacheButtonText}>캐시 확인</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.cacheButton, styles.clearButton]} 
-              onPress={clearAllCache}
-            >
-              <Text style={styles.cacheButtonText}>전체 삭제</Text>
-            </TouchableOpacity>
-          </View> */}
-
-          {/* 개별 캐시 삭제 버튼 */}
-          {/* <View style={styles.individualCacheSection}>
-            <TouchableOpacity 
-              style={[styles.individualCacheButton, styles.sajuCacheButton]} 
-              onPress={clearSajuCache}
-            >
-              <Text style={styles.individualCacheButtonText}>사주 캐시 삭제</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.individualCacheButton, styles.todayCacheButton]} 
-              onPress={clearTodayCache}
-            >
-              <Text style={styles.individualCacheButtonText}>오늘운세 캐시 삭제</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.individualCacheButton, styles.newYearCacheButton]} 
-              onPress={clearNewYearCache}
-            >
-              <Text style={styles.individualCacheButtonText}>신년운세 캐시 삭제</Text>
-            </TouchableOpacity>
-          </View> */}
-
-          {/* 로딩 화면 테스트 버튼 */}
-          {/* <View style={styles.testSection}>
-            <Text style={styles.testTitle}>로딩 화면 테스트</Text>
-            <TouchableOpacity 
-              style={styles.testButton} 
-              onPress={testLoading}
-            >
-              <Text style={styles.testButtonText}>로딩 화면 보기</Text>
-            </TouchableOpacity>
-          </View> */}
+          {/* 캐시 디버깅 패널 - 필요할 때만 주석 해제 */}
+          {/* <CacheDebugPanel /> */}
 
           {/* AI 사주 도사 섹션 */}
           <View style={styles.expertSection}>
@@ -448,96 +308,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
-    textAlign: 'center',
-  },
-  cacheSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginHorizontal: 20,
-    marginBottom: 20,
-  },
-  cacheButton: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginHorizontal: 5,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  clearButton: {
-    backgroundColor: '#ff6b6b',
-  },
-  cacheButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    textAlign: 'center',
-  },
-  individualCacheSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    flexWrap: 'wrap',
-  },
-  individualCacheButton: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    marginHorizontal: 2,
-    marginVertical: 2,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  sajuCacheButton: {
-    backgroundColor: '#e3f2fd',
-    borderColor: '#bbdefb',
-  },
-  todayCacheButton: {
-    backgroundColor: '#f3e5f5',
-    borderColor: '#ce93d8',
-  },
-  newYearCacheButton: {
-    backgroundColor: '#e8f5e8',
-    borderColor: '#a5d6a7',
-  },
-  individualCacheButtonText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#333',
-    textAlign: 'center',
-  },
-  testSection: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 16,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-  },
-  testTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#333',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  testButton: {
-    backgroundColor: Colors.primaryColor,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  testButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: 'white',
     textAlign: 'center',
   },
   allStylesContainer: {

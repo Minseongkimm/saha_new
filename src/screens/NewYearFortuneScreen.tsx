@@ -17,6 +17,7 @@ import BottomFixedButton from '../components/BottomFixedButton';
 import SimpleYearInteraction from '../components/SimpleYearInteraction';
 import { startChatWithExpert } from '../utils/chatUtils';
 import { useNewYearFortune } from '../hooks/useNewYearFortune';
+import { formatBoldText, removeBoldMarks } from '../utils/textFormatUtils';
 
 interface NewYearFortuneScreenProps {
   navigation: any;
@@ -223,7 +224,9 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
                 <Text style={styles.keyMessageLabel}>한 해의 한마디</Text>
               </View>
               <View style={styles.keyMessageContent}>
-                <Text style={styles.keyMessageText}>{displayData.summary}</Text>
+                <Text style={styles.keyMessageText}>
+                  {removeBoldMarks(displayData.summary)}
+                </Text>
               </View>
             </View>
           )}
@@ -232,7 +235,9 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
           {displayData?.overall && (
             <View style={styles.overallCard}>
               <Text style={styles.overallTitle}>한 해 전체 운세</Text>
-              <Text style={styles.overallText}>{displayData.overall}</Text>
+              <Text style={styles.overallText}>
+                {formatBoldText(displayData.overall)}
+              </Text>
             </View>
           )}
 
@@ -246,7 +251,9 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
                 <View style={styles.fortuneItem}>
                   <View style={styles.fortuneContent}>
                     <Text style={styles.fortuneCategory}>{categoryConfig.love.label}</Text>
-                    <Text style={styles.fortuneDescription}>{displayData.categories.love}</Text>
+                    <Text style={styles.fortuneDescription}>
+                      {formatBoldText(displayData.categories.love)}
+                    </Text>
                   </View>
                 </View>
               )}
@@ -256,7 +263,9 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
                 <View style={styles.fortuneItem}>
                   <View style={styles.fortuneContent}>
                     <Text style={styles.fortuneCategory}>{categoryConfig.wealth.label}</Text>
-                    <Text style={styles.fortuneDescription}>{displayData.categories.wealth}</Text>
+                    <Text style={styles.fortuneDescription}>
+                      {formatBoldText(displayData.categories.wealth)}
+                    </Text>
                   </View>
                 </View>
               )}
@@ -266,7 +275,9 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
                 <View style={styles.fortuneItem}>
                   <View style={styles.fortuneContent}>
                     <Text style={styles.fortuneCategory}>{categoryConfig.health.label}</Text>
-                    <Text style={styles.fortuneDescription}>{displayData.categories.health}</Text>
+                    <Text style={styles.fortuneDescription}>
+                      {formatBoldText(displayData.categories.health)}
+                    </Text>
                   </View>
                 </View>
               )}
@@ -276,7 +287,9 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
                 <View style={styles.fortuneItem}>
                   <View style={styles.fortuneContent}>
                     <Text style={styles.fortuneCategory}>{categoryConfig.career.label}</Text>
-                    <Text style={styles.fortuneDescription}>{displayData.categories.career}</Text>
+                    <Text style={styles.fortuneDescription}>
+                      {formatBoldText(displayData.categories.career)}
+                    </Text>
                   </View>
                 </View>
               )}
@@ -290,7 +303,9 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
               {displayData.luckyMonths.map((item: any, index: number) => (
                 <View key={index} style={styles.monthAdviceItem}>
                   <Text style={styles.monthLabel}>{item.month}월</Text>
-                  <Text style={styles.monthAdviceText}>{item.advice}</Text>
+                  <Text style={styles.monthAdviceText}>
+                    {formatBoldText(item.advice)}
+                  </Text>
                 </View>
               ))}
             </View>
@@ -303,7 +318,9 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
               {displayData.cautiousMonths.map((item: any, index: number) => (
                 <View key={index} style={styles.monthAdviceItem}>
                   <Text style={styles.monthLabel}>{item.month}월</Text>
-                  <Text style={styles.monthAdviceText}>{item.advice}</Text>
+                  <Text style={styles.monthAdviceText}>
+                    {formatBoldText(item.advice)}
+                  </Text>
                 </View>
               ))}
             </View>

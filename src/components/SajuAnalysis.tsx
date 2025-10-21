@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Colors } from '../constants/colors';
+import { formatBoldText } from '../utils/textFormatUtils';
 
 interface SajuAnalysisProps {
   analysis: {
@@ -16,30 +17,12 @@ interface SajuAnalysisProps {
 }
 
 const SajuAnalysis: React.FC<SajuAnalysisProps> = ({ analysis }) => {
-  const formatText = (text: string | undefined | null) => {
-    // 안전성 검사: text가 없거나 빈 문자열인 경우 처리
-    if (!text || typeof text !== 'string') {
-      return '해당 내용을 불러올 수 없습니다.';
-    }
-    
-    // **굵은 글씨** 처리
-    return text.split(/(\*\*.*?\*\*)/).map((part, index) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return (
-          <Text key={index} style={styles.boldText}>
-            {part.slice(2, -2)}
-          </Text>
-        );
-      }
-      return part;
-    });
-  };
 
   const renderSection = (title: string, content: string | undefined | null) => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
       <Text style={styles.sectionContent}>
-        {formatText(content)}
+        {formatBoldText(content)}
       </Text>
     </View>
   );
@@ -77,10 +60,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: '#333',
-  },
-  boldText: {
-    fontWeight: 'bold',
-    color: Colors.primaryColor,
   },
 });
 

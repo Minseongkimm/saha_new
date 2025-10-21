@@ -138,24 +138,35 @@ export const useNewYearFortune = (targetYear?: number): UseNewYearFortuneResult 
     calculatedResult: any,
     targetYear: number
   ): NewYearFortuneData => {
-    const cleanedText = jsonText.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(cleanedText);
+    // JSON 블록 제거 및 정리
+    let cleanedText = jsonText.replace(/```json|```/g, '').trim();
+    
+    // JSON 문자열 내부의 제어 문자 처리
+    // 먼저 JSON 파싱을 시도하고, 실패하면 제어 문자 제거 후 재시도
+    let parsed: any;
+    try {
+      parsed = JSON.parse(cleanedText);
+    } catch (e) {
+      // 제어 문자 제거 (줄바꿈, 탭 등)
+      cleanedText = cleanedText.replace(/[\u0000-\u001F]/g, ' ');
+      parsed = JSON.parse(cleanedText);
+    }
 
     return {
       year: targetYear,
       yearName: calculatedResult.yearName,
       yearDescription: calculatedResult.yearDescription,
       yearGanji: calculatedResult.yearGanji,
-      summary: parsed.summary,
-      overall: parsed.overall,
+      summary: parsed.summary || '',
+      overall: parsed.overall || '',
       categories: {
-        love: parsed.categories.love,
-        wealth: parsed.categories.wealth,
-        health: parsed.categories.health,
-        career: parsed.categories.career,
+        love: parsed.categories?.love || '',
+        wealth: parsed.categories?.wealth || '',
+        health: parsed.categories?.health || '',
+        career: parsed.categories?.career || '',
       },
-      luckyMonths: parsed.luckyMonths,
-      cautiousMonths: parsed.cautiousMonths,
+      luckyMonths: parsed.luckyMonths || [],
+      cautiousMonths: parsed.cautiousMonths || [],
       generatedAt: new Date().toISOString(),
       llmModel: 'gpt-4o (Edge Function)',
     };

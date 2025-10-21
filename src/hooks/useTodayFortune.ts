@@ -227,8 +227,17 @@ export const useTodayFortune = () => {
       // JSON 블록 추출
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        return parsed;
+        let jsonStr = jsonMatch[0];
+        // 먼저 JSON 파싱 시도
+        try {
+          const parsed = JSON.parse(jsonStr);
+          return parsed;
+        } catch (e) {
+          // 제어 문자 제거 후 재시도
+          jsonStr = jsonStr.replace(/[\u0000-\u001F]/g, ' ');
+          const parsed = JSON.parse(jsonStr);
+          return parsed;
+        }
       }
     } catch (e) {
       // JSON 파싱 실패 시 regex로 부분 추출

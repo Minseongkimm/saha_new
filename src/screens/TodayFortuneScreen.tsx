@@ -14,6 +14,7 @@ import AIGuideSection from '../components/AIGuideSection';
 import BottomFixedButton from '../components/BottomFixedButton';
 import { startChatWithExpert } from '../utils/chatUtils';
 import { useTodayFortune } from '../hooks/useTodayFortune';
+import { formatBoldText, removeBoldMarks } from '../utils/textFormatUtils';
 import {
   getScoreColor,
   getScoreBarColor,
@@ -161,7 +162,9 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
             <Text style={styles.keyMessageLabel}>오늘의 한마디</Text>
           </View>
           <View style={styles.keyMessageContent}>
-            <Text style={styles.keyMessageText}>{data.summary}</Text>
+            <Text style={styles.keyMessageText}>
+              {removeBoldMarks(data.summary)}
+            </Text>
           </View>
         </View>
       )}
@@ -173,7 +176,9 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
             <Text style={styles.explanationLabel}>사주 전문가 해석</Text>
           </View>
           <View style={styles.explanationContent}>
-            <Text style={styles.explanationText}>{data.explanation}</Text>
+            <Text style={styles.explanationText}>
+              {formatBoldText(data.explanation)}
+            </Text>
           </View>
         </View>
       )}
@@ -193,7 +198,9 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
                     {getCategoryScoreText(data.categories.career.score)}
                   </Text>
                 </View>
-                <Text style={styles.analysisDescription}>{data.categories.career.description}</Text>
+                <Text style={styles.analysisDescription}>
+                  {formatBoldText(data.categories.career.description)}
+                </Text>
               </View>
             )}
             {data.categories.love && data.categories.love.description && (
@@ -204,7 +211,9 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
                     {getCategoryScoreText(data.categories.love.score)}
                   </Text>
                 </View>
-                <Text style={styles.analysisDescription}>{data.categories.love.description}</Text>
+                <Text style={styles.analysisDescription}>
+                  {formatBoldText(data.categories.love.description)}
+                </Text>
               </View>
             )}
             {data.categories.relationship && data.categories.relationship.description && (
@@ -215,7 +224,9 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
                     {getCategoryScoreText(data.categories.relationship.score)}
                   </Text>
                 </View>
-                <Text style={styles.analysisDescription}>{data.categories.relationship.description}</Text>
+                <Text style={styles.analysisDescription}>
+                  {formatBoldText(data.categories.relationship.description)}
+                </Text>
               </View>
             )}
             {data.categories.wealth && data.categories.wealth.description && (
@@ -226,7 +237,9 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
                     {getCategoryScoreText(data.categories.wealth.score)}
                   </Text>
                 </View>
-                <Text style={styles.analysisDescription}>{data.categories.wealth.description}</Text>
+                <Text style={styles.analysisDescription}>
+                  {formatBoldText(data.categories.wealth.description)}
+                </Text>
               </View>
             )}
           </View>
