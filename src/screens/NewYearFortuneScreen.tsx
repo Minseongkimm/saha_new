@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
+  Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import SectionHeader from '../components/SectionHeader';
@@ -17,6 +18,7 @@ import BottomFixedButton from '../components/BottomFixedButton';
 import SimpleYearInteraction from '../components/SimpleYearInteraction';
 import { startChatWithExpert } from '../utils/chatUtils';
 import { useNewYearFortune } from '../hooks/useNewYearFortune';
+import { supabase } from '../utils/supabaseClient';
 import { formatBoldText, removeBoldMarks } from '../utils/textFormatUtils';
 
 interface NewYearFortuneScreenProps {
@@ -92,9 +94,21 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
     setShowChatModal(true);
   };
 
-  const onStartChat = () => {
+  const onStartChat = async () => {
     setShowChatModal(false);
-    startChatWithExpert(navigation, 'newyear_fortune');
+    
+    // 카테고리로 전문가 조회 (사주 풀이 전문가는 is_online과 무관하게 항상 사용 가능)
+    const { data: expert } = await supabase
+      .from('experts')
+      .select('id')
+      .eq('category', 'newyear_fortune')
+      .single();
+    
+    if (expert?.id) {
+      startChatWithExpert(navigation, expert.id);
+    } else {
+      Alert.alert('오류', '전문가를 찾을 수 없습니다.');
+    }
   };
 
   // 사주 데이터에서 일간 추출

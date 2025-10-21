@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import CustomHeader from '../components/CustomHeader';
@@ -14,6 +15,7 @@ import AIGuideSection from '../components/AIGuideSection';
 import BottomFixedButton from '../components/BottomFixedButton';
 import { startChatWithExpert } from '../utils/chatUtils';
 import { useTodayFortune } from '../hooks/useTodayFortune';
+import { supabase } from '../utils/supabaseClient';
 import { formatBoldText, removeBoldMarks } from '../utils/textFormatUtils';
 import {
   getScoreColor,
@@ -115,9 +117,21 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
     setShowChatModal(true);
   };
 
-  const onStartChat = () => {
+  const onStartChat = async () => {
     setShowChatModal(false);
-    startChatWithExpert(navigation, 'today_fortune');
+    
+    // 카테고리로 전문가 조회 (사주 풀이 전문가는 is_online과 무관하게 항상 사용 가능)
+    const { data: expert } = await supabase
+      .from('experts')
+      .select('id')
+      .eq('category', 'today_fortune')
+      .single();
+    
+    if (expert?.id) {
+      startChatWithExpert(navigation, expert.id);
+    } else {
+      Alert.alert('오류', '전문가를 찾을 수 없습니다.');
+    }
   };
 
   // 운세 데이터 렌더링 함수

@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import SectionHeader from '../components/SectionHeader';
@@ -17,6 +18,7 @@ import AIGuideSection from '../components/AIGuideSection';
 import BottomFixedButton from '../components/BottomFixedButton';
 import { startChatWithExpert } from '../utils/chatUtils';
 import { useTraditionalSaju } from '../hooks/useTraditionalSaju';
+import { supabase } from '../utils/supabaseClient';
 
 
 interface TraditionalSajuScreenProps {
@@ -205,9 +207,21 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
       <ChatStartBottomSheet
         visible={showChatModal}
         onClose={() => setShowChatModal(false)}
-        onStartChat={() => {
+        onStartChat={async () => {
           setShowChatModal(false);
-          startChatWithExpert(navigation, 'traditional_saju');
+          
+          // 카테고리로 전문가 조회 (사주 풀이 전문가는 is_online과 무관하게 항상 사용 가능)
+          const { data: expert } = await supabase
+            .from('experts')
+            .select('id')
+            .eq('category', 'traditional_saju')
+            .single();
+          
+          if (expert?.id) {
+            startChatWithExpert(navigation, expert.id);
+          } else {
+            Alert.alert('오류', '전문가를 찾을 수 없습니다.');
+          }
         }}
         title="AI 사주 전문가와 이야기하기"
         description="당신의 사주를 기반으로 AI가 인생의 실마리를 드립니다."
