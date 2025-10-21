@@ -368,6 +368,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       
       try {
         aiFinalText = await streamChat(
+          roomId,
           expert.category,
           currentMessages,
           (userBirthInfo || {}) as Record<string, unknown>,
@@ -486,6 +487,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       
       try {
         aiFinalText = await streamChat(
+          roomId,
           expert.category,
           currentMessages,
           (userBirthInfo || {}) as Record<string, unknown>,

@@ -183,6 +183,7 @@ export async function streamNewYearFortune(
  * 채팅 스트리밍 (React Native용 - 콜백 방식)
  */
 export async function streamChat(
+  roomId: string,
   expertCategory: string,
   messages: Array<{ role: string; content: string }>,
   sajuData: Record<string, unknown>,
@@ -234,7 +235,7 @@ export async function streamChat(
       }
     };
     
-    xhr.send(JSON.stringify({ expertCategory, messages, sajuData }));
+    xhr.send(JSON.stringify({ roomId, expertCategory, messages, sajuData }));
   });
 }
 
