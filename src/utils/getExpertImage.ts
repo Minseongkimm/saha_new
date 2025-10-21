@@ -11,6 +11,10 @@ export const getExpertImage = (imageName: string) => {
     'tongchal.jpg': require('../../assets/people/tongchal.jpg'),
     'cheongwang.jpg': require('../../assets/people/cheongwang.jpg'),
     'sangpyeong.jpg': require('../../assets/people/sangpyeong.jpg'),
+    // 운세 전문 도사님들
+    'hyeondam.jpg': require('../../assets/people/hyeondam.jpg'),
+    'cheongwoon.jpg': require('../../assets/people/cheongwoon.jpg'),
+    'bokseong.jpg': require('../../assets/people/bokseong.jpg'),
   };
   return images[imageName];
 };

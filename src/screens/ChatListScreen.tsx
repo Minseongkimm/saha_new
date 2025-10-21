@@ -70,26 +70,30 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
             messages:chat_messages(message, created_at)
           `)
           .eq('user_id', userId)
-          .order('last_message_at', { ascending: false })
           .order('created_at', { ascending: false })
           .order('created_at', { foreignTable: 'chat_messages', ascending: false })
           .limit(1, { foreignTable: 'chat_messages' });
+        
         if (roomError) throw roomError;
         const roomList = rooms || [];
+        
         if (roomList.length === 0) {
           setChats([]);
+          setChatListCache([]);
           setLoading(false);
           return;
         }
         const expertIds: string[] = Array.from(new Set(roomList.map(r => r.expert_id)));
+        
         const { data: experts, error: expertError } = await supabase
           .from('experts')
-          .select('id, name, category, title, description, image_name, is_online, created_at')
+          .select('id, name, category, title, image_name, is_online, created_at')
           .in('id', expertIds);
+        
         if (expertError) throw expertError;
         const expertMap: Record<string, Expert> = {};
-        (experts || []).forEach((e: Expert) => {
-          expertMap[e.id] = e;
+        (experts || []).forEach((e: any) => {
+          expertMap[e.id] = e as Expert;
         });
         const items: ChatItem[] = roomList.map((room: any) => {
           const expert: Expert | undefined = expertMap[room.expert_id];
@@ -108,22 +112,32 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
             profileImage: profile,
             isRead: true,
             expert: expert as Expert,
+            sortTime: tsIso || room.created_at,
           };
         });
+        
+        // JavaScript로 정렬: 최근 메시지가 위로 오도록
+        items.sort((a, b) => {
+          const timeA = new Date((a as any).sortTime || 0).getTime();
+          const timeB = new Date((b as any).sortTime || 0).getTime();
+          return timeB - timeA;
+        });
+        
         setChats(items);
         // 성공 시에만 캐시 저장
         setChatListCache(items);
       } catch (err) {
-        // 오류 시 캐시를 덮어쓰지 않음
+        console.error('Error fetching chat rooms:', err);
+        Alert.alert('오류', '대화 목록을 불러오는데 실패했습니다.');
       } finally {
         setLoading(false);
       }
   }, []);
 
   useEffect(() => {
-    // 최초 진입: 캐시 있으면 즉시 표시, 서버는 생략
+    // 최초 진입: 캐시가 있고 비어있지 않으면 즉시 표시, 아니면 서버에서 가져오기
     const cached = getChatListCache();
-    if (cached) {
+    if (cached && cached.length > 0) {
       setChats(cached as ChatItem[]);
       setLoading(false);
     } else {
@@ -137,7 +151,8 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
         fetchChatRooms();
       } else {
         const cache = getChatListCache();
-        if (cache) setChats(cache as ChatItem[]);
+        if (cache && cache.length > 0) setChats(cache as ChatItem[]);
+        else fetchChatRooms();
       }
     });
     return unsubscribe;
@@ -203,11 +218,12 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
   };
 
   const categoryLabelMap: Record<Expert['category'], string> = {
-    love: '연애/궁합',
-    residence: '이사/주거',
-    life: '인생/진로',
-    wealth: '재물/사업',
-    traditional_saju: '전통사주',
+    comprehensive: '종합사주',
+    love: '연애',
+    residence: '금전운',
+    career: '커리어',
+    health: '건강운',
+    traditional_saju: '정통사주',
     today_fortune: '오늘의 운세',
     newyear_fortune: '신년운세',
   };
