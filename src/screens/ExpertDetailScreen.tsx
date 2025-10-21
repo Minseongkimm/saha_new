@@ -12,6 +12,7 @@ import {
 import { Colors } from '../constants/colors';
 import CustomHeader from '../components/CustomHeader';
 import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
+import BottomFixedButton from '../components/BottomFixedButton';
 import { supabase } from '../utils/supabaseClient';
 import { Expert } from '../types/expert';
 
@@ -119,7 +120,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
         onBackPress={() => navigation.goBack()}
       />
 
-      <ScrollView style={styles.scrollView}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* 도사 이미지 */}
         <View style={styles.expertImageContainer}>
           <Image 
@@ -222,14 +223,14 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
             </View>
           )}
 
-          <TouchableOpacity 
-            style={styles.consultButton}
-            onPress={handleStartChat}
-          >
-            <Text style={styles.consultButtonText}>이야기 나누기</Text>
-          </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* 하단 고정 버튼 */}
+      <BottomFixedButton
+        onPress={handleStartChat}
+        text="이야기 나누기"
+      />
 
       {/* 채팅 시작 바텀시트 */}
       <ChatStartBottomSheet
@@ -237,7 +238,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
         onClose={() => setShowChatBottomSheet(false)}
         onStartChat={handleConfirmChat}
         title={`${expert?.name}님과 이야기 나누기`}
-        description="궁금한 점이나 더 자세한 해석이 필요하시다면 AI 도사와 1:1 대화를 통해 맞춤형 조언을 받아보세요."
+        description="더 자세한 해석이 필요하시다면&#10;AI 도사와 1:1 대화를 통해 맞춤형 조언을 받아보세요."
         buttonText="채팅 시작하기"
       />
     </View>
@@ -256,6 +257,9 @@ const styles = StyleSheet.create({
 
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100, // 하단 고정 버튼 공간 확보
   },
   expertImageContainer: {
     height: 370,
@@ -447,20 +451,6 @@ const styles = StyleSheet.create({
   },
 
 
-  consultButton: {
-    marginTop: 10,
-    marginBottom: 10,
-    backgroundColor: Colors.primaryColor,
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 20,
-    alignItems: 'center',
-  },
-  consultButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: '600',
-  },
 });
 
 export default ExpertDetailScreen;
