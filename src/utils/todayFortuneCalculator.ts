@@ -77,6 +77,17 @@ export interface TodayFortuneResult {
 
 export class TodayFortuneCalculator {
   /**
+   * 날짜와 카테고리 기반 시드 랜덤 생성 (같은 날 같은 카테고리는 같은 값)
+   */
+  private getSeededRandom(date: string, category: string): number {
+    const dateNum = new Date(date).getTime();
+    const categoryNum = category.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const seed = dateNum + categoryNum;
+    const x = Math.sin(seed) * 10000;
+    return x - Math.floor(x); // 0~1 사이의 값 반환
+  }
+
+  /**
    * 오늘의 운세 계산 메인 메서드
    */
   calculateTodayFortune(userSajuData: UserSajuData, todayDate: string): TodayFortuneResult {
@@ -98,22 +109,22 @@ export class TodayFortuneCalculator {
     const jiInteraction = this.analyzeJiInteraction(todayGanji.dayGanji[1], userSajuData.jijiRelations);
     const sinsalInteraction = this.analyzeSinsalInteraction(todayGanji.dayGanji, userSajuData.sinsal);
     
-    // 3. 비중 기반 점수 계산 (스케일링 적용)
+    // 3. 비중 기반 점수 계산 (스케일링 적용) - 모두 정수로 반올림
     const baseScore = 50;
-    const ganjiScore = Math.min((ganInteraction.score + jiInteraction.score) * 0.5, 25); // 50% 비중, 최대 25점
-    const sinsalScore = Math.min(sinsalInteraction.score * 0.25, 12.5); // 25% 비중, 최대 12.5점
-    const guinScore = Math.min(this.calculateGuinScore(todayGanji.dayGanji, userSajuData.guin) * 0.15, 7.5); // 15% 비중, 최대 7.5점
-    const randomScore = Math.min(this.calculateRandomScore(todayDate) * 0.1, 5); // 10% 비중, 최대 5점
+    const ganjiScore = Math.round(Math.min((ganInteraction.score + jiInteraction.score) * 0.5, 25)); // 50% 비중, 최대 25점
+    const sinsalScore = Math.round(Math.min(sinsalInteraction.score * 0.25, 13)); // 25% 비중, 최대 13점
+    const guinScore = Math.round(Math.min(this.calculateGuinScore(todayGanji.dayGanji, userSajuData.guin) * 0.15, 8)); // 15% 비중, 최대 8점
+    const randomScore = Math.round(Math.min(this.calculateRandomScore(todayDate) * 0.1, 5)); // 10% 비중, 최대 5점
     
-    const totalScore = Math.max(1, Math.min(100, 
+    const totalScore = Math.round(Math.max(1, Math.min(100, 
       baseScore + ganjiScore + sinsalScore + guinScore + randomScore
-    ));
+    )));
     
     // 4. 카테고리별 점수 계산
-    const careerScore = this.calculateCareerScore(totalScore, todayGanji, userSajuData);
-    const loveScore = this.calculateLoveScore(totalScore, todayGanji, userSajuData);
-    const wealthScore = this.calculateWealthScore(totalScore, todayGanji, userSajuData);
-    const relationshipScore = this.calculateRelationshipScore(totalScore, todayGanji, userSajuData);
+    const careerScore = this.calculateCareerScore(totalScore, todayGanji, userSajuData, validDate);
+    const loveScore = this.calculateLoveScore(totalScore, todayGanji, userSajuData, validDate);
+    const wealthScore = this.calculateWealthScore(totalScore, todayGanji, userSajuData, validDate);
+    const relationshipScore = this.calculateRelationshipScore(totalScore, todayGanji, userSajuData, validDate);
     
     return {
       totalScore,
@@ -254,89 +265,131 @@ export class TodayFortuneCalculator {
   /**
    * 직업운 점수 계산
    */
-  private calculateCareerScore(baseScore: number, todayGanji: any, userSaju: UserSajuData): number {
-    let score = baseScore;
+  private calculateCareerScore(baseScore: number, todayGanji: any, userSaju: UserSajuData, date: string): number {
+    // baseScore에서 -15 ~ +15 범위로 변동 (날짜 기반 시드 랜덤)
+    let adjustment = Math.floor((this.getSeededRandom(date, 'career') - 0.5) * 20); // -10 ~ +10 기본 랜덤
     
     // 요일 보너스 (월요일)
     const dayOfWeek = new Date().getDay();
-    if (dayOfWeek === 1) score += 5;
+    if (dayOfWeek === 1) adjustment += 10; // 월요일은 직업운 상승
+    if (dayOfWeek === 0) adjustment -= 8; // 일요일은 직업운 하락
     
     // 편관살/정관살 발동
     const allSinsal = Object.values(userSaju.sinsal).flat();
     if (allSinsal.includes("편관살") && this.isSinsalActivated(todayGanji.dayGanji[1], "편관살")) {
-      score += 8;
+      adjustment += 12;
     }
     if (allSinsal.includes("정관살") && this.isSinsalActivated(todayGanji.dayGanji[1], "정관살")) {
-      score += 10;
+      adjustment += 15;
     }
     
-    return Math.max(1, Math.min(100, score));
+    // 천간 상생이면 직업운 보너스
+    const todayProperty = SajuUtils.getProperty(todayGanji.dayGanji[0]);
+    const myProperty = SajuUtils.getProperty(userSaju.dayGanji[0]);
+    if (SajuUtils.isSangsaeng(todayProperty, myProperty)) {
+      adjustment += 8;
+    }
+    
+    const finalScore = Math.round(baseScore + adjustment);
+    return Math.max(1, Math.min(100, finalScore));
   }
 
   /**
    * 연애운 점수 계산
    */
-  private calculateLoveScore(baseScore: number, todayGanji: any, userSaju: UserSajuData): number {
-    let score = baseScore;
+  private calculateLoveScore(baseScore: number, todayGanji: any, userSaju: UserSajuData, date: string): number {
+    // baseScore에서 -15 ~ +15 범위로 변동 (날짜 기반 시드 랜덤)
+    let adjustment = Math.floor((this.getSeededRandom(date, 'love') - 0.5) * 20); // -10 ~ +10 기본 랜덤
     
     // 요일 보너스 (금요일)
     const dayOfWeek = new Date().getDay();
-    if (dayOfWeek === 5) score += 5;
+    if (dayOfWeek === 5) adjustment += 12; // 금요일은 연애운 상승
+    if (dayOfWeek === 6 || dayOfWeek === 0) adjustment += 8; // 주말도 연애운 좋음
+    if (dayOfWeek === 1) adjustment -= 8; // 월요일은 연애운 하락
     
     // 육합/삼합 관계
     if (this.hasYukhap(todayGanji.dayGanji[1], userSaju.jijiRelations.육합)) {
-      score += 10;
+      adjustment += 15; // 육합은 연애운에 매우 유리
     }
     if (this.hasSamhap(todayGanji.dayGanji[1], userSaju.jijiRelations.삼합)) {
-      score += 8;
+      adjustment += 12; // 삼합도 연애운에 유리
     }
     
-    return Math.max(1, Math.min(100, score));
+    // 충 관계면 연애운 하락
+    if (this.hasChung(todayGanji.dayGanji[1], userSaju.jijiRelations.육충)) {
+      adjustment -= 15;
+    }
+    
+    const finalScore = Math.round(baseScore + adjustment);
+    return Math.max(1, Math.min(100, finalScore));
   }
 
   /**
    * 재물운 점수 계산
    */
-  private calculateWealthScore(baseScore: number, todayGanji: any, userSaju: UserSajuData): number {
-    let score = baseScore;
+  private calculateWealthScore(baseScore: number, todayGanji: any, userSaju: UserSajuData, date: string): number {
+    // baseScore에서 -15 ~ +15 범위로 변동 (날짜 기반 시드 랜덤)
+    let adjustment = Math.floor((this.getSeededRandom(date, 'wealth') - 0.5) * 20); // -10 ~ +10 기본 랜덤
     
     // 월말 보너스
     const dayOfMonth = new Date().getDate();
-    if (dayOfMonth >= 25) score += 3;
+    if (dayOfMonth >= 25) adjustment += 10; // 월말에 재물운 상승
+    if (dayOfMonth <= 5) adjustment -= 5; // 월초는 재물운 하락
     
     // 정재살/편재살 발동
     const allSinsal = Object.values(userSaju.sinsal).flat();
     if (allSinsal.includes("정재살") && this.isSinsalActivated(todayGanji.dayGanji[1], "정재살")) {
-      score += 12;
+      adjustment += 18; // 정재살은 재물운에 매우 유리
     }
     if (allSinsal.includes("편재살") && this.isSinsalActivated(todayGanji.dayGanji[1], "편재살")) {
-      score += 8;
+      adjustment += 15; // 편재살도 재물운에 유리
     }
     
-    return Math.max(1, Math.min(100, score));
+    // 오행 상극이면 재물운 하락
+    const todayProperty = SajuUtils.getProperty(todayGanji.dayGanji[0]);
+    const myProperty = SajuUtils.getProperty(userSaju.dayGanji[0]);
+    if (SajuUtils.isSanggeuk(todayProperty, myProperty)) {
+      adjustment -= 10;
+    }
+    
+    const finalScore = Math.round(baseScore + adjustment);
+    return Math.max(1, Math.min(100, finalScore));
   }
 
   /**
    * 인간관계 점수 계산
    */
-  private calculateRelationshipScore(baseScore: number, todayGanji: any, userSaju: UserSajuData): number {
-    let score = baseScore;
+  private calculateRelationshipScore(baseScore: number, todayGanji: any, userSaju: UserSajuData, date: string): number {
+    // baseScore에서 -15 ~ +15 범위로 변동 (날짜 기반 시드 랜덤)
+    let adjustment = Math.floor((this.getSeededRandom(date, 'relationship') - 0.5) * 20); // -10 ~ +10 기본 랜덤
     
     // 주말 보너스
     const dayOfWeek = new Date().getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) score += 3;
+    if (dayOfWeek === 0 || dayOfWeek === 6) adjustment += 10; // 주말은 인간관계 좋음
+    if (dayOfWeek === 3) adjustment += 5; // 수요일도 인간관계 보너스
     
     // 삼합 관계
     if (this.hasSamhap(todayGanji.dayGanji[1], userSaju.jijiRelations.삼합)) {
-      score += 10;
+      adjustment += 15; // 삼합은 인간관계에 매우 유리
+    }
+    
+    // 육합 관계
+    if (this.hasYukhap(todayGanji.dayGanji[1], userSaju.jijiRelations.육합)) {
+      adjustment += 12; // 육합도 인간관계에 유리
     }
     
     // 충 관계 감점
     if (this.hasChung(todayGanji.dayGanji[1], userSaju.jijiRelations.육충)) {
-      score -= 8;
+      adjustment -= 18; // 충은 인간관계에 매우 불리
     }
     
-    return Math.max(1, Math.min(100, score));
+    // 형 관계 감점
+    if (userSaju.jijiRelations.삼형.length > 0) {
+      adjustment -= 8;
+    }
+    
+    const finalScore = Math.round(baseScore + adjustment);
+    return Math.max(1, Math.min(100, finalScore));
   }
 
   // 헬퍼 메서드들
@@ -494,7 +547,7 @@ export class TodayFortuneCalculator {
     } else if (month >= 9 && month <= 11) { // 가을
       score += 1; // 2 → 1로 조정
     } else { // 겨울
-      score += 0.5; // 1 → 0.5로 조정
+      score += 1; // 소수점 제거
     }
     
     // 날짜 특별 보너스 (1일, 15일 등)

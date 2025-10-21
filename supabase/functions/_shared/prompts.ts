@@ -166,10 +166,11 @@ export function getNewYearFortunePrompt(
 위 데이터를 바탕으로 다음을 JSON 형태로 생성해주세요:
 
 **중요: 모든 텍스트에서 쉼표(,)를 사용하지 마세요. 쉼표 대신 마침표(.)나 공백을 사용하세요.**
+**중요: 모든 텍스트를 평문으로 작성하세요. ** 강조 표시를 사용하지 마세요.**
 
 \`\`\`json
 {
-  "summary": "한 줄 요약 (20자 이내)",
+  "summary": "한 줄 요약 (20자 이내. 예: '과감하게 도전하는 해')",
   "overall": "전체 운세 해석 (300자 이내). 천간과 지지 상호작용을 중심으로 한 해의 큰 흐름 설명",
   "categories": {
     "love": "연애운 해석 (150자). 상호작용 분석 반영",
@@ -193,7 +194,7 @@ export function getNewYearFortunePrompt(
 2. 쉼표(,) 사용 금지 - 마침표(.)나 공백 사용
 3. 상호작용 타입(식상. 인성. 충. 형 등)을 반드시 언급
 4. 구체적이고 실용적인 조언 제공
-5. 사주 용어를 자연스럽게 설명에 포함`;
+5. 평문으로 작성`;
 }
 
 /**
@@ -268,15 +269,16 @@ export function getTodayFortunePrompt(
 위 데이터를 바탕으로 다음을 JSON 형태로 생성해주세요:
 
 **중요: 모든 텍스트에서 쉼표(,)를 사용하지 마세요. 쉼표 대신 마침표(.)나 공백을 사용하세요.**
+**중요: 모든 텍스트를 평문으로 작성하세요. ** 강조 표시를 사용하지 마세요.**
 
 {
   "summary": "한 줄 요약 (10-15글자 예: '과감하게 밀어붙이세요')",
   "explanation": "사주 전문적 설명 (2-3줄 왜 그런 운세인지 구체적으로 설명)",
   "categories": {
-    "career": "직업운 상세 설명 (2-3줄 ${fortune.categoryScores?.career || 0}점 기반)",
-    "love": "연애운 상세 설명 (2-3줄 ${fortune.categoryScores?.love || 0}점 기반)",
-    "wealth": "재물운 상세 설명 (2-3줄 ${fortune.categoryScores?.wealth || 0}점 기반)",
-    "relationship": "인간관계 상세 설명 (2-3줄 ${fortune.categoryScores?.relationship || 0}점 기반)"
+    "career": "직업운 상세 설명 (2-3줄. ${fortune.categoryScores?.career || 0}점 기반)",
+    "love": "연애운 상세 설명 (2-3줄. ${fortune.categoryScores?.love || 0}점 기반)",
+    "wealth": "재물운 상세 설명 (2-3줄. ${fortune.categoryScores?.wealth || 0}점 기반)",
+    "relationship": "인간관계 상세 설명 (2-3줄. ${fortune.categoryScores?.relationship || 0}점 기반)"
   },
   "doList": ["해야할 것1 (1줄)", "해야할 것2 (1줄)", "해야할 것3 (1줄)"],
   "dontList": ["하지말아야 할 것1 (1줄)", "하지말아야 할 것2 (1줄)", "하지말아야 할 것3 (1줄)"]
