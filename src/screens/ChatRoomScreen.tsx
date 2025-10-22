@@ -23,9 +23,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { ChatMessage, ChatMessageDB } from '../types/chat';
 import { getExpertImage } from '../utils/getExpertImage';
 import { BirthInfo } from '../services/ai';
-import { INITIAL_QUESTIONS } from '../services/ai/prompts';
+import { INITIAL_QUESTIONS, INITIAL_QUESTIONS_BY_EXPERT } from '../constants/initialQuestions';
 import { streamChat } from '../services/ai/edgeFunctionClient';
-import { expertAIService } from '../services/ai';
+import { welcomeService } from '../services/ai/welcomeService';
 import { supabase } from '../utils/supabaseClient';
 import { getCachedMessages, setCachedMessages } from '../utils/chatCache';
 import { markChatListNeedsRefresh, updateChatListPreview } from '../utils/chatListCache';
@@ -117,28 +117,57 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   // 초기 인사말 생성 (ExpertAIService 사용)
   const generateWelcomeMessage = async () => {
     try {
-      // ExpertAIService를 사용하여 환영 메시지 생성 (내부적으로 에러 처리됨)
-      const welcomeText = await expertAIService.generateWelcomeMessage(expert.category as any);
+      // 임시 메시지 생성 (스트리밍 효과를 위해)
+      const tempMessageId = `welcome_${Date.now()}`;
+      let streamedText = '';
       
-      const welcomeMessage = {
-        id: `welcome_${Date.now()}`,
+      const tempMessage: ChatMessage = {
+        id: tempMessageId,
         chat_room_id: roomId,
         sender_type: 'expert' as const,
-        message: welcomeText.trim(),
+        message: '',
         created_at: new Date().toISOString()
       };
-
-      // UI에 인사말 추가
-      setMessages(prev => [...prev, welcomeMessage as ChatMessage]);
+      
+      // UI에 빈 메시지 추가
+      setMessages(prev => [...prev, tempMessage]);
+      
+      // 스트리밍 효과로 환영 메시지 생성
+      const welcomeText = await welcomeService.generateWelcomeMessage(
+        expert.name,
+        (chunk: string) => {
+          // 청크가 들어올 때마다 업데이트
+          streamedText += chunk;
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === tempMessageId 
+                ? { ...msg, message: streamedText }
+                : msg
+            )
+          );
+        }
+      );
+      
+      // 최종 메시지로 업데이트
+      const finalMessage = {
+        ...tempMessage,
+        message: welcomeText.trim()
+      };
+      
+      setMessages(prev => 
+        prev.map(msg => 
+          msg.id === tempMessageId ? finalMessage : msg
+        )
+      );
       
       // DB에 인사말 저장
-      const { id: _ignoreId, ...dbWelcomeMessage } = welcomeMessage as any;
+      const { id: _ignoreId, ...dbWelcomeMessage } = finalMessage as any;
       await supabase
         .from('chat_messages')
         .insert(dbWelcomeMessage);
         
       // 캐시 업데이트
-      setCachedMessages(roomId, [...messages, welcomeMessage as ChatMessage]);
+      setCachedMessages(roomId, [...messages, finalMessage]);
       
       scrollToBottom(true);
     } catch (error) {
@@ -736,7 +765,8 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
             if (messages.length !== 1) return null;
             const firstMessage = messages[0];
             if (firstMessage.sender_type !== 'expert') return null;
-            const initialQuestions = INITIAL_QUESTIONS[expert.category as keyof typeof INITIAL_QUESTIONS];
+            // expert.name으로 먼저 찾고, 없으면 category로 폴백
+            const initialQuestions = INITIAL_QUESTIONS_BY_EXPERT[expert.name] || INITIAL_QUESTIONS[expert.category as keyof typeof INITIAL_QUESTIONS];
             if (!initialQuestions?.length) return null;
             
             return (
