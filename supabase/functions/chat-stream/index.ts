@@ -5,7 +5,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { createOpenAIStream, transformToSSE } from '../_shared/openai-streaming.ts';
 import { handleCorsPreFlight, getStreamingHeaders } from '../_shared/cors.ts';
 import { createErrorResponse, validateRequest, validateEnvVars, StreamingError } from '../_shared/error-handler.ts';
-import { getExpertPrompt } from '../_shared/chat-prompts.ts';
+import { buildChatPrompt } from '../_shared/prompts/index.ts';
 import { AI_CONFIG, getEnvVar, log } from '../_shared/config.ts';
 import { OpenAIMessage } from '../_shared/types.ts';
 
@@ -106,50 +106,59 @@ Deno.serve(async (req: Request) => {
 
     const currentMessageCount = (totalMessageCount || 0) + 1; // 지금 보내는 메시지 포함
 
-    // 전문가별 시스템 프롬프트 가져오기
-    const systemPrompt = getExpertPrompt(expertCategory as any);
-    
+    // 전문가 정보 조회 (role, tone 등을 위해)
+    const { data: expertInfo } = await supabase
+      .from('experts')
+      .select('name, expert_quote, signature_phrase, category')
+      .eq('category', expertCategory)
+      .single();
+
     // 사주 정보가 saju_data 안에 중첩되어 있는 경우 처리
     const actualSajuData: any = sajuData.saju_data || sajuData;
+
+    // 새로운 프롬프트 시스템으로 시스템 프롬프트 생성
+    const systemPromptBase = buildChatPrompt(
+      expertCategory,
+      expertInfo || { name: '사주 전문가', expert_quote: '', signature_phrase: '' },
+      actualSajuData,
+      chatRoom?.conversation_summary
+    );
     
-    // 기존 방식과 동일하게 사주 정보를 프롬프트에 치환
+    // 변수 치환 (사주 정보)
     const birthInfoStr = JSON.stringify(actualSajuData, null, 2);
     const lastQuestion = messages.length > 0 ? messages[messages.length - 1].content : '질문 없음';
     const prevHistory = messages.length > 1 ? messages.slice(0, -1).map(m => m.content).join('\n') : '이전 대화 없음';
     
-  const filledPrompt = systemPrompt
-    .replace('{target_len}', '300')
-    .replace('{birth_info}', birthInfoStr)
-    .replace('{gongmang}', actualSajuData.gongmang || '없음')
-    .replace('{five_properties}', JSON.stringify(actualSajuData.fiveProperties) || '없음')
-    .replace('{jiji_amjangan}', JSON.stringify(actualSajuData.jijiAmjangan) || '없음')
-    .replace('{sal_analysis}', JSON.stringify(actualSajuData.sal) || '없음')
-    .replace('{guin_analysis}', JSON.stringify(actualSajuData.guin) || '없음')
-    .replace('{jiji_relations}', JSON.stringify(actualSajuData.jijiRelations) || '없음')
-    .replace('{daewoon_info}', JSON.stringify(actualSajuData.daewoon) || '없음')
-    .replace('{history}', prevHistory)
-    .replace('{question}', lastQuestion);
+    const filledPrompt = systemPromptBase
+      .replace('{birth_info}', birthInfoStr)
+      .replace('{yearHangulGanji}', actualSajuData.yearHangulGanji || '')
+      .replace('{monthHangulGanji}', actualSajuData.monthHangulGanji || '')
+      .replace('{dayHangulGanji}', actualSajuData.dayHangulGanji || '')
+      .replace('{timeHangulGanji}', actualSajuData.timeHangulGanji || '')
+      .replace('{stemSasin}', actualSajuData.stemSasin?.join(', ') || '없음')
+      .replace('{branchSasin}', actualSajuData.branchSasin?.join(', ') || '없음')
+      .replace('{sibun}', actualSajuData.sibun?.join(', ') || '없음')
+      .replace('{gongmang}', actualSajuData.gongmang || '없음')
+      .replace('{fiveProperties}', JSON.stringify(actualSajuData.fiveProperties) || '없음')
+      .replace('{jijiAmjangan}', JSON.stringify(actualSajuData.jijiAmjangan) || '없음')
+      .replace('{sal}', JSON.stringify(actualSajuData.sal) || '없음')
+      .replace('{guin}', JSON.stringify(actualSajuData.guin) || '없음')
+      .replace('{sinsal}', JSON.stringify(actualSajuData.sinsal) || '없음')
+      .replace('{jijiRelations}', JSON.stringify(actualSajuData.jijiRelations) || '없음')
+      .replace('{daewoon}', JSON.stringify(actualSajuData.daewoon) || '없음')
+      .replace('{history}', prevHistory)
+      .replace('{question}', lastQuestion);
 
 
 
-    // 3. 메시지 구성 (요약 포함)
+    // 3. 메시지 구성 (요약은 이미 systemPrompt에 포함됨)
     const openaiMessages: OpenAIMessage[] = [
       {
         role: 'system',
         content: filledPrompt,
-      }
+      },
+      ...messages
     ];
-
-    // 요약이 있으면 시스템 메시지로 추가
-    if (chatRoom?.conversation_summary) {
-      openaiMessages.push({
-        role: 'system',
-        content: `=== 이전 대화 요약 ===\n${chatRoom.conversation_summary}\n\n위 요약을 참고하여 맥락있는 대화를 이어가세요.`
-      });
-    }
-
-    // 최근 메시지 추가
-    openaiMessages.push(...messages);
 
     const openaiStream = await createOpenAIStream({
       apiKey,
