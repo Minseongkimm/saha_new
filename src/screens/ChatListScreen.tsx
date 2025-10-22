@@ -220,7 +220,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
   const categoryLabelMap: Record<Expert['category'], string> = {
     comprehensive: '종합사주',
     love: '연애',
-    residence: '금전운',
+    money: '금전운',
     career: '커리어',
     health: '건강운',
     traditional_saju: '정통사주',

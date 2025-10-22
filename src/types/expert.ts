@@ -3,7 +3,7 @@ export type BadgeType = 'popular' | 'new' | 'best';
 export interface Expert {
   id: string;
   name: string;
-  category: 'comprehensive' | 'love' | 'career' | 'health' | 'residence' | 'traditional_saju' | 'today_fortune' | 'newyear_fortune';
+  category: 'comprehensive' | 'love' | 'career' | 'health' | 'money' | 'traditional_saju' | 'today_fortune' | 'newyear_fortune';
   title: string;
   description: string;
   image_name: string;
@@ -26,8 +26,8 @@ export const EXPERT_CATEGORIES = {
     label: '연애',
     description: '연애운과 애정운을 자세히 봐드립니다'
   },
-  residence: {
-    key: 'residence',
+  money: {
+    key: 'money',
     label: '금전운',
     description: '재물운과 금전운을 분석해드립니다'
   },
