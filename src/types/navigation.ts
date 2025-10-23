@@ -7,13 +7,13 @@ export type RootStackParamList = {
   ChatRoom: { roomId: string; expert: any };
   SajuInfo: undefined;
   NotificationSettings: undefined;
-  Compatibility: undefined;
   JeongtongSaju: undefined;
   TodayFortune: undefined;
   NewYearFortune: undefined;
   Loading: undefined;
   // Charge: undefined; // 결제 기능 임시 비활성화
   BirthInfo: { userId: string };
+  PartnerInput: { expertId: string };
 };
 
 export type NavigationProps = {

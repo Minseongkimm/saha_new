@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Modal,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import CustomHeader from '../components/CustomHeader';
@@ -19,6 +20,8 @@ import { Expert } from '../types/expert';
 import { getExpertImage } from '../utils/getExpertImage';
 import { getExpertListCache } from '../utils/expertListCache';
 import { startChatWithExpert } from '../utils/chatUtils';
+import BirthInputForm, { PartnerBirthInfo } from '../components/BirthInputForm';
+import { RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from '../types/partner';
 
 interface ExpertDetailScreenProps {
   navigation: any;
@@ -54,6 +57,20 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
   const [loading, setLoading] = useState(true);
   const [expert, setExpert] = useState<ExpertWithDetails | null>(null);
   const [showChatBottomSheet, setShowChatBottomSheet] = useState(false);
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [partnerInfo, setPartnerInfo] = useState<PartnerBirthInfo>({
+    name: '',
+    birthYear: '',
+    birthMonth: '',
+    birthDay: '',
+    birthHour: '',
+    birthMinute: '',
+    gender: '',
+    calendarType: 'solar',
+    isLeapMonth: false,
+    isTimeUnknown: false,
+    relationshipStatus: 'interested',
+  });
 
   useEffect(() => {
     const cached = getExpertListCache();
@@ -78,7 +95,27 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
   const handleConfirmChat = async () => {
     if (!expert) return;
     setShowChatBottomSheet(false);
-    await startChatWithExpert(navigation, expert.id);
+    
+    // 연애 도사인 경우 상대방 정보 입력 모달 표시
+    if (expert.category === 'love') {
+      setShowPartnerModal(true);
+    } else {
+      await startChatWithExpert(navigation, expert.id);
+    }
+  };
+
+  const handlePartnerInfoSave = async () => {
+    // TODO: 상대방 정보 저장 로직 구현
+    console.log('상대방 정보 저장:', partnerInfo);
+    setShowPartnerModal(false);
+    // 저장 후 채팅 시작
+    if (expert?.id) {
+      await startChatWithExpert(navigation, expert.id);
+    }
+  };
+
+  const handlePartnerInfoCancel = () => {
+    setShowPartnerModal(false);
   };
 
   const fetchExpertDetails = async () => {
@@ -240,7 +277,53 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
         title={`${expert?.name}님과 대화하기`}
         description={`궁금한 점이나 더 자세한 해석이 필요하시다면${'\n'}AI 도사와 대화해보세요.`}
         buttonText="대화 시작하기"
+        isLoveExpert={expert?.category === 'love'}
+        onPartnerAnalysis={() => {
+          setShowChatBottomSheet(false);
+          // 상대방 정보 입력 페이지로 이동
+          navigation.navigate('PartnerInput', { expertId: expert?.id });
+        }}
+        onPersonalFortune={() => {
+          setShowChatBottomSheet(false);
+          if (expert?.id) {
+            startChatWithExpert(navigation, expert.id);
+          }
+        }}
       />
+
+      {/* 상대방 정보 입력 모달 (연애 도사용) */}
+      <Modal
+        visible={showPartnerModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
+            <BirthInputForm
+              birthInfo={partnerInfo}
+              setBirthInfo={setPartnerInfo}
+              title="상대방 정보 입력"
+              showName={true}
+              showRelationship={true}
+              isModal={true}
+            />
+          </ScrollView>
+          <View style={styles.modalButtons}>
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={handlePartnerInfoCancel}
+            >
+              <Text style={styles.modalCancelButtonText}>취소</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalSaveButton}
+              onPress={handlePartnerInfoSave}
+            >
+              <Text style={styles.modalSaveButtonText}>저장</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -449,8 +532,46 @@ const styles = StyleSheet.create({
     color: '#6c757d',
     fontStyle: 'italic',
   },
-
-
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'white',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  modalScrollView: {
+    flex: 1,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    padding: 20,
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#f9f9f9',
+    alignItems: 'center',
+  },
+  modalCancelButtonText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '600',
+  },
+  modalSaveButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    backgroundColor: Colors.primaryColor,
+    alignItems: 'center',
+  },
+  modalSaveButtonText: {
+    fontSize: 16,
+    color: 'white',
+    fontWeight: '600',
+  },
 });
 
 export default ExpertDetailScreen;

@@ -11,13 +11,13 @@ import ExpertDetailScreen from '../screens/ExpertDetailScreen';
 import ChatRoomScreen from '../screens/ChatRoomScreen';
 import SajuInfoScreen from '../screens/SajuInfoScreen';
 import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
-import CompatibilityScreen from '../screens/CompatibilityScreen';
 import TraditionalSajuScreen from '../screens/TraditionalSajuScreen';
 import TodayFortuneScreen from '../screens/TodayFortuneScreen';
 import NewYearFortuneScreen from '../screens/NewYearFortuneScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 // import ChargeScreen from '../screens/ChargeScreen';
 import BirthInfoScreen from '../screens/BirthInfoScreen';
+import PartnerInputScreen from '../screens/PartnerInputScreen';
 import { RootStackParamList } from '../types/navigation';
 import LoginScreen from '../screens/LoginScreen';
 
@@ -86,6 +86,13 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
               }}
             />
             <Stack.Screen
+              name="PartnerInput"
+              component={PartnerInputScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
               name="BannerDetail"
               component={BannerDetailScreen}
               options={{
@@ -116,13 +123,6 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
             <Stack.Screen
               name="NotificationSettings"
               component={NotificationSettingsScreen}
-              options={{
-                headerShown: false,
-              }}
-            />
-            <Stack.Screen
-              name="Compatibility"
-              component={CompatibilityScreen}
               options={{
                 headerShown: false,
               }}

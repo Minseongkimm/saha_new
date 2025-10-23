@@ -7,6 +7,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Colors } from '../constants/colors';
+import { RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from '../types/partner';
 
 export interface BirthInfo {
   name: string;
@@ -21,11 +22,18 @@ export interface BirthInfo {
   isTimeUnknown: boolean;
 }
 
+// 상대방 정보용 확장 인터페이스
+export interface PartnerBirthInfo extends BirthInfo {
+  relationshipStatus?: RelationshipStatus;
+}
+
 interface BirthInputFormProps {
-  birthInfo: BirthInfo;
-  setBirthInfo: (info: BirthInfo) => void;
+  birthInfo: BirthInfo | PartnerBirthInfo;
+  setBirthInfo: (info: BirthInfo | PartnerBirthInfo) => void;
   title: string;
   showName?: boolean;
+  showRelationship?: boolean; // 상대방 정보 입력 시 관계 상태 표시
+  isModal?: boolean; // 모달에서 사용할 때 카드 스타일 제거
 }
 
 const BirthInputForm: React.FC<BirthInputFormProps> = ({
@@ -33,9 +41,13 @@ const BirthInputForm: React.FC<BirthInputFormProps> = ({
   setBirthInfo,
   title,
   showName = true,
+  showRelationship = false,
+  isModal = false,
 }) => {
+  const relationshipOptions: RelationshipStatus[] = ['dating', 'married', 'interested', 'breakup', 'other'];
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isModal && styles.modalContainer]}>
       <Text style={styles.title}>{title}</Text>
       
       {showName && (
@@ -52,6 +64,39 @@ const BirthInputForm: React.FC<BirthInputFormProps> = ({
             placeholder="이름을 입력하세요"
             maxLength={10}
           />
+        </View>
+      )}
+
+      {/* 관계 상태 선택 (상대방 정보 입력 시만) */}
+      {showRelationship && (
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>관계 상태 *</Text>
+          <View style={styles.relationshipContainer}>
+            {relationshipOptions.map((status) => (
+              <TouchableOpacity
+                key={status}
+                style={[
+                  styles.relationshipButton,
+                  (birthInfo as PartnerBirthInfo).relationshipStatus === status && styles.relationshipButtonSelected,
+                ]}
+                onPress={() => {
+                  setBirthInfo({
+                    ...birthInfo,
+                    relationshipStatus: status,
+                  } as PartnerBirthInfo);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.relationshipButtonText,
+                    (birthInfo as PartnerBirthInfo).relationshipStatus === status && styles.relationshipButtonTextSelected,
+                  ]}
+                >
+                  {RELATIONSHIP_STATUS_LABELS[status]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       )}
 
@@ -276,10 +321,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: Colors.primaryColor,
-    marginBottom: 20,
+    marginBottom: 0,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   label: {
     fontSize: 15,
@@ -393,7 +438,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   radioText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#333',
   },
   radioTextSelected: {
@@ -403,7 +448,7 @@ const styles = StyleSheet.create({
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 0,
   },
   checkbox: {
     width: 16,
@@ -428,6 +473,41 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     fontSize: 14,
     color: '#333',
+  },
+  relationshipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  relationshipButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#f9f9f9',
+  },
+  relationshipButtonSelected: {
+    backgroundColor: Colors.primaryColor,
+    borderColor: Colors.primaryColor,
+  },
+  relationshipButtonText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  relationshipButtonTextSelected: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  modalContainer: {
+    backgroundColor: 'transparent',
+    padding: 0,
+    marginBottom: 0,
+    shadowColor: 'transparent',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
 });
 

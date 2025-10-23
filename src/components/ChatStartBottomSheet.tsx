@@ -19,6 +19,9 @@ interface ChatStartBottomSheetProps {
   title?: string;
   description?: string;
   buttonText?: string;
+  isLoveExpert?: boolean; // 연애 도사인지 구분
+  onPartnerAnalysis?: () => void; // 궁합 분석 버튼 클릭
+  onPersonalFortune?: () => void; // 개인 연애운 버튼 클릭
 }
 
 const { width, height } = Dimensions.get('window');
@@ -29,7 +32,10 @@ const ChatStartBottomSheet: React.FC<ChatStartBottomSheetProps> = ({
   onStartChat,
   title = "AI 도사와 이야기 나누기",
   description = "궁금한 점이나 더 자세한 해석이 필요하시다면 AI 도사와 1:1 대화를 통해 맞춤형 조언을 받아보세요.",
-  buttonText = "이야기 나누기"
+  buttonText = "이야기 나누기",
+  isLoveExpert = false,
+  onPartnerAnalysis,
+  onPersonalFortune
 }) => {
   const translateY = React.useRef(new Animated.Value(height)).current;
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -134,18 +140,52 @@ const ChatStartBottomSheet: React.FC<ChatStartBottomSheetProps> = ({
               <Text style={styles.title}>{title}</Text>
             </View>
             
-            <Text style={styles.description}>{description}</Text>
-            
-          </View>
+            {isLoveExpert ? (
+              // 연애 도사용 특별 UI
+              <View style={styles.loveExpertContent}>
+                <Text style={styles.loveExpertTitle}>어떤 상담을 원하시나요?</Text>
+                
+                {/* 궁합 분석 옵션 */}
+                <View style={styles.optionCard}>
+                  <Text style={styles.optionTitle}>궁합 분석</Text>
+                  <Text style={styles.optionDescription}>상대방과의 궁합을 자세히 봐드려요</Text>
+                  <TouchableOpacity 
+                    style={styles.optionButton}
+                    onPress={onPartnerAnalysis}
+                  >
+                    <Text style={styles.optionButtonText}>상대방 정보와 함께 시작</Text>
+                  </TouchableOpacity>
+                </View>
 
-          {/* 바텀 시트 버튼 */}
-          <View style={styles.bottomSheetFooter}>
-            <TouchableOpacity 
-              style={styles.startButton}
-              onPress={onStartChat}
-            >
-              <Text style={styles.startButtonText}>{buttonText}</Text>
-            </TouchableOpacity>
+                {/* 개인 연애운 옵션 */}
+                <View style={styles.optionCard}>
+                  <Text style={styles.optionTitle}>개인 연애운</Text>
+                  <Text style={styles.optionDescription}>나의 연애운만 확인해보세요</Text>
+                  <TouchableOpacity 
+                    style={styles.optionButton}
+                    onPress={onPersonalFortune}
+                  >
+                    <Text style={styles.optionButtonText}>바로 시작하기</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              // 일반 도사용 기본 UI
+              <>
+                <Text style={styles.description}>{description}</Text>
+                
+                {/* 바텀 시트 버튼 */}
+                <View style={styles.bottomSheetFooter}>
+                  <TouchableOpacity 
+                    style={styles.startButton}
+                    onPress={onStartChat}
+                  >
+                    <Text style={styles.startButtonText}>{buttonText}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
+            
           </View>
         </Animated.View>
       </Animated.View>
@@ -167,6 +207,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingBottom: 34, // Safe area
+    maxHeight: height * 0.53, // 화면 높이의 60%로 제한
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -242,6 +283,47 @@ const styles = StyleSheet.create({
   startButtonText: {
     color: 'white',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  // 연애 도사용 스타일
+  loveExpertContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  loveExpertTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  optionCard: {
+    backgroundColor: 'transparent',
+    padding: 16,
+    marginBottom: 12,
+  },
+  optionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  optionDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  optionButton: {
+    backgroundColor: Colors.primaryColor,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  optionButtonText: {
+    color: 'white',
+    fontSize: 14,
     fontWeight: '600',
   },
 });
