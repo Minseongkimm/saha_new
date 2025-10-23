@@ -23,9 +23,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { ChatMessage, ChatMessageDB } from '../types/chat';
 import { getExpertImage } from '../utils/getExpertImage';
 import { BirthInfo } from '../services/ai';
-import { INITIAL_QUESTIONS, INITIAL_QUESTIONS_BY_EXPERT } from '../constants/initialQuestions';
+import { INITIAL_QUESTIONS, INITIAL_QUESTIONS_BY_EXPERT } from '../services/chat/initialQuestions';
 import { streamChat } from '../services/ai/edgeFunctionClient';
-import { welcomeService } from '../services/ai/welcomeService';
+import { welcomeService } from '../services/chat/welcomeService';
 import { supabase } from '../utils/supabaseClient';
 import { getCachedMessages, setCachedMessages } from '../utils/chatCache';
 import { markChatListNeedsRefresh, updateChatListPreview } from '../utils/chatListCache';
@@ -826,6 +826,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
               placeholderTextColor="#999"
               multiline
               editable={!isAiResponding}
+              maxLength={150}
             />
             <TouchableOpacity 
               style={[

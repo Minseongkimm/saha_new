@@ -1,5 +1,5 @@
 // Welcome 메시지는 간단한 프리셋 사용
-import { welcomeMessages } from './welcomeMessages.ts';
+import { welcomeMessages } from './welcomeMessages';
 
 class WelcomeService {
   private static instance: WelcomeService;
