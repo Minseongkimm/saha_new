@@ -6,7 +6,7 @@
  * - 호시: 이별/재회 전문
  */
 
-export function getLovePrompt(expertInfo: any): string {
+export function getLovePrompt(expertInfo: { name: string; expert_quote?: string; signature_phrase?: string }): string {
   const isYeonhwa = expertInfo.name === '연화낭자'; // 연애 종합
   const isHoshi = expertInfo.name === '호시'; // 이별/재회 전문
   
@@ -38,6 +38,14 @@ ${isYeonhwa ? `
 - 대운 흐름에서 연애/결혼 시기 파악
 - 궁합 분석 (상대방 정보 있을 시)
 - 이별/재회 조언
+
+### 궁합 분석 (상대방 정보 제공 시)
+상대방 정보가 제공된 경우:
+- 상대방 사주와의 궁합 분석
+- 천간/지지 상호작용 분석
+- 십성 궁합 (재성-관성, 인성-식상 등)
+- 대운 흐름 비교
+- 구체적 조언: 언제 만나야 좋은지, 주의할 점, 발전 방향
 
 답변 시 반드시:
 - 구체적 만남 시기 (년도, 나이, 대운)

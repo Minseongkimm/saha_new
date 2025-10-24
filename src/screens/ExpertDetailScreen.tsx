@@ -22,6 +22,8 @@ import { getExpertListCache } from '../utils/expertListCache';
 import { startChatWithExpert } from '../utils/chatUtils';
 import BirthInputForm, { PartnerBirthInfo } from '../components/BirthInputForm';
 import { RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from '../types/partner';
+import { getPartnerList, deletePartnerFromDatabase } from '../utils/partnerDatabase';
+import { getPartnerListCache, isPartnerListFresh } from '../utils/partnerListCache';
 
 interface ExpertDetailScreenProps {
   navigation: any;
@@ -58,6 +60,10 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
   const [expert, setExpert] = useState<ExpertWithDetails | null>(null);
   const [showChatBottomSheet, setShowChatBottomSheet] = useState(false);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [showPartnerSelection, setShowPartnerSelection] = useState(false);
+  const [existingPartners, setExistingPartners] = useState<any[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedPartners, setSelectedPartners] = useState<Set<string>>(new Set());
   const [partnerInfo, setPartnerInfo] = useState<PartnerBirthInfo>({
     name: '',
     birthYear: '',
@@ -96,12 +102,154 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
     if (!expert) return;
     setShowChatBottomSheet(false);
     
-    // 연애 도사인 경우 상대방 정보 입력 모달 표시
+    // 연애 도사인 경우 상대방 정보 선택 또는 입력
     if (expert.category === 'love') {
-      setShowPartnerModal(true);
+      // 기존 상대방 정보가 있는지 확인
+      const partners = await loadExistingPartners();
+      if (partners.length > 0) {
+        setShowPartnerSelection(true);
+      } else {
+        navigation.navigate('PartnerInput', { expertId: expert.id });
+      }
     } else {
       await startChatWithExpert(navigation, expert.id);
     }
+  };
+
+  const loadExistingPartners = async (): Promise<any[]> => {
+    try {
+      // 먼저 캐시에서 확인
+      const isFresh = isPartnerListFresh();
+      
+      if (isFresh) {
+        const cached = getPartnerListCache();
+        
+        if (cached && cached.length > 0) {
+          setExistingPartners(cached);
+          return cached;
+        }
+      }
+
+      // 캐시가 없거나 오래된 경우에만 DB에서 조회
+      const partners = await getPartnerList();
+      setExistingPartners(partners);
+      return partners;
+    } catch (error) {
+      console.error('❌ 기존 상대방 정보 불러오기 오류:', error);
+      return [];
+    }
+  };
+
+  const handleSelectExistingPartner = async (partner: any) => {
+    setShowPartnerSelection(false);
+    // 기존 상대방 정보로 채팅 시작
+    const partnerData = {
+      partnerInfo: partner.birth_info,
+      partnerSajuData: partner.saju_data,
+      partnerId: partner.id,
+      compatibilityResult: partner.compatibility_result
+    };
+    if (expert?.id) {
+      await startChatWithExpert(navigation, expert.id, partnerData);
+    }
+  };
+
+  const handleAddNewPartner = () => {
+    setShowPartnerSelection(false);
+    if (expert?.id) {
+      navigation.navigate('PartnerInput', { expertId: expert.id });
+    }
+  };
+
+  const toggleEditMode = () => {
+    setIsEditMode(!isEditMode);
+    if (isEditMode) {
+      // 편집 모드 종료 시 선택된 항목들 삭제
+      if (selectedPartners.size > 0) {
+        handleDeleteSelectedPartners();
+      }
+      setSelectedPartners(new Set());
+    }
+  };
+
+  const togglePartnerSelection = (partnerId: string) => {
+    setSelectedPartners(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(partnerId)) {
+        newSet.delete(partnerId);
+      } else {
+        newSet.add(partnerId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleDeleteSelectedPartners = async () => {
+    if (selectedPartners.size === 0) return;
+
+    const selectedNames = existingPartners
+      .filter(partner => selectedPartners.has(partner.id))
+      .map(partner => partner.partner_name);
+
+    Alert.alert(
+      '상대방 정보 삭제',
+      `선택된 ${selectedNames.length}명의 정보를 삭제하시겠습니까?\n${selectedNames.join(', ')}`,
+      [
+        {
+          text: '취소',
+          style: 'cancel',
+        },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // 선택된 모든 상대방 삭제
+              for (const partnerId of selectedPartners) {
+                await deletePartnerFromDatabase(partnerId);
+              }
+              // 목록에서 제거
+              setExistingPartners(prev => 
+                prev.filter(partner => !selectedPartners.has(partner.id))
+              );
+              setSelectedPartners(new Set());
+              Alert.alert('삭제 완료', '선택된 상대방 정보가 삭제되었습니다.');
+            } catch (error) {
+              console.error('상대방 정보 삭제 오류:', error);
+              Alert.alert('오류', '상대방 정보 삭제에 실패했습니다.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeletePartner = async (partnerId: string, partnerName: string) => {
+    Alert.alert(
+      '상대방 정보 삭제',
+      `${partnerName}님의 정보를 삭제하시겠습니까?`,
+      [
+        {
+          text: '취소',
+          style: 'cancel',
+        },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deletePartnerFromDatabase(partnerId);
+              // 목록에서 제거
+              setExistingPartners(prev => prev.filter(partner => partner.id !== partnerId));
+              Alert.alert('삭제 완료', '상대방 정보가 삭제되었습니다.');
+            } catch (error) {
+              console.error('상대방 정보 삭제 오류:', error);
+              Alert.alert('오류', '상대방 정보 삭제에 실패했습니다.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handlePartnerInfoSave = async () => {
@@ -278,10 +426,17 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
         description={`궁금한 점이나 더 자세한 해석이 필요하시다면${'\n'}AI 도사와 대화해보세요.`}
         buttonText="대화 시작하기"
         isLoveExpert={expert?.category === 'love'}
-        onPartnerAnalysis={() => {
+        onPartnerAnalysis={async () => {
           setShowChatBottomSheet(false);
-          // 상대방 정보 입력 페이지로 이동
-          navigation.navigate('PartnerInput', { expertId: expert?.id });
+          // 기존 상대방 정보가 있는지 확인
+          const partners = await loadExistingPartners();
+          if (partners.length > 0) {
+            setShowPartnerSelection(true);
+          } else {
+            if (expert?.id) {
+              navigation.navigate('PartnerInput', { expertId: expert.id });
+            }
+          }
         }}
         onPersonalFortune={() => {
           setShowChatBottomSheet(false);
@@ -322,6 +477,105 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
               <Text style={styles.modalSaveButtonText}>저장</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </Modal>
+
+      {/* 기존 상대방 정보 선택 모달 */}
+      <Modal
+        visible={showPartnerSelection}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <CustomHeader
+            title="상대방 선택"
+            onBackPress={() => {
+              setShowPartnerSelection(false);
+              setIsEditMode(false);
+              setSelectedPartners(new Set());
+            }}
+            rightComponent={
+              <TouchableOpacity onPress={toggleEditMode}>
+                <Text style={styles.editButtonText}>
+                  {isEditMode ? (selectedPartners.size > 0 ? `삭제(${selectedPartners.size})` : '완료') : '편집'}
+                </Text>
+              </TouchableOpacity>
+            }
+          />
+          <ScrollView style={styles.modalScrollView}>
+            <View style={styles.partnerSelectionContainer}>
+              <Text style={styles.partnerSelectionTitle}>기존 상대방 정보</Text>
+              <Text style={styles.partnerSelectionSubtitle}>
+                저장된 상대방 정보를 선택하거나 새로 입력하세요
+              </Text>
+              
+              {existingPartners.map((partner, index) => {
+                const isSelected = selectedPartners.has(partner.id);
+                return (
+                  <TouchableOpacity
+                    key={partner.id}
+                    style={[
+                      styles.partnerItem,
+                      isEditMode && isSelected && styles.partnerItemSelected
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (isEditMode) {
+                        togglePartnerSelection(partner.id);
+                      } else {
+                        handleSelectExistingPartner(partner);
+                      }
+                    }}
+                  >
+                    {isEditMode && (
+                      <View style={styles.checkboxContainer}>
+                        <View style={[
+                          styles.checkbox,
+                          isSelected && styles.checkboxSelected
+                        ]}>
+                          {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                        </View>
+                      </View>
+                    )}
+                    
+                    <View style={styles.partnerInfo}>
+                      <Text style={[
+                        styles.partnerName,
+                        isEditMode && isSelected && styles.partnerNameSelected
+                      ]}>
+                        {partner.partner_name}
+                      </Text>
+                      <Text style={[
+                        styles.partnerStatus,
+                        isEditMode && isSelected && styles.partnerStatusSelected
+                      ]}>
+                        {RELATIONSHIP_STATUS_LABELS[partner.relationship_status as RelationshipStatus]}
+                      </Text>
+                      <Text style={[
+                        styles.partnerDate,
+                        isEditMode && isSelected && styles.partnerDateSelected
+                      ]}>
+                        {new Date(partner.created_at).toLocaleDateString('ko-KR')} 저장
+                      </Text>
+                    </View>
+                    
+                    {!isEditMode && <Text style={styles.partnerArrow}>→</Text>}
+                  </TouchableOpacity>
+                );
+              })}
+              
+              <TouchableOpacity
+                style={styles.addNewPartnerButton}
+                onPress={handleAddNewPartner}
+              >
+                <Text style={styles.addNewPartnerText}>+ 새로운 상대방 정보 입력</Text>
+              </TouchableOpacity>
+              
+              <Text style={styles.swipeDeleteHint}>
+                * 편집 버튼을 눌러 상대방 정보를 삭제할 수 있습니다
+              </Text>
+            </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>
@@ -571,6 +825,139 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: 'white',
     fontWeight: '600',
+  },
+  // 상대방 선택 모달 스타일
+  partnerSelectionContainer: {
+    padding: 20,
+  },
+  partnerSelectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  partnerSelectionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  partnerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f8f9fa',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  partnerInfo: {
+    flex: 1,
+  },
+  partnerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  partnerStatus: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  partnerDate: {
+    fontSize: 12,
+    color: '#999',
+  },
+  partnerArrow: {
+    fontSize: 18,
+    color: '#666',
+    marginLeft: 12,
+  },
+  addNewPartnerButton: {
+    backgroundColor: Colors.primaryColor,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  addNewPartnerText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // 스와이프 삭제 관련 스타일
+  swipeDeleteHint: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 8,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  deleteAction: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    backgroundColor: '#ff4444',
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  deleteButton: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    minWidth: 80,
+  },
+  deleteButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  // 편집 모드 관련 스타일
+  editButtonText: {
+    color: Colors.primaryColor,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // 체크박스 관련 스타일
+  checkboxContainer: {
+    marginRight: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+  },
+  checkboxSelected: {
+    backgroundColor: Colors.primaryColor,
+    borderColor: Colors.primaryColor,
+  },
+  checkmark: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  // 선택된 항목 스타일
+  partnerItemSelected: {
+    backgroundColor: Colors.primaryColor + '15',
+  },
+  partnerNameSelected: {
+    color: Colors.primaryColor,
+    fontWeight: '600',
+  },
+  partnerStatusSelected: {
+    color: Colors.primaryColor + 'CC',
+  },
+  partnerDateSelected: {
+    color: Colors.primaryColor + 'AA',
   },
 });
 

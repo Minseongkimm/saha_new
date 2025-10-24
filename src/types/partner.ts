@@ -41,13 +41,14 @@ export interface PartnerInput {
 // 상대방 사주 정보 (DB 저장용)
 export interface PartnerSaju {
   id: string;
-  userId: string;
-  partnerName: string;
-  relationshipStatus: RelationshipStatus;
-  birthInfo: BirthInfo;
-  sajuData?: any; // 사주 분석 결과
-  createdAt: string;
-  updatedAt: string;
+  user_id: string;
+  partner_name: string;
+  relationship_status: RelationshipStatus;
+  birth_info: any; // BirthInfo 구조
+  saju_data?: any; // 사주 분석 결과
+  compatibility_result?: any; // 궁합 분석 결과
+  created_at: string;
+  updated_at: string;
 }
 
 // 상대방 사주 정보 (UI 표시용)

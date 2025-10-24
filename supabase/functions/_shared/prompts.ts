@@ -294,7 +294,4 @@ export function getTodayFortunePrompt(
 전문적이면서도 이해하기 쉬운 조언을 제공해주세요.`;
 }
 
-/**
- * 채팅 프롬프트는 chat-prompts.ts 파일 참조
- */
-export { getExpertPrompt } from './chat-prompts.ts';
+// chat-prompts.ts 파일이 제거되었으므로 해당 export 제거

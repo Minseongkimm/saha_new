@@ -16,8 +16,12 @@ import BirthInputForm from '../components/BirthInputForm';
 import { PartnerBirthInfo } from '../types/partner';
 import { startChatWithExpert } from '../utils/chatUtils';
 import { RootStackParamList } from '../types/navigation';
-import { calculatePartnerSaju } from '../utils/partnerSajuCalculator';
+import { calculatePartnerSaju, convertSajuResultToSajuInfo } from '../utils/partnerSajuCalculator';
 import { savePartnerToDatabase } from '../utils/partnerDatabase';
+import { SajuCalculator } from '../utils/saju-calculator/core/SajuCalculator';
+import { SajuInfo } from '../utils/saju-calculator/types';
+import { supabase } from '../utils/supabaseClient';
+import { calculateSaju, SajuResult } from '../utils/saju/ganji_local';
 
 interface PartnerInputScreenProps {
   navigation: any;
@@ -62,20 +66,73 @@ const PartnerInputScreen: React.FC<PartnerInputScreenProps> = ({ navigation, rou
       // 1. 상대방 사주 계산
       console.log('상대방 사주 계산 중...');
       const partnerSajuData = await calculatePartnerSaju(partnerInfo);
-      
-      // 2. DB에 상대방 정보 저장
+
+      // 2. 로컬 궁합 계산 (사용자 사주 + 상대 사주)
+      console.log('궁합 계산 중...');
+      const sajuCalculator = new SajuCalculator();
+
+      // 사용자 사주 정보 불러오기 → SajuInfo 변환
+      let userSajuInfo: SajuInfo | null = null;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data } = await supabase
+            .from('birth_infos')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+          if (data) {
+            const userSajuInput = {
+              year: Number(data.year),
+              month: Number(data.month),
+              day: Number(data.day),
+              hour: data.isTimeUnknown ? null : Number(data.hour ?? 0),
+              minute: data.isTimeUnknown ? null : Number(data.minute ?? 0),
+              isLunar: Boolean(data.isLunar),
+              isLeapMonth: Boolean(data.isLeapMonth),
+            };
+            const userSajuResult: SajuResult = calculateSaju(userSajuInput);
+            userSajuInfo = convertSajuResultToSajuInfo(
+              userSajuResult,
+              Number(data.year),
+              data.gender === 'male' ? 'male' : 'female'
+            );
+          }
+        }
+      } catch {}
+
+      const partnerSajuInfo: SajuInfo = convertSajuResultToSajuInfo(
+        partnerSajuData,
+        parseInt(partnerInfo.birthYear),
+        partnerInfo.gender || 'male'
+      );
+
+      const compatibilityResult = userSajuInfo
+        ? sajuCalculator.analyzeCompatibility(userSajuInfo, partnerSajuInfo)
+        : null;
+
+      // 3. DB에 상대방 정보 저장 (궁합 결과 포함)
       console.log('상대방 정보 저장 중...');
-      const partnerId: string = await savePartnerToDatabase(partnerInfo, partnerSajuData);
+      const partnerId: string = await savePartnerToDatabase(partnerInfo, partnerSajuData, compatibilityResult);
       
       console.log('상대방 정보 저장 완료:', partnerId);
       
-      // 3. 채팅 시작 (상대방 정보 포함)
+      // 4. 채팅 시작 (상대방 정보 + 로컬 궁합 포함)
       const partnerData = {
         partnerInfo,
         partnerSajuData,
-        partnerId
+        partnerId,
+        compatibilityResult
       };
+      
+      // 채팅 시작 후 스택을 리셋하여 뒤로가기 시 상대방 입력 화면으로 돌아가지 않도록 함
       await startChatWithExpert(navigation, expertId, partnerData);
+      
+      // 채팅 시작 후 스택 리셋 (뒤로가기 시 홈으로 이동)
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'MainTabs' }],
+      });
     } catch (error) {
       console.error('상대방 정보 저장 오류:', error);
       Alert.alert('오류', '상대방 정보 저장에 실패했습니다.');

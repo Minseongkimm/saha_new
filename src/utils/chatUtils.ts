@@ -31,10 +31,12 @@ export const getExpertByCategory = async (category: string): Promise<{ id: strin
  * 전문가와 채팅 시작
  * @param navigation - 네비게이션 객체
  * @param expertId - 전문가 ID
+ * @param partnerData - 상대방 정보 (선택사항)
  */
 export const startChatWithExpert = async (
   navigation: any,
-  expertId: string
+  expertId: string,
+  partnerData?: any
 ) => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -86,7 +88,8 @@ export const startChatWithExpert = async (
     // 4. 채팅방으로 이동
     navigation.navigate('ChatRoom', {
       roomId: chatRoomId,
-      expert: expert
+      expert: expert,
+      partnerData: partnerData // 상대방 정보 전달
     });
 
   } catch (error) {

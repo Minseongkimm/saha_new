@@ -36,7 +36,7 @@ interface ChatRoomScreenProps {
 }
 
 const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
-  const { roomId, expert } = route.params;
+  const { roomId, expert, partnerData } = route.params;
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const flatListRef = useRef<FlatList<ChatMessage> | null>(null);

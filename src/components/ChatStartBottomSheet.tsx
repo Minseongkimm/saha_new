@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   },
   // 연애 도사용 스타일
   loveExpertContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 3,
     paddingBottom: 20,
   },
   loveExpertTitle: {

@@ -122,11 +122,23 @@ const BirthInputForm: React.FC<BirthInputFormProps> = ({
               
               // 각 부분 업데이트
               const parts = formatted.split('.');
+              let year = parts[0] || '';
+              let month = parts[1] || '';
+              let day = parts[2] || '';
+              
+              // 유효성 검사
+              if (month && parseInt(month) > 12) {
+                month = '12';
+              }
+              if (day && parseInt(day) > 31) {
+                day = '31';
+              }
+              
               setBirthInfo({
                 ...birthInfo,
-                birthYear: parts[0] || '',
-                birthMonth: parts[1] || '',
-                birthDay: parts[2] || '',
+                birthYear: year,
+                birthMonth: month,
+                birthDay: day,
               });
             }}
             keyboardType="number-pad"
