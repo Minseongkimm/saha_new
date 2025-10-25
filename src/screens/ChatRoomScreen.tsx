@@ -71,6 +71,12 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     });
   };
 
+  // ** 문법을 제거하는 함수
+  const removeBoldMarkup = (text: string) => {
+    if (!text) return '';
+    return text.replace(/\*\*(.*?)\*\*/g, '$1');
+  };
+
   // 팔로업 질문 추출 함수
   const extractFollowUpQuestions = (text: string): string[] => {
     const followUpQuestions: string[] = [];
@@ -88,11 +94,26 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     const format3Match = text.match(format3Regex);
 
     if (format1Match && format1Match[1] && format1Match[2] && format1Match[3] && format1Match[4]) {
-      followUpQuestions.push(format1Match[1].trim(), format1Match[2].trim(), format1Match[3].trim(), format1Match[4].trim());
+      followUpQuestions.push(
+        removeBoldMarkup(format1Match[1].trim()), 
+        removeBoldMarkup(format1Match[2].trim()), 
+        removeBoldMarkup(format1Match[3].trim()), 
+        removeBoldMarkup(format1Match[4].trim())
+      );
     } else if (format2Match && format2Match[1] && format2Match[2] && format2Match[3] && format2Match[4]) {
-      followUpQuestions.push(format2Match[1].trim(), format2Match[2].trim(), format2Match[3].trim(), format2Match[4].trim());
+      followUpQuestions.push(
+        removeBoldMarkup(format2Match[1].trim()), 
+        removeBoldMarkup(format2Match[2].trim()), 
+        removeBoldMarkup(format2Match[3].trim()), 
+        removeBoldMarkup(format2Match[4].trim())
+      );
     } else if (format3Match && format3Match[1] && format3Match[2] && format3Match[3] && format3Match[4]) {
-      followUpQuestions.push(format3Match[1].trim(), format3Match[2].trim(), format3Match[3].trim(), format3Match[4].trim());
+      followUpQuestions.push(
+        removeBoldMarkup(format3Match[1].trim()), 
+        removeBoldMarkup(format3Match[2].trim()), 
+        removeBoldMarkup(format3Match[3].trim()), 
+        removeBoldMarkup(format3Match[4].trim())
+      );
     }
     
     return followUpQuestions;
@@ -582,6 +603,19 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     scrollToBottom(true);
   }, [messages.length]);
 
+  // 팔로업 질문이 나타날 때 자동 스크롤
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.follow_up_questions && lastMessage.follow_up_questions.length > 0) {
+        // 팔로업 질문이 나타나면 잠시 후 스크롤
+        setTimeout(() => {
+          scrollToBottom(true);
+        }, 300);
+      }
+    }
+  }, [messages]);
+
   const TypingIndicator: React.FC = () => {
     const dot1Opacity = useRef(new Animated.Value(0)).current;
     const dot2Opacity = useRef(new Animated.Value(0)).current;
@@ -746,6 +780,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
             renderItem={renderMessage}
             keyExtractor={(item) => item.id || item.created_at}
             style={styles.messagesList}
+            contentContainerStyle={styles.messagesContentContainer}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() => scrollToBottom(false)}
             onLayout={() => scrollToBottom(false)}
@@ -882,6 +917,9 @@ const styles = StyleSheet.create({
   messagesList: {
     flex: 1,
   },
+  messagesContentContainer: {
+    paddingBottom: 20, // 하단 여백 추가
+  },
   messageContainer: {
     marginTop: 10,
     marginBottom: 5,
@@ -1005,8 +1043,11 @@ const styles = StyleSheet.create({
   },
   followUpContainer: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 8,
     paddingBottom: 8,
+    backgroundColor: '#f8f9fa',
+    borderTopWidth: 1,
+    borderTopColor: '#e9ecef',
   },
   followUpTitle: {
     fontSize: 10,
