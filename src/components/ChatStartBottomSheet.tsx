@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 34, // Safe area
+    paddingBottom: 15, // Safe area 간격 줄임
     maxHeight: height * 0.53, // 화면 높이의 60%로 제한
     shadowColor: '#000',
     shadowOffset: {
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   // 연애 도사용 스타일
   loveExpertContent: {
     paddingHorizontal: 3,
-    paddingBottom: 20,
+    paddingBottom: 10,
   },
   loveExpertTitle: {
     fontSize: 16,
