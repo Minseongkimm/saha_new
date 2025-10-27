@@ -25,23 +25,27 @@ async function generateConversationSummary(
   existingSummary: string | null
 ): Promise<string> {
   const summaryPrompt = existingSummary
-    ? `다음은 기존 요약과 새로운 대화입니다. 두 내용을 합쳐서 업데이트된 요약을 3-4문장으로 만들어주세요.
-중요한 정보(날짜, 숫자, 조언, 키워드)는 반드시 유지하세요.
-
-기존 요약:
-${existingSummary}
+    ? `기존 키워드: ${existingSummary}
+새로운 대화에서 중요한 키워드만 추출해주세요:
+- 날짜/시기
+- 주제 (연애운, 직장운, 건강 등)
+- 조언 (구체적인 방법이나 시기)
+- 숫자 (점수, 나이, 시기 등)
 
 새로운 대화:
 ${messagesToSummarize.map((m, i) => `${i % 2 === 0 ? '사용자' : 'AI'}: ${m.content}`).join('\n')}
 
-업데이트된 요약:`
-    : `다음 대화의 핵심 내용을 3-4문장으로 요약해주세요.
-중요한 정보(날짜, 숫자, 조언, 키워드)를 포함하세요.
+업데이트된 키워드:`
+    : `다음 대화에서 중요한 키워드만 추출해주세요:
+- 날짜/시기
+- 주제 (연애운, 직장운, 건강 등)
+- 조언 (구체적인 방법이나 시기)
+- 숫자 (점수, 나이, 시기 등)
 
 대화:
 ${messagesToSummarize.map((m, i) => `${i % 2 === 0 ? '사용자' : 'AI'}: ${m.content}`).join('\n')}
 
-요약:`;
+키워드:`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -53,12 +57,12 @@ ${messagesToSummarize.map((m, i) => `${i % 2 === 0 ? '사용자' : 'AI'}: ${m.co
       model: 'gpt-4o-mini', // 요약은 저렴한 모델 사용
       messages: [{ role: 'user', content: summaryPrompt }],
       temperature: 0.3,
-      max_tokens: 300
+      max_tokens: 200 // 키워드 추출용 (충분한 길이)
     }),
   });
 
   if (!response.ok) {
-    log('error', 'Failed to generate summary');
+    log('error', '요약 생성 실패');
     return existingSummary || '';
   }
 
@@ -179,9 +183,9 @@ Deno.serve(async (req: Request) => {
       try {
         const messagesSinceLastSummary = currentMessageCount - (chatRoom?.last_summary_message_count || 0);
         
-        // 10개 메시지마다 요약 업데이트
-        if (messagesSinceLastSummary >= 10) {
-          log('info', `Updating summary (${messagesSinceLastSummary} messages since last summary)`);
+        // 6개 메시지마다 요약 업데이트
+        if (messagesSinceLastSummary >= 6) {
+          log('info', `요약 업데이트 중 (마지막 요약 이후 ${messagesSinceLastSummary}개 메시지)`);
           
           // 요약할 메시지 범위: 마지막 요약 이후 ~ 최근 5개 전까지
           const startIndex = chatRoom?.last_summary_message_count || 0;
@@ -217,11 +221,11 @@ Deno.serve(async (req: Request) => {
               })
               .eq('id', roomId);
             
-            log('info', 'Summary updated successfully');
+            log('info', '요약 업데이트 완료');
           }
         }
       } catch (summaryError) {
-        log('error', 'Failed to update summary (non-critical)', summaryError);
+        log('error', '요약 업데이트 실패 (비중요)', summaryError);
         // 요약 실패해도 응답은 정상 진행
       }
     })();

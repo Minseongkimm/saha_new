@@ -1,3 +1,7 @@
+/**
+ * ChatRoomScreen - 채팅방 메인 화면
+ * 채팅방의 전체 레이아웃과 컴포넌트들을 조합하여 구성
+ */
 import React, { useEffect } from 'react';
 import {
   View,
@@ -9,13 +13,13 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { Colors } from '../constants/colors';
-import { useChatRoom } from './ChatRoomScreen/hooks/useChatRoom';
-import { useMessageActions } from './ChatRoomScreen/hooks/useMessageActions';
-import MessageList from './ChatRoomScreen/components/MessageList';
-import MessageInput from './ChatRoomScreen/components/MessageInput';
-import InitialQuestions from './ChatRoomScreen/components/InitialQuestions';
-import FollowUpQuestions from './ChatRoomScreen/components/FollowUpQuestions';
+import { Colors } from '../../constants/colors';
+import { useChatRoom } from './hooks/useChatRoom';
+import { useMessageActions } from './hooks/useMessageActions';
+import MessageList from './components/MessageList';
+import MessageInput from './components/MessageInput';
+import InitialQuestions from './components/InitialQuestions';
+import FollowUpQuestions from './components/FollowUpQuestions';
 
 interface ChatRoomScreenProps {
   navigation: any;
@@ -23,7 +27,7 @@ interface ChatRoomScreenProps {
 }
 
 const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
-  const { roomId, expert } = route.params;
+  const { roomId, expert, partnerData } = route.params;
 
   // 커스텀 훅들
   const {
@@ -39,6 +43,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
 
   const {
     isAiResponding,
+    hasNewMessageThisSession,
     sendMessage,
     sendMessageWithText
   } = useMessageActions({

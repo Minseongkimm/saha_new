@@ -20,6 +20,7 @@ import { Expert } from '../types/expert';
 import { getExpertImage } from '../utils/getExpertImage';
 import { useNavigation } from '@react-navigation/native';
 import { getChatListCache, setChatListCache, isChatListFresh, consumeChatListNeedsRefresh } from '../utils/chatListCache';
+import { removeBoldMarkup } from '../utils/removeBoldMarkup';
 
 interface ChatListScreenProps {
   navigation: any;
@@ -273,7 +274,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
         </View>
         <View style={styles.chatFooter}>
           <Text style={styles.lastMessage} numberOfLines={1}>
-            {item.lastMessage}
+            {removeBoldMarkup(item.lastMessage)}
           </Text>
           <View style={styles.chatFooterRight}>
             {item.unreadCount && item.unreadCount > 0 && (
