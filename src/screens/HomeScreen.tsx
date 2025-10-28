@@ -11,10 +11,12 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import ExpertCard from '../components/ExpertCard';
 import SectionHeader from '../components/SectionHeader';
 import CategoryChipStyle from '../components/CategoryChipStyle';
 import CategoryExpertSection from '../components/CategoryExpertSection';
+import BannerModal from '../components/BannerModal';
 import { Colors } from '../constants/colors';
 import { supabase } from '../utils/supabaseClient';
 import { Expert, EXPERT_CATEGORIES } from '../types/expert';
@@ -30,6 +32,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [showCacheInfo, setShowCacheInfo] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('comprehensive');
+  const [showBannerModal, setShowBannerModal] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const categoryRefs = useRef<{ [key: string]: View | null }>({});
 
@@ -46,7 +49,27 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       }
     }
     fetchExperts();
+    
+    // 앱 시작 시 배너 모달 표시 확인
+    checkAndShowBannerModal();
   }, []);
+
+  const checkAndShowBannerModal = async () => {
+    try {
+      // 오늘 하루동안 닫기 상태 확인
+      const closedDate = await AsyncStorage.getItem('banner_closed_date');
+      const today = new Date().toDateString();
+      
+      if (closedDate !== today) {
+        // 오늘 닫지 않았으면 모달 표시
+        setTimeout(() => {
+          setShowBannerModal(true);
+        }, 500); // 0.5초 후에 모달 표시
+      }
+    } catch (error) {
+      console.error('Error checking banner close date:', error);
+    }
+  };
 
   const fetchExperts = async () => {
     try {
@@ -74,6 +97,15 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
 
   const handleExpertPress = (expert: Expert) => {
     navigation.navigate('ExpertDetail', { expertId: expert.id });
+  };
+
+  const handleBannerPress = () => {
+    // 배너 클릭 시 BannerDetailScreen으로 직접 이동
+    navigation.navigate('BannerDetail');
+  };
+
+  const handleCloseBannerModal = () => {
+    setShowBannerModal(false);
   };
 
   // 카테고리 선택 핸들러
@@ -112,7 +144,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         {/* 배너 섹션 */}
         <TouchableOpacity 
           style={styles.bannerSection} 
-          onPress={() => navigation.navigate('BannerDetail')}
+          onPress={handleBannerPress}
           activeOpacity={0.9}
         >
           <Image
@@ -215,6 +247,13 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           </View>
         </View>
       </ScrollView>
+      
+      {/* 배너 모달 */}
+      <BannerModal 
+        visible={showBannerModal}
+        onClose={handleCloseBannerModal}
+        navigation={navigation}
+      />
     </SafeAreaView>
   );
 };

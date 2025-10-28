@@ -6,8 +6,8 @@ import {
   Image,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../constants/colors';
 import CustomHeader from '../components/CustomHeader';
 
@@ -16,57 +16,100 @@ interface BannerDetailScreenProps {
 }
 
 const BannerDetailScreen: React.FC<BannerDetailScreenProps> = ({ navigation }) => {
+  const handleClose = () => {
+    navigation.goBack();
+  };
+
+  const handleStart = () => {
+    navigation.navigate('MainTabs');
+  };
+
+
   return (
     <View style={styles.container}>
-            {/* 커스텀 헤더 */}
+      {/* 커스텀 헤더 */}
       <CustomHeader
-        showBackButton={true}
-        onBackPress={() => navigation.goBack()}
-        showLogo={true}
+        title="이용가이드"
+        onBackPress={handleClose}
       />
 
       <ScrollView style={styles.scrollView}>
-
-        {/* 배너 이미지 */}
-        <View style={styles.bannerContainer}>
+        {/* 사바세계 이미지 */}
+        <View style={styles.imageContainer}>
           <Image
-            source={require('../../assets/banner/home_banner2.jpg')}
-            style={styles.bannerImage}
+            source={require('../../assets/guide/saha_world.jpg')}
+            style={styles.worldImage}
             resizeMode="cover"
           />
         </View>
 
         {/* 콘텐츠 */}
         <View style={styles.content}>
-          <Text style={styles.title}>사하에 오신 것을 환영합니다</Text>
-          <Text style={styles.subtitle}>새로운 경험을 시작해보세요</Text>
-          
-          <View style={styles.descriptionContainer}>
-            <Text style={styles.description}>
-              사하는 전통 사주와 현대 기술을 결합한 혁신적인 플랫폼입니다. 
-              경험 많은 사주 도사들과 함께 당신의 운명을 탐구하고, 
-              인생의 방향을 찾아보세요.
-            </Text>
-          </View>
-
-          <View style={styles.featureContainer}>
-            <Text style={styles.featureTitle}>주요 특징</Text>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureIcon}>🔮</Text>
-              <Text style={styles.featureText}>전문 사주 도사 상담</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureIcon}>📱</Text>
-              <Text style={styles.featureText}>편리한 모바일 서비스</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Text style={styles.featureIcon}>🎯</Text>
-              <Text style={styles.featureText}>개인 맞춤형 운세 분석</Text>
+        <View style={styles.howItWorksContainer}>
+            <Text style={styles.sectionTitle}>사바세계란?</Text>
+            
+            <View style={styles.processItem}>
+              <Text style={styles.processText}>
+                사바세계는 괴로움도 기쁨도 함께 품은 세상이란 뜻이에요.
+              </Text>
+              <Text style={styles.processText}>
+                저는 그 속에서 <Text style={styles.boldText}>당신 스스로를 이해하도록 돕는 친구</Text>입니다.
+              </Text>
             </View>
           </View>
 
-          <TouchableOpacity style={styles.startButton}>
-            <Text style={styles.startButtonText}>지금 시작하기</Text>
+          <View style={styles.howItWorksContainer}>
+            <Text style={styles.sectionTitle}>사바는 이렇게 작동합니다</Text>
+            
+            <View style={styles.processItem}>
+                <Text style={styles.processText}>
+                명리학을 기반으로 분석된 사주데이터로 AI가 인생과 성향 그리고 앞으로의 흐름을 대화로 전합니다.
+              </Text>
+            <View style={styles.processItem}>
+              <Text style={styles.processText}>
+                결과보다 중요한 건 <Text style={styles.boldText}>당신 자신을 이해하는 과정</Text>입니다.
+              </Text>
+            </View>
+            </View>
+          </View>
+
+          <View style={styles.messageContainer}>
+            <Text style={styles.sectionTitle}>사바가 당신에게 전하고 싶은 것</Text>
+            
+            <View style={styles.processItem}>
+              <Text style={styles.processText}>
+              사바는 당신이 어떤 사람인지 지금 어떤 흐름 속에 있는지를 알려주는 <Text style={styles.boldText}>지도입니다.</Text>
+              </Text>
+              <View style={styles.processItem}>
+                <Text style={styles.processText}>
+                  운명을 예언하기보다 <Text style={styles.boldText}>이해하고 활용하는 법을</Text> 알려드립니다.
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.messageContainer}>
+            <Text style={styles.sectionTitle}>사바 활용법</Text>
+              <View style={styles.processItem}>
+                <Text style={styles.processText}>
+                  연애,일,인생 등 원하는 주제를 선택해 도사와 대화하세요.
+                </Text>
+                <Text style={styles.processText}>
+                  <Text style={styles.boldText}>당신의 흐름을 함께 읽고 방향을 제안</Text>합니다.
+                </Text>
+              </View>
+          </View>
+
+          <View style={styles.sectionImageContainer}>
+            <Image
+              source={require('../../assets/guide/conversation_example.png')}
+              style={styles.sectionImage}
+              resizeMode="cover"
+            />
+        </View>
+
+          <TouchableOpacity style={styles.startButton} onPress={handleStart}>
+            <Text style={styles.startButtonText}>사바세계 탐험하기</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -77,87 +120,69 @@ const BannerDetailScreen: React.FC<BannerDetailScreenProps> = ({ navigation }) =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'white',
   },
   scrollView: {
     flex: 1,
+    backgroundColor: 'white',
   },
-
-
-  bannerContainer: {
+  imageContainer: {
     height: 200,
-    margin: 15,
-    borderRadius: 15,
+    marginHorizontal: 15,
     overflow: 'hidden',
+    borderRadius: 12,
+    marginTop: 2,
   },
-  bannerImage: {
+  worldImage: {
+    width: '100%',
+    height: '100%',
+  },
+  sectionImageContainer: {
+    height: 660,
+    marginHorizontal: 20,
+    marginTop: 0,
+    marginBottom: 15,
+    overflow: 'hidden',
+    borderRadius: 12,
+    alignSelf: 'center',
+    width: '95%',
+  },
+  sectionImage: {
     width: '100%',
     height: '100%',
   },
   content: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 32,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    textAlign: 'center',
+  howItWorksContainer: {
     marginBottom: 10,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 30,
+  messageContainer: {
+    marginBottom: 10,
   },
-  descriptionContainer: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  description: {
-    fontSize: 16,
-    color: '#555',
-    lineHeight: 24,
-    textAlign: 'center',
-  },
-  featureContainer: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 12,
-    marginBottom: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  featureTitle: {
+  sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
+    fontWeight: '600',
+    color: '#000000',
+    marginBottom: 5,
+    textAlign: 'left',
   },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
+  processItem: {
+    marginBottom: 9,
+    paddingVertical: 2,
   },
-  featureIcon: {
-    fontSize: 24,
-    marginRight: 15,
+  processText: {
+    fontSize: 14,
+    color: '#000000',
+    lineHeight: 19,
+    fontWeight: '400',
+    textAlign: 'left',
   },
-  featureText: {
-    fontSize: 16,
-    color: '#555',
-    flex: 1,
+  boldText: {
+    fontWeight: '600',
+    color: Colors.primaryColor,
   },
   startButton: {
     backgroundColor: Colors.primaryColor,
@@ -168,7 +193,7 @@ const styles = StyleSheet.create({
   },
   startButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
   },
 });
