@@ -75,7 +75,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={19} color={Colors.primaryColor} />
+          <Icon name="arrow-back" size={19} color="#333" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{expert.title}</Text>
         <View style={styles.placeholder} />

@@ -76,7 +76,8 @@ function transformToSSEWithTokenTracking(
   supabase: any,
   roomId: string,
   model: string,
-  openaiMessages: OpenAIMessage[]
+  openaiMessages: OpenAIMessage[],
+  currentMessageCount: number
 ): ReadableStream {
   const reader = openaiStream.getReader();
   const decoder = new TextDecoder();
@@ -107,13 +108,14 @@ function transformToSSEWithTokenTracking(
 
               await updateTokenUsage(supabase, roomId, estimatedUsage, model);
 
-              // last_message, last_message_at 갱신
+              // last_message, last_message_at, total_message_count 갱신
               const preview = responseText.length > 40 ? responseText.slice(0, 40) : responseText;
               await supabase
                 .from('chat_rooms')
                 .update({
                   last_message: preview,
                   last_message_at: new Date().toISOString(),
+                  total_message_count: currentMessageCount
                 })
                 .eq('id', roomId);
             } catch (estimationError) {
@@ -172,27 +174,32 @@ async function generateConversationSummary(
   existingSummary: string | null
 ): Promise<string> {
   const summaryPrompt = existingSummary
-    ? `기존 키워드: ${existingSummary}
-새로운 대화에서 중요한 키워드만 추출해주세요:
-- 날짜/시기
-- 주제 (연애운, 직장운, 건강 등)
-- 조언 (구체적인 방법이나 시기)
-- 숫자 (점수, 나이, 시기 등)
+    ? `기존 대화 요약: ${existingSummary}
+
+새로운 대화 내용을 분석하여 기존 요약에 추가하거나 업데이트해주세요:
 
 새로운 대화:
 ${messagesToSummarize.map((m, i) => `${i % 2 === 0 ? '사용자' : 'AI'}: ${m.content}`).join('\n')}
 
-업데이트된 키워드:`
-    : `다음 대화에서 중요한 키워드만 추출해주세요:
-- 날짜/시기
-- 주제 (연애운, 직장운, 건강 등)
-- 조언 (구체적인 방법이나 시기)
-- 숫자 (점수, 나이, 시기 등)
+다음 형식으로 요약해주세요:
+- 주요 주제: 연애운, 직장운, 건강 등
+- 구체적인 조언: 도사가 제시한 방법이나 시기
+- 중요한 날짜/시기: 언급된 특정 날짜나 시기
+- 사용자 상황: 사용자가 언급한 개인적인 상황
+
+업데이트된 요약:`
+    : `다음 대화를 요약해주세요:
 
 대화:
 ${messagesToSummarize.map((m, i) => `${i % 2 === 0 ? '사용자' : 'AI'}: ${m.content}`).join('\n')}
 
-키워드:`;
+다음 형식으로 요약해주세요:
+- 주요 주제: 연애운, 직장운, 건강 등
+- 구체적인 조언: 도사가 제시한 방법이나 시기
+- 중요한 날짜/시기: 언급된 특정 날짜나 시기
+- 사용자 상황: 사용자가 언급한 개인적인 상황
+
+요약:`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -245,17 +252,12 @@ Deno.serve(async (req: Request) => {
     // 1. 채팅방 정보 및 요약 조회
     const { data: chatRoom } = await supabase
       .from('chat_rooms')
-      .select('conversation_summary, last_summary_message_count')
+      .select('conversation_summary, last_summary_message_count, total_message_count')
       .eq('id', roomId)
       .single();
 
-    // 2. 전체 메시지 수 조회
-    const { count: totalMessageCount } = await supabase
-      .from('chat_messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('chat_room_id', roomId);
-
-    const currentMessageCount = (totalMessageCount || 0) + 1; // 지금 보내는 메시지 포함
+    // 2. 현재 메시지 수 계산 (DB에서 직접 조회)
+    const currentMessageCount = (chatRoom?.total_message_count || 0) + 1; // 지금 보내는 메시지 포함
 
     // 전문가 정보 조회 (role, tone 등을 위해)
     const { data: expertInfo } = await supabase
@@ -328,7 +330,8 @@ Deno.serve(async (req: Request) => {
       supabase, 
       roomId, 
       AI_CONFIG.CHAT_MODEL,
-      openaiMessages
+      openaiMessages,
+      currentMessageCount
     );
 
     // 4. 응답 후 요약 업데이트 (백그라운드 처리)
