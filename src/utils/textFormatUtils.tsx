@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text } from 'react-native';
 import { Colors } from '../constants/colors';
+import { removeCommasFromMessage } from './removeCommas';
 
 /**
  * **굵은 글씨** 마크다운을 파란색 볼드 텍스트로 변환
@@ -13,8 +14,11 @@ export const formatBoldText = (text: string | undefined | null): React.ReactNode
     return '해당 내용을 불러올 수 없습니다.';
   }
   
+  // 먼저 쉼표를 제거
+  const textWithoutCommas = removeCommasFromMessage(text);
+  
   // **굵은 글씨** 처리
-  return text.split(/(\*\*.*?\*\*)/).map((part: string, index: number) => {
+  return textWithoutCommas.split(/(\*\*.*?\*\*)/).map((part: string, index: number) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
         <Text 
@@ -43,7 +47,10 @@ export const removeBoldMarks = (text: string | undefined | null): string => {
     return '';
   }
   
+  // 먼저 쉼표를 제거
+  const textWithoutCommas = removeCommasFromMessage(text);
+  
   // **마크 제거
-  return text.replace(/\*\*/g, '');
+  return textWithoutCommas.replace(/\*\*/g, '');
 };
 

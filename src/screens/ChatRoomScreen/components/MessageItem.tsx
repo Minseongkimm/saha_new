@@ -6,6 +6,7 @@ import React, { memo, useMemo } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { Colors } from '../../../constants/colors';
 import { ChatMessage } from '../../../types/chat';
+import { removeCommasFromMessage } from '../../../utils/removeCommas';
 
 interface MessageItemProps {
   item: ChatMessage;
@@ -17,7 +18,10 @@ const MessageItem: React.FC<MessageItemProps> = memo(({ item, expertImage, exper
   const formattedText = useMemo(() => {
     if (!item.message) return '';
     
-    const parts = item.message.split(/(\*\*.*?\*\*)/);
+    // 먼저 쉼표를 제거
+    const messageWithoutCommas = removeCommasFromMessage(item.message);
+    
+    const parts = messageWithoutCommas.split(/(\*\*.*?\*\*)/);
     
     return (
       <Text>
