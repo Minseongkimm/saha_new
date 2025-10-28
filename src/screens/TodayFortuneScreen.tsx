@@ -627,8 +627,8 @@ const styles = StyleSheet.create({
   },
   analysisLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
+    fontWeight: '700',
+    color: '#000000',
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
   },
   analysisDescription: {
     fontSize: 14,
-    color: '#666',
+    color: '#000000',
     lineHeight: 20,
   },
   avoidSection: {
