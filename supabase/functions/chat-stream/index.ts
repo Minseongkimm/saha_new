@@ -54,10 +54,10 @@ ${messagesToSummarize.map((m, i) => `${i % 2 === 0 ? '사용자' : 'AI'}: ${m.co
       'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini', // 요약은 저렴한 모델 사용
+      model: AI_CONFIG.SUMMARY_MODEL,
       messages: [{ role: 'user', content: summaryPrompt }],
-      temperature: 0.3,
-      max_tokens: 200 // 키워드 추출용 (충분한 길이)
+      temperature: AI_CONFIG.SUMMARY_TEMPERATURE,
+      max_tokens: AI_CONFIG.SUMMARY_MAX_TOKENS
     }),
   });
 

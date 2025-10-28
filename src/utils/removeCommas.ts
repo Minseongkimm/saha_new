@@ -9,14 +9,18 @@
  */
 export function removeCommas(text: string): string {
   if (!text) return text;
-
-  return text
-    // 쉼표를 그냥 제거
+  const normalizedNewlines: string = text.replace(/\r\n/g, '\n');
+  return normalizedNewlines
+    // 쉼표 제거
     .replace(/,/g, '')
-    // 연속된 공백을 하나로 정리
-    .replace(/\s+/g, ' ')
-    // 문장 시작과 끝 공백 제거
-    .trim();
+    // 개행은 보존하고, 연속된 공백/탭만 하나로 정리
+    .replace(/[ \t\f\v]+/g, ' ')
+    // 개행 주변의 여백 정리
+    .replace(/[ ]+\n/g, '\n')
+    .replace(/\n[ ]+/g, '\n')
+    // 시작/끝 공백 제거 (개행은 유지)
+    .replace(/^\s+/g, '')
+    .replace(/\s+$/g, '');
 }
 
 /**

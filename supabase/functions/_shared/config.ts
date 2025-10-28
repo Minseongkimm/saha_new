@@ -16,7 +16,12 @@ export const AI_CONFIG = {
   TOP_P: 1.0,
   FREQUENCY_PENALTY: 0.0,
   PRESENCE_PENALTY: 0.0,
-  MAX_TOKENS: 4000,
+  MAX_TOKENS: 500,
+
+  // 요약 관련 AI 설정
+  SUMMARY_MODEL: 'gpt-4o-mini',
+  SUMMARY_TEMPERATURE: 0.3,
+  SUMMARY_MAX_TOKENS: 200,
 };
 
 export function getEnvVar(key: string, required: boolean = true): string {
