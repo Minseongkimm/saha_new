@@ -8,12 +8,159 @@ import { createErrorResponse, validateRequest, validateEnvVars, StreamingError }
 import { buildChatPrompt } from '../_shared/prompts/index.ts';
 import { AI_CONFIG, getEnvVar, log } from '../_shared/config.ts';
 import { OpenAIMessage } from '../_shared/types.ts';
+import { calculateTokenCost, formatTokenUsage } from '../_shared/token-calculator.ts';
 
 interface ChatStreamRequest {
   roomId: string;
   messages: OpenAIMessage[];
   sajuData: Record<string, unknown>;
   expertCategory: string;
+}
+
+/**
+ * 토큰 사용량 업데이트
+ */
+async function updateTokenUsage(
+  supabase: any,
+  roomId: string,
+  usage: any,
+  model: string
+): Promise<void> {
+  try {
+    const tokenInfo = formatTokenUsage(usage, model);
+    
+    // 현재 토큰 사용량 조회
+    const { data: currentRoom } = await supabase
+      .from('chat_rooms')
+      .select('total_prompt_tokens, total_completion_tokens, total_tokens, total_cost_usd')
+      .eq('id', roomId)
+      .single();
+    
+    if (currentRoom) {
+      // 누적 업데이트
+      const newPromptTokens = (currentRoom.total_prompt_tokens || 0) + tokenInfo.promptTokens;
+      const newCompletionTokens = (currentRoom.total_completion_tokens || 0) + tokenInfo.completionTokens;
+      const newTotalTokens = (currentRoom.total_tokens || 0) + tokenInfo.totalTokens;
+      const newTotalCost = (currentRoom.total_cost_usd || 0) + tokenInfo.costUsd;
+      
+      await supabase
+        .from('chat_rooms')
+        .update({
+          total_prompt_tokens: newPromptTokens,
+          total_completion_tokens: newCompletionTokens,
+          total_tokens: newTotalTokens,
+          total_cost_usd: newTotalCost,
+          last_token_update: new Date().toISOString()
+        })
+        .eq('id', roomId);
+      
+      log('info', `토큰 사용량 업데이트 완료`, {
+        roomId,
+        promptTokens: tokenInfo.promptTokens,
+        completionTokens: tokenInfo.completionTokens,
+        totalTokens: tokenInfo.totalTokens,
+        cost: tokenInfo.costUsd,
+        totalCost: newTotalCost
+      });
+    }
+  } catch (error) {
+    log('error', '토큰 사용량 업데이트 실패', error);
+  }
+}
+
+/**
+ * 토큰 추적이 포함된 SSE 변환 함수
+ */
+function transformToSSEWithTokenTracking(
+  openaiStream: ReadableStream,
+  supabase: any,
+  roomId: string,
+  model: string,
+  openaiMessages: OpenAIMessage[]
+): ReadableStream {
+  const reader = openaiStream.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+
+  return new ReadableStream({
+    async start(controller) {
+      let buffer = '';
+      let responseText = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            // 스트리밍 완료 후 텍스트 길이 기반으로 토큰 추정 및 last_message 갱신
+            try {
+              // 프롬프트 텍스트 길이 계산
+              const promptText = openaiMessages.map(m => m.content).join(' ');
+              const estimatedPromptTokens = Math.ceil(promptText.length / 4);
+              const estimatedCompletionTokens = Math.ceil(responseText.length / 4);
+
+              const estimatedUsage = {
+                prompt_tokens: estimatedPromptTokens,
+                completion_tokens: estimatedCompletionTokens,
+                total_tokens: estimatedPromptTokens + estimatedCompletionTokens
+              };
+
+              await updateTokenUsage(supabase, roomId, estimatedUsage, model);
+
+              // last_message, last_message_at 갱신
+              const preview = responseText.length > 40 ? responseText.slice(0, 40) : responseText;
+              await supabase
+                .from('chat_rooms')
+                .update({
+                  last_message: preview,
+                  last_message_at: new Date().toISOString(),
+                })
+                .eq('id', roomId);
+            } catch (estimationError) {
+              log('error', '토큰/마지막 메시지 갱신 실패', estimationError);
+            }
+            
+            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.close();
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmedLine = line.trim();
+            
+            if (!trimmedLine || trimmedLine === 'data: [DONE]') {
+              continue;
+            }
+
+            if (trimmedLine.startsWith('data: ')) {
+              // 응답 청크에서 delta.content 누적 (마지막 메시지 및 completion 토큰 계산용)
+              try {
+                const jsonData = JSON.parse(trimmedLine.slice(6));
+                const piece = jsonData?.choices?.[0]?.delta?.content
+                  ?? jsonData?.choices?.[0]?.message?.content
+                  ?? '';
+                if (piece) {
+                  responseText += piece as string;
+                }
+              } catch (_) {}
+              controller.enqueue(encoder.encode(trimmedLine + '\n\n'));
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Stream transformation error:', error);
+        controller.error(error);
+      }
+    },
+
+    cancel() {
+      reader.cancel();
+    },
+  });
 }
 
 /**
@@ -175,7 +322,14 @@ Deno.serve(async (req: Request) => {
       presencePenalty: AI_CONFIG.PRESENCE_PENALTY,
     });
     
-    const sseStream = transformToSSE(openaiStream);
+    // 스트리밍 완료 후 토큰 정보 추출을 위한 래퍼
+    const sseStream = transformToSSEWithTokenTracking(
+      openaiStream, 
+      supabase, 
+      roomId, 
+      AI_CONFIG.CHAT_MODEL,
+      openaiMessages
+    );
 
     // 4. 응답 후 요약 업데이트 (백그라운드 처리)
     // 비동기로 처리하여 응답 속도에 영향 없음

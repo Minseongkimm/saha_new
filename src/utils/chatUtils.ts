@@ -60,7 +60,7 @@ export const startChatWithExpert = async (
     // 2. 기존 채팅방 확인
     const { data: existingRoom } = await supabase
       .from('chat_rooms')
-      .select('id')
+      .select('id, expert_name')
       .eq('user_id', user.id)
       .eq('expert_id', expert.id)
       .single();
@@ -75,7 +75,8 @@ export const startChatWithExpert = async (
         .from('chat_rooms')
         .insert({
           user_id: user.id,
-          expert_id: expert.id
+          expert_id: expert.id,
+          expert_name: expert.name  // 도사 이름도 함께 저장
         })
         .select()
         .single();
