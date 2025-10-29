@@ -63,7 +63,7 @@ const BannerDetailScreen: React.FC<BannerDetailScreenProps> = ({ navigation }) =
             
             <View style={styles.processItem}>
                 <Text style={styles.processText}>
-                명리학을 기반으로 분석된 사주데이터로 AI가 인생과 성향 그리고 앞으로의 흐름을 대화로 전합니다.
+                명리학을 기반으로 분석된 사주데이터 기반 AI가 인생과 성향 그리고 앞으로의 흐름을 대화로 전합니다.
               </Text>
             <View style={styles.processItem}>
               <Text style={styles.processText}>

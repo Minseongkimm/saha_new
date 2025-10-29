@@ -18,6 +18,7 @@ import {
   getElementFromDayGan,
   koreanToHanja 
 } from '../constants/fiveElements';
+import ChargeBottomSheet from '../components/ChargeBottomSheet';
 
 interface MyInfoScreenProps {
   navigation: any;
@@ -28,6 +29,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
   const [userEmail, setUserEmail] = useState('');
   const [loading, setLoading] = useState(true);
   const [dayGan, setDayGan] = useState('水'); // 일간 오행
+  const [showChargeModal, setShowChargeModal] = useState(false);
 
 
   // 사용자 정보 로드
@@ -54,7 +56,10 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
       setUserName(name);
       setUserEmail(user.email || '');
 
-      // 사주 정보에서 일간 오행 가져오기
+      // 로딩 완료 (사주 정보는 선택사항)
+      setLoading(false);
+
+      // 백그라운드에서 사주 정보 조회
       const { data: birthData, error: birthError } = await supabase
         .from('birth_infos')
         .select('saju_data')
@@ -71,9 +76,14 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Error loading user info:', error);
-    } finally {
       setLoading(false);
     }
+  };
+
+  const handleChargeSelect = (amount: number) => {
+    setShowChargeModal(false);
+    // TODO: 충전 로직 구현
+    console.log(`충전 선택: ${amount} 상평통보`);
   };
 
   const handleLogout = () => {
@@ -118,23 +128,22 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
-          <View style={styles.profileImageContainer}>
-            <View style={[
-              styles.profileImage, 
-              { backgroundColor: getElementBackgroundColor(dayGan) }
-            ]}>
-              <Text style={[
-                styles.profileText, 
-                { color: getElementColor(dayGan) }
-              ]}>{dayGan}</Text>
-            </View>
+          <View style={[
+            styles.profileImage, 
+            { backgroundColor: getElementBackgroundColor(dayGan) }
+          ]}>
+            <Text style={{
+              fontSize: 36,
+              fontWeight: 'bold',
+              color: getElementColor(dayGan)
+            }}>{dayGan}</Text>
           </View>
           <Text style={styles.userName}>{userName}</Text>
           <Text style={styles.userEmail}>{userEmail}</Text>
         </View>
 
         {/* 결제 기능 임시 비활성화 */}
-        {/* <View style={styles.section}>
+        <View style={styles.section}>
           <Text style={styles.sectionTitle}>결제</Text>
           <View style={styles.paymentCard}>
             <View style={styles.balanceSection}>
@@ -147,15 +156,15 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
                 </View>
                 <Text style={styles.balanceAmount}>1,250</Text>
               </View>
-              <TouchableOpacity 
-                style={styles.chargeButton}
-                onPress={() => navigation.navigate('Charge')}
-              >
-                <Text style={styles.chargeButtonText}>상평통보 충전</Text>
+                <TouchableOpacity
+                  style={styles.chargeButton}
+                  onPress={() => setShowChargeModal(true)}
+                >
+                <Text style={styles.chargeButtonText}>충전</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </View> */}
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>계정 관리</Text>
@@ -188,17 +197,40 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => {}}>
+            <Text style={styles.menuText}>문의하기</Text>
+            <Text style={styles.arrowIcon}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.section}>
           <TouchableOpacity style={[styles.menuItem, styles.logoutButton]} onPress={handleLogout}>
             <Text style={[styles.menuText, styles.logoutText]}>로그아웃</Text>
             <Text style={styles.arrowIcon}>›</Text>
           </TouchableOpacity>
         </View>
+
+        <View style={styles.developerInfo}>
+          <Text style={styles.developerText}>© 2025 Saha App</Text>
+          <Text style={styles.developerText}>개발: Saha Team</Text>
+          <View style={styles.legalRow}>
+            <TouchableOpacity style={styles.legalLink} onPress={() => {}}>
+              <Text style={styles.legalText}>이용약관</Text>
+            </TouchableOpacity>
+            <Text style={styles.separator}>l</Text>
+            <TouchableOpacity style={styles.legalLink} onPress={() => {}}>
+              <Text style={styles.legalText}>개인정보처리방침</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
 
-      <View style={styles.developerInfo}>
-        <Text style={styles.developerText}>© 2025 Saha App</Text>
-        <Text style={styles.developerText}>개발자: Saha Team</Text>
-      </View>
+      {/* 충전 바텀시트 */}
+      <ChargeBottomSheet
+        visible={showChargeModal}
+        onClose={() => setShowChargeModal(false)}
+        onSelectCharge={handleChargeSelect}
+      />
     </SafeAreaView>
   );
 };
@@ -206,7 +238,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'white',
   },
   scrollView: {
     flex: 1,
@@ -217,26 +249,19 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     marginBottom: 0,
   },
-  profileImageContainer: {
-    position: 'relative',
-    marginBottom: 16,
-  },
   profileImage: {
     width: 80,
     height: 80,
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  profileText: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    marginBottom: 12,
   },
   chargeButton: {
     backgroundColor: Colors.primaryColor,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 15,
     paddingVertical: 10,
     borderRadius: 20,
   },
@@ -324,20 +349,40 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   logoutButton: {
-    borderBottomWidth: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
   logoutText: {
     color: '#ff4757',
   },
   developerInfo: {
-    alignItems: 'center',
-    paddingVertical: 30,
+    marginTop: 10,
+    alignItems: 'flex-start',
+    paddingVertical: 15,
     paddingHorizontal: 20,
+    backgroundColor: 'white',
+  },
+  legalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 5,
+  },
+  legalLink: {
+    marginRight: 8,
+  },
+  legalText: {
+    fontSize: 14,
+    color: '#999',
+  },
+  separator: {
+    fontSize: 14,
+    color: '#ccc',
+    marginRight: 8,
   },
   developerText: {
     fontSize: 14,
     color: '#999',
-    marginBottom: 4,
+    marginBottom: 1,
   },
   arrowIcon: {
     fontSize: 18,
