@@ -144,17 +144,17 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
 
         {/* 결제 기능 임시 비활성화 */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>결제</Text>
+          <Text style={styles.sectionTitle}>나의 사바</Text>
           <View style={styles.paymentCard}>
             <View style={styles.balanceSection}>
               <View style={styles.balanceLeft}>
                 <View style={styles.coinIcon}>
                   <Image 
-                    source={require('../../assets/money/sangpyeong.jpg')} 
+                    source={require('../../assets/money/saha_money.png')} 
                     style={styles.coinImage}
                   />
                 </View>
-                <Text style={styles.balanceAmount}>1,250</Text>
+                <Text style={styles.balanceAmount}>250</Text>
               </View>
                 <TouchableOpacity
                   style={styles.chargeButton}
@@ -290,22 +290,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   coinIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 20,
     backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 2,
-    paddingTop: 2,
+    marginRight: 10,
   },
   coinImage: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 25,
+    height: 25,
   },
   balanceAmount: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: 'black',
   },
