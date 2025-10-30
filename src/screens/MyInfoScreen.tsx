@@ -19,6 +19,7 @@ import {
   koreanToHanja 
 } from '../constants/fiveElements';
 import ChargeBottomSheet from '../components/ChargeBottomSheet';
+import { fetchUserBalance as fetchUserBalanceUtil, refreshBalance as refreshBalanceUtil } from '../utils/payments/balance';
 
 interface MyInfoScreenProps {
   navigation: any;
@@ -30,12 +31,50 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [dayGan, setDayGan] = useState('水'); // 일간 오행
   const [showChargeModal, setShowChargeModal] = useState(false);
+  const [currentBalance, setCurrentBalance] = useState<number>(0);
 
 
   // 사용자 정보 로드
   useEffect(() => {
     loadUserInfo();
   }, []);
+
+  const fetchUserProfile = async (userId: string) => {
+    // 프로필: 이름/이메일/사주 정보
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const name = user.user_metadata?.full_name ||
+                 user.user_metadata?.name ||
+                 user.user_metadata?.preferred_username ||
+                 user.user_metadata?.user_name ||
+                 user.email?.split('@')[0] ||
+                 '사용자';
+    setUserName(name);
+    setUserEmail(user.email || '');
+
+    // 사주 정보(비차단)
+    const { data: birthData } = await supabase
+      .from('birth_infos')
+      .select('saju_data')
+      .eq('user_id', userId)
+      .single();
+    if (birthData?.saju_data?.dayHangulGanji) {
+      const dayGanChar = birthData.saju_data.dayHangulGanji[0];
+      const dayGanHanja = koreanToHanja[dayGanChar as keyof typeof koreanToHanja] || '壬';
+      const element = getElementFromDayGan(dayGanHanja);
+      setDayGan(element);
+    }
+  };
+
+  const fetchUserBalance = async (userId: string) => {
+    const balance = await fetchUserBalanceUtil(userId);
+    setCurrentBalance(balance ?? 0);
+  };
+
+  const refreshBalance = async () => {
+    const balance = await refreshBalanceUtil();
+    if (balance !== null) setCurrentBalance(balance);
+  };
 
   const loadUserInfo = async () => {
     try {
@@ -45,35 +84,12 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
         return;
       }
 
-      // 카카오 메타데이터에서 이름 가져오기
-      const name = user.user_metadata?.full_name || 
-                   user.user_metadata?.name || 
-                   user.user_metadata?.preferred_username || 
-                   user.user_metadata?.user_name || 
-                   user.email?.split('@')[0] || 
-                   '사용자';
+      await Promise.all([
+        fetchUserProfile(user.id),
+        fetchUserBalance(user.id),
+      ]);
 
-      setUserName(name);
-      setUserEmail(user.email || '');
-
-      // 로딩 완료 (사주 정보는 선택사항)
       setLoading(false);
-
-      // 백그라운드에서 사주 정보 조회
-      const { data: birthData, error: birthError } = await supabase
-        .from('birth_infos')
-        .select('saju_data')
-        .eq('user_id', user.id)
-        .single();
-
-      if (birthData?.saju_data?.dayHangulGanji) {
-        // 일간 한글 간지에서 첫 글자 추출 (예: "임수" -> "임")
-        const dayGanChar = birthData.saju_data.dayHangulGanji[0];
-        // 한글을 한자로 변환
-        const dayGanHanja = koreanToHanja[dayGanChar as keyof typeof koreanToHanja] || '壬';
-        const element = getElementFromDayGan(dayGanHanja);
-        setDayGan(element);
-      }
     } catch (error) {
       console.error('Error loading user info:', error);
       setLoading(false);
@@ -154,7 +170,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
                     style={styles.coinImage}
                   />
                 </View>
-                <Text style={styles.balanceAmount}>250</Text>
+                <Text style={styles.balanceAmount}>{currentBalance}</Text>
               </View>
                 <TouchableOpacity
                   style={styles.chargeButton}
