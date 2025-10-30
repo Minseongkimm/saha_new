@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 34, // iPhone 하단 홈 인디케이터 고려
+    paddingBottom: 18,
     position: 'absolute',
     bottom: 0,
     left: 0,
