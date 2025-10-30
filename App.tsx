@@ -11,7 +11,7 @@ import React, { useEffect, useState } from 'react';
 import { StatusBar, useColorScheme, Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
-import { supabase } from './src/utils/supabaseClient';
+import { supabase } from './src/utils/database/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 
 function App() {

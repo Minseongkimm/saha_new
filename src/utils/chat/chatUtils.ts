@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase } from '../database/supabaseClient';
 import { markChatListNeedsRefresh } from './chatListCache';
 import { Alert } from 'react-native';
 

@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import { Expert } from '../types/expert';
 import { Colors } from '../constants/colors';
-import { getExpertImage } from '../utils/getExpertImage';
+import { getExpertImage } from '../utils/expert/getExpertImage';
 
 interface ExpertCardProps {
   expert: Expert;

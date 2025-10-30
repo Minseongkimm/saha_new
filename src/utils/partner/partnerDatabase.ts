@@ -1,6 +1,6 @@
-import { supabase } from './supabaseClient';
-import { PartnerBirthInfo } from '../types/partner';
-import { SajuResult } from './saju/ganji_local';
+import { supabase } from '../database/supabaseClient';
+import { PartnerBirthInfo } from '../../types/partner';
+import { SajuResult } from '../saju/ganji_local';
 import { 
   getPartnerListCache, 
   setPartnerListCache, 

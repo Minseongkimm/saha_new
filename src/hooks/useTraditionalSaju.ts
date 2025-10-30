@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../utils/supabaseClient';
-import { SajuCache } from '../utils/sajuCache';
+import { supabase } from '../utils/database/supabaseClient';
+import { SajuCache } from '../utils/saju/sajuCache';
 import { streamTraditionalSaju } from '../services/ai/edgeFunctionClient';
 import { useSajuData } from './useSajuData';
 import { useAnalysisData } from './useAnalysisData';

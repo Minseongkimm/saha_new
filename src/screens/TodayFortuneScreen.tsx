@@ -13,9 +13,9 @@ import CustomHeader from '../components/CustomHeader';
 import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
 import AIGuideSection from '../components/AIGuideSection';
 import BottomFixedButton from '../components/BottomFixedButton';
-import { startChatWithExpert, getExpertByCategory } from '../utils/chatUtils';
+import { startChatWithExpert, getExpertByCategory } from '../utils/chat/chatUtils';
 import { useTodayFortune } from '../hooks/useTodayFortune';
-import { formatBoldText, removeBoldMarks } from '../utils/textFormatUtils';
+import { formatBoldText, removeBoldMarks } from '../utils/text/textFormatUtils';
 import {
   getScoreColor,
   getScoreBarColor,
@@ -23,7 +23,7 @@ import {
   getScoreStatus,
   getCategoryScoreText,
   getCategoryScoreColor,
-} from '../utils/todayFortuneScoreUtils';
+} from '../utils/today-fortune/todayFortuneScoreUtils';
 
 interface TodayFortuneScreenProps {
   navigation: any;

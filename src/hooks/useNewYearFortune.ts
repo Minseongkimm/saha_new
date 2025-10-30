@@ -4,10 +4,10 @@
  */
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '../utils/database/supabaseClient';
 import newYearFortuneService, { NewYearFortuneData } from '../services/ai/newYearFortuneService';
 import { streamNewYearFortune } from '../services/ai/edgeFunctionClient';
-import { getCachedNewYearFortune, setCachedNewYearFortune, isCacheValid } from '../utils/newYearFortuneCache';
+import { getCachedNewYearFortune, setCachedNewYearFortune, isCacheValid } from '../utils/new-year-fortune/newYearFortuneCache';
 import { useSajuData } from './useSajuData';
 
 interface UseNewYearFortuneResult {

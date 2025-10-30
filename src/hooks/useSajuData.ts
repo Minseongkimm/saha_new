@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../utils/supabaseClient';
-import { SajuCache } from '../utils/sajuCache';
+import { supabase } from '../utils/database/supabaseClient';
+import { SajuCache } from '../utils/saju/sajuCache';
 import { SajuData } from '../types/streaming';
-import { formatSajuData } from '../utils/sajuDataUtils';
+import { formatSajuData } from '../utils/saju/sajuDataUtils';
 
 /**
  * 사주 데이터 로딩 훅

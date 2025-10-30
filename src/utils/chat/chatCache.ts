@@ -1,4 +1,4 @@
-import { ChatMessage } from '../types/chat';
+import { ChatMessage } from '../../types/chat';
 
 const roomIdToMessages: Map<string, ChatMessage[]> = new Map();
 

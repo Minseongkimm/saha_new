@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
-import { supabase } from '../utils/supabaseClient';
-import { TodayFortuneCache } from '../utils/todayFortuneCache';
+import { supabase } from '../utils/database/supabaseClient';
+import { TodayFortuneCache } from '../utils/today-fortune/todayFortuneCache';
 import { streamTodayFortune } from '../services/ai/edgeFunctionClient';
 import { useAnalysisData } from './useAnalysisData';
 import { TodayFortuneData } from '../types/streaming';
 import { useSajuData } from './useSajuData';
-import { todayFortuneCalculator, TodayFortuneResult } from '../utils/todayFortuneCalculator';
+import { todayFortuneCalculator, TodayFortuneResult } from '../utils/today-fortune/todayFortuneCalculator';
 
 /**
  * 오늘의 운세 데이터 및 스트리밍 관리 훅

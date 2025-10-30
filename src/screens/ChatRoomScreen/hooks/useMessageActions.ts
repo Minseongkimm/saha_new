@@ -4,13 +4,13 @@
  */
 import { useState, useRef } from 'react';
 import { Alert } from 'react-native';
-import { supabase } from '../../../utils/supabaseClient';
+import { supabase } from '../../../utils/database/supabaseClient';
 import { streamChat } from '../../../services/ai/edgeFunctionClient';
-import { updateChatListPreview } from '../../../utils/chatListCache';
+import { updateChatListPreview } from '../../../utils/chat/chatListCache';
 import { extractFollowUpQuestions, removeFollowUpQuestionsFromText } from '../utils/messageUtils';
 import { ChatMessage } from '../../../types/chat';
 import { BirthInfo } from '../../../services/ai';
-import { removeBoldMarkup } from '../../../utils/removeBoldMarkup';
+import { removeBoldMarkup } from '../../../utils/text/removeBoldMarkup';
 
 interface UseMessageActionsProps {
   roomId: string;

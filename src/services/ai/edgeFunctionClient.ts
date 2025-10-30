@@ -2,7 +2,7 @@
  * Supabase Edge Function 클라이언트 (React Native용)
  */
 
-import { supabase } from '../../utils/supabaseClient';
+import { supabase } from '../../utils/database/supabaseClient';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../config/env';
 
 const EDGE_FUNCTIONS = {

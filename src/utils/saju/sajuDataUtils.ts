@@ -1,4 +1,4 @@
-import { SajuData } from '../types/streaming';
+import { SajuData } from '../../types/streaming';
 
 /**
  * DB에서 가져온 birth_infos 데이터를 SajuData 형태로 변환

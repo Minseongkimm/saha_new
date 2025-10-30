@@ -3,8 +3,8 @@
  * 사주 정보와 오늘 날짜를 활용하여 운세를 계산합니다.
  */
 
-import { SajuUtils } from './saju-calculator/utils/SajuUtils';
-import { FiveElement } from './saju-calculator/types';
+import { SajuUtils } from '../saju-calculator/utils/SajuUtils';
+import { FiveElement } from '../saju-calculator/types';
 
 export interface UserSajuData {
   yearGanji: string;

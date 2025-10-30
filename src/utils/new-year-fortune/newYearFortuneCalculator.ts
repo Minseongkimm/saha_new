@@ -3,7 +3,7 @@
  * 사용자의 사주와 해당 연도의 간지를 분석하여 신년운세를 계산합니다.
  */
 
-import { SajuUtils } from './saju-calculator/utils/SajuUtils';
+import { SajuUtils } from '../saju-calculator/utils/SajuUtils';
 
 /**
  * 신년운세 결과 인터페이스

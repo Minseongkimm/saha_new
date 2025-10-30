@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '../utils/database/supabaseClient';
 
 /**
  * 분석 데이터 관리 훅 (정통사주, 오늘의 운세 공통)

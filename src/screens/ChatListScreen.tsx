@@ -15,12 +15,12 @@ import {
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '../utils/database/supabaseClient';
 import { Expert } from '../types/expert';
-import { getExpertImage } from '../utils/getExpertImage';
+import { getExpertImage } from '../utils/expert/getExpertImage';
 import { useNavigation } from '@react-navigation/native';
-import { getChatListCache, setChatListCache, isChatListFresh, consumeChatListNeedsRefresh } from '../utils/chatListCache';
-import { removeBoldMarkup } from '../utils/removeBoldMarkup';
+import { getChatListCache, setChatListCache, isChatListFresh, consumeChatListNeedsRefresh } from '../utils/chat/chatListCache';
+import { removeBoldMarkup } from '../utils/text/removeBoldMarkup';
 
 interface ChatListScreenProps {
   navigation: any;

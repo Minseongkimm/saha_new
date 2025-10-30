@@ -16,7 +16,7 @@ import SajuAnalysis from '../components/SajuAnalysis';
 import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
 import AIGuideSection from '../components/AIGuideSection';
 import BottomFixedButton from '../components/BottomFixedButton';
-import { startChatWithExpert, getExpertByCategory } from '../utils/chatUtils';
+import { startChatWithExpert, getExpertByCategory } from '../utils/chat/chatUtils';
 import { useTraditionalSaju } from '../hooks/useTraditionalSaju';
 
 

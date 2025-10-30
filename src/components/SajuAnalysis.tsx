@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Colors } from '../constants/colors';
-import { formatBoldText } from '../utils/textFormatUtils';
+import { formatBoldText } from '../utils/text/textFormatUtils';
 
 interface SajuAnalysisProps {
   analysis: {

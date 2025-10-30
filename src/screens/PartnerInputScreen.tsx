@@ -14,13 +14,13 @@ import { Colors } from '../constants/colors';
 import CustomHeader from '../components/CustomHeader';
 import BirthInputForm from '../components/BirthInputForm';
 import { PartnerBirthInfo } from '../types/partner';
-import { startChatWithExpert } from '../utils/chatUtils';
+import { startChatWithExpert } from '../utils/chat/chatUtils';
 import { RootStackParamList } from '../types/navigation';
-import { calculatePartnerSaju, convertSajuResultToSajuInfo } from '../utils/partnerSajuCalculator';
-import { savePartnerToDatabase } from '../utils/partnerDatabase';
+import { calculatePartnerSaju, convertSajuResultToSajuInfo } from '../utils/partner/partnerSajuCalculator';
+import { savePartnerToDatabase } from '../utils/partner/partnerDatabase';
 import { SajuCalculator } from '../utils/saju-calculator/core/SajuCalculator';
 import { SajuInfo } from '../utils/saju-calculator/types';
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '../utils/database/supabaseClient';
 import { calculateSaju, SajuResult } from '../utils/saju/ganji_local';
 
 interface PartnerInputScreenProps {

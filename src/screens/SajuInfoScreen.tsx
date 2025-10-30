@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Colors } from '../constants/colors';
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '../utils/database/supabaseClient';
 import { calculateSaju } from '../utils/saju/ganji_local';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 

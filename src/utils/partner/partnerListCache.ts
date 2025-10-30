@@ -1,4 +1,4 @@
-import { PartnerSaju } from '../types/partner';
+import { PartnerSaju } from '../../types/partner';
 
 let cachedPartners: PartnerSaju[] | null = null;
 let cachedAtMs: number | null = null;

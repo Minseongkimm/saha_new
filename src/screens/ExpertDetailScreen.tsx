@@ -14,16 +14,16 @@ import { Colors } from '../constants/colors';
 import CustomHeader from '../components/CustomHeader';
 import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
 import BottomFixedButton from '../components/BottomFixedButton';
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '../utils/database/supabaseClient';
 import { Expert } from '../types/expert';
 
-import { getExpertImage } from '../utils/getExpertImage';
-import { getExpertListCache } from '../utils/expertListCache';
-import { startChatWithExpert } from '../utils/chatUtils';
+import { getExpertImage } from '../utils/expert/getExpertImage';
+import { getExpertListCache } from '../utils/expert/expertListCache';
+import { startChatWithExpert } from '../utils/chat/chatUtils';
 import BirthInputForm, { PartnerBirthInfo } from '../components/BirthInputForm';
 import { RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from '../types/partner';
-import { getPartnerList, deletePartnerFromDatabase } from '../utils/partnerDatabase';
-import { getPartnerListCache, isPartnerListFresh } from '../utils/partnerListCache';
+import { getPartnerList, deletePartnerFromDatabase } from '../utils/partner/partnerDatabase';
+import { getPartnerListCache, isPartnerListFresh } from '../utils/partner/partnerListCache';
 
 interface ExpertDetailScreenProps {
   navigation: any;

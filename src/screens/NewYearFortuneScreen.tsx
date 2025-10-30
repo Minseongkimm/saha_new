@@ -16,9 +16,9 @@ import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
 import AIGuideSection from '../components/AIGuideSection';
 import BottomFixedButton from '../components/BottomFixedButton';
 import SimpleYearInteraction from '../components/SimpleYearInteraction';
-import { startChatWithExpert, getExpertByCategory } from '../utils/chatUtils';
+import { startChatWithExpert, getExpertByCategory } from '../utils/chat/chatUtils';
 import { useNewYearFortune } from '../hooks/useNewYearFortune';
-import { formatBoldText, removeBoldMarks } from '../utils/textFormatUtils';
+import { formatBoldText, removeBoldMarks } from '../utils/text/textFormatUtils';
 
 interface NewYearFortuneScreenProps {
   navigation: any;

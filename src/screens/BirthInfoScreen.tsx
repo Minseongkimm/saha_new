@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '../utils/database/supabaseClient';
 import { calculateSaju } from '../utils/saju/ganji_local';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../types/navigation';

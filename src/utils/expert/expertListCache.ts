@@ -1,4 +1,4 @@
-import { Expert } from '../types/expert';
+import { Expert } from '../../types/expert';
 
 let cachedExperts: Expert[] | null = null;
 let cachedAtMs: number | null = null;

@@ -6,7 +6,7 @@ import React, { memo, useMemo } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { Colors } from '../../../constants/colors';
 import { ChatMessage } from '../../../types/chat';
-import { removeCommasFromMessage } from '../../../utils/removeCommas';
+import { removeCommasFromMessage } from '../../../utils/text/removeCommas';
 
 interface MessageItemProps {
   item: ChatMessage;

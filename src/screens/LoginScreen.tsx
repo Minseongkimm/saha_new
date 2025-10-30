@@ -9,7 +9,7 @@ import {
   Image,
 } from 'react-native';
 import { login } from '@react-native-seoul/kakao-login';
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '../utils/database/supabaseClient';
 
 interface LoginScreenProps {
   navigation: {

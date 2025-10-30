@@ -2,7 +2,7 @@
  * 전문가별 초기 질문 옵션 (UI용)
  */
 
-import { Expert } from '../types/expert';
+import { Expert } from '../../types/expert';
 
 // 도사별 초기 질문 (expertName 기반)
 export const INITIAL_QUESTIONS_BY_EXPERT: Record<string, string[]> = {

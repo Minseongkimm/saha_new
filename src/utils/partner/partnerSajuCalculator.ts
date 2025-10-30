@@ -1,8 +1,8 @@
-import { calculateSaju } from './saju/ganji_local';
-import { SajuInput, SajuResult } from './saju/ganji_local';
-import { SajuInfo } from './saju-calculator/types';
-import { SajuUtils } from './saju-calculator/utils/SajuUtils';
-import { PartnerBirthInfo } from '../types/partner';
+import { calculateSaju } from '../saju/ganji_local';
+import { SajuInput, SajuResult } from '../saju/ganji_local';
+import { SajuInfo } from '../saju-calculator/types';
+import { SajuUtils } from '../saju-calculator/utils/SajuUtils';
+import { PartnerBirthInfo } from '../../types/partner';
 
 /**
  * 상대방 사주 계산 함수

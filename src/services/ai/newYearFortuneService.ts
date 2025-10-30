@@ -5,12 +5,12 @@
 
 import { ChatOpenAI } from '@langchain/openai';
 import { OPENAI_API_KEY } from '../../config/env';
-import { supabase } from '../../utils/supabaseClient';
+import { supabase } from '../../utils/database/supabaseClient';
 import { 
   NewYearFortuneCalculator, 
   NewYearFortuneResult,
   UserSajuData 
-} from '../../utils/newYearFortuneCalculator';
+} from '../../utils/new-year-fortune/newYearFortuneCalculator';
 import { getNewYearFortunePrompt } from './prompts';
 
 export interface NewYearFortuneData {

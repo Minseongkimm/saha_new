@@ -18,9 +18,9 @@ import CategoryChipStyle from '../components/CategoryChipStyle';
 import CategoryExpertSection from '../components/CategoryExpertSection';
 import BannerModal from '../components/BannerModal';
 import { Colors } from '../constants/colors';
-import { supabase } from '../utils/supabaseClient';
+import { supabase } from '../utils/database/supabaseClient';
 import { Expert, EXPERT_CATEGORIES } from '../types/expert';
-import { getExpertListCache, setExpertListCache, isExpertListFresh } from '../utils/expertListCache';
+import { getExpertListCache, setExpertListCache, isExpertListFresh } from '../utils/expert/expertListCache';
 // import CacheDebugPanel from '../components/CacheDebugPanel'; // 디버깅이 필요할 때 주석 해제
 
 interface HomeScreenProps {
