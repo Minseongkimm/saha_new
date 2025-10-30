@@ -1,13 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  Animated,
-  Image,
-} from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import AnimatedBottomSheet from './AnimatedBottomSheet';
 import { Colors } from '../../constants/colors';
 
 interface ChargeBottomSheetProps {
@@ -21,8 +14,7 @@ const ChargeBottomSheet: React.FC<ChargeBottomSheetProps> = ({
   onClose,
   onSelectCharge,
 }) => {
-  const slideAnim = useRef(new Animated.Value(300)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  // Animation handled by AnimatedBottomSheet
 
   const chargeOptions = [
     { id: 1000, saha_amount: '10', price: '₩1,000', service_amount: '2', chip: null },
@@ -31,57 +23,10 @@ const ChargeBottomSheet: React.FC<ChargeBottomSheetProps> = ({
     { id: 10000, saha_amount: '100', price: '₩10,000', service_amount: '15', chip: 'best' },
   ];
 
-  useEffect(() => {
-    if (visible) {
-      // 배경 페이드 인
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-      
-      // 바텀시트 슬라이드 업
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      // 바텀시트 슬라이드 다운
-      Animated.timing(slideAnim, {
-        toValue: 300,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
-      
-      // 배경 페이드 아웃
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    }
-  }, [visible, slideAnim, fadeAnim]);
+  // no-op
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Animated.View style={[styles.modalOverlay, { opacity: fadeAnim }]}>
-        <TouchableOpacity 
-          style={styles.overlayTouchable} 
-          activeOpacity={1} 
-          onPress={onClose}
-        >
-          <View style={styles.overlayContent} />
-        </TouchableOpacity>
-        <Animated.View 
-          style={[styles.bottomSheet, { transform: [{ translateY: slideAnim }] }]}
-          onStartShouldSetResponder={() => true}
-        >
+    <AnimatedBottomSheet visible={visible} onClose={onClose} contentStyle={styles.bottomSheet}>
           <View style={styles.bottomSheetHeader}>
             <View style={styles.titleContainer}>
               <Text style={styles.bottomSheetTitle}>사바 충전</Text>
@@ -137,9 +82,7 @@ const ChargeBottomSheet: React.FC<ChargeBottomSheetProps> = ({
               </TouchableOpacity>
             </View>
           </View>
-        </Animated.View>
-      </Animated.View>
-    </Modal>
+    </AnimatedBottomSheet>
   );
 };
 

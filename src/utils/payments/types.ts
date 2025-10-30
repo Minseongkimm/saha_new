@@ -32,4 +32,16 @@ export interface BalanceResponse {
   currentBalance: number;
 }
 
+// Payment history
+export type PaymentTransactionType = 'charge' | 'use';
+
+export interface PaymentTransaction {
+  id: string;
+  amount: number;
+  type: PaymentTransactionType;
+  description: string;
+  created_at: string;
+  status: 'success' | 'pending' | 'failed';
+}
+
 

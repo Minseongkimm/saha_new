@@ -1,24 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  Animated,
-  FlatList,
-  ActivityIndicator,
-} from 'react-native';
-import { supabase } from '../../utils/database/supabaseClient';
-
-interface PaymentTransaction {
-  id: string;
-  amount: number;
-  type: 'charge' | 'use';
-  description: string;
-  created_at: string;
-  status: 'success' | 'pending' | 'failed';
-}
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import AnimatedBottomSheet from './AnimatedBottomSheet';
+import { fetchPaymentTransactions } from '../../utils/payments/transactions';
+import { PaymentTransaction } from '../../utils/payments/types';
 
 interface PaymentHistoryBottomSheetProps {
   visible: boolean;
@@ -29,77 +13,20 @@ const PaymentHistoryBottomSheet: React.FC<PaymentHistoryBottomSheetProps> = ({
   visible,
   onClose,
 }) => {
-  const slideAnim = useRef(new Animated.Value(300)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current;
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (visible) {
       fetchTransactions();
-      // 애니메이션
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-      
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: 300,
-        duration: 250,
-        useNativeDriver: true,
-      }).start();
-      
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }).start();
     }
-  }, [visible, slideAnim, fadeAnim]);
+  }, [visible]);
 
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // TODO: 실제 거래 내역 조회 로직 구현
-      // 예시 데이터
-      const mockTransactions: PaymentTransaction[] = [
-        {
-          id: '1',
-          amount: 10,
-          type: 'charge',
-          description: '사바 충전',
-          created_at: new Date(Date.now() - 86400000).toISOString(),
-          status: 'success',
-        },
-        {
-          id: '2',
-          amount: 30,
-          type: 'charge',
-          description: '사바 충전',
-          created_at: new Date(Date.now() - 172800000).toISOString(),
-          status: 'success',
-        },
-        {
-          id: '3',
-          amount: 5,
-          type: 'use',
-          description: '채팅 상담',
-          created_at: new Date(Date.now() - 259200000).toISOString(),
-          status: 'success',
-        },
-      ];
-
-      setTransactions(mockTransactions);
+      const data = await fetchPaymentTransactions();
+      setTransactions(data);
     } catch (error) {
       console.error('거래 내역 조회 오류:', error);
     } finally {
@@ -113,10 +40,15 @@ const PaymentHistoryBottomSheet: React.FC<PaymentHistoryBottomSheetProps> = ({
     const diff = now.getTime() - date.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
-    if (days === 0) return '오늘';
-    if (days === 1) return '어제';
-    if (days < 7) return `${days}일 전`;
-    return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+
+    if (days === 0) return `오늘 - ${month}월 ${day}일`;
+    if (days === 1) return `어제 - ${month}월 ${day}일`;
+    if (days < 7) return `${days}일 전 - ${month}월 ${day}일`;
+    
+    // 7일 이상이면 날짜만 표시
+    return `${month}월 ${day}일`;
   };
 
   const renderTransaction = ({ item }: { item: PaymentTransaction }) => (
@@ -137,26 +69,12 @@ const PaymentHistoryBottomSheet: React.FC<PaymentHistoryBottomSheetProps> = ({
   );
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
-      <Animated.View style={[styles.modalOverlay, { opacity: fadeAnim }]}>
-        <TouchableOpacity 
-          style={styles.overlayTouchable} 
-          activeOpacity={1} 
-          onPress={onClose}
-        >
-          <View style={styles.overlayContent} />
-        </TouchableOpacity>
-        <Animated.View 
-          style={[styles.bottomSheet, { transform: [{ translateY: slideAnim }] }]}
-          onStartShouldSetResponder={() => true}
-        >
+    <AnimatedBottomSheet visible={visible} onClose={onClose} maxHeight={'80%'} minHeight={'40%'} contentStyle={styles.bottomSheet}>
           <View style={styles.bottomSheetHeader}>
-            <Text style={styles.bottomSheetTitle}>충전 내역</Text>
+            <View style={styles.titleContainer}>
+              <Text style={styles.bottomSheetTitle}>충전 내역</Text>
+              <Text style={styles.descriptionText}>운명을 더 이해하려는 당신의 노력</Text>
+            </View>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={onClose}
@@ -171,7 +89,7 @@ const PaymentHistoryBottomSheet: React.FC<PaymentHistoryBottomSheetProps> = ({
             </View>
           ) : transactions.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>거래 내역이 없습니다</Text>
+              <Text style={styles.emptyText}>내역이 없습니다</Text>
             </View>
           ) : (
             <FlatList
@@ -179,12 +97,12 @@ const PaymentHistoryBottomSheet: React.FC<PaymentHistoryBottomSheetProps> = ({
               renderItem={renderTransaction}
               keyExtractor={(item) => item.id}
               style={styles.transactionList}
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={true}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
             />
           )}
-        </Animated.View>
-      </Animated.View>
-    </Modal>
+    </AnimatedBottomSheet>
   );
 };
 
@@ -209,21 +127,31 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: '70%',
+    minHeight: '40%',
+    maxHeight: '80%',
   },
   bottomSheetHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+  },
+  titleContainer: {
+    flex: 1,
   },
   bottomSheetTitle: {
     fontSize: 17,
     fontWeight: '600',
     color: '#333',
+  },
+  descriptionText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 1,
+    lineHeight: 20,
   },
   closeButton: {
     width: 30,
@@ -247,18 +175,19 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyText: {
+    lineHeight: 22,
     fontSize: 16,
     color: '#999',
   },
   transactionList: {
     paddingHorizontal: 20,
-    paddingTop: 10,
+    paddingTop: 8,
   },
   transactionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
