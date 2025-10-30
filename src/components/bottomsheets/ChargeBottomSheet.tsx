@@ -104,7 +104,7 @@ const ChargeBottomSheet: React.FC<ChargeBottomSheetProps> = ({
               >
                 <View style={styles.chargeOptionLeft}>
                   <Image 
-                    source={require('../../assets/money/saha_money.png')} 
+                    source={require('../../../assets/money/saha_money.png')} 
                     style={styles.sahaMoneyIcon}
                   />
                   <Text style={styles.chargeOptionTitle}>{option.saha_amount}</Text>

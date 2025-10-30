@@ -134,7 +134,7 @@ const ChatStartBottomSheet: React.FC<ChatStartBottomSheetProps> = ({
             {/* 로고와 제목 */}
             <View style={styles.headerSection}>
               <Image 
-                source={require('../../assets/logo/logo_icon.png')} 
+                source={require('../../../assets/logo/logo_icon.png')} 
                 style={styles.logo}
               />
               <Text style={styles.title}>{title}</Text>

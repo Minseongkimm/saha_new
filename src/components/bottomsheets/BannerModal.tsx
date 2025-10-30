@@ -56,7 +56,7 @@ const BannerModal: React.FC<BannerModalProps> = ({ visible, onClose, navigation 
             activeOpacity={0.9}
           >
             <Image
-              source={require('../../assets/banner/modal_banner.png')}
+              source={require('../../../assets/banner/modal_banner.png')}
               style={styles.bannerImage}
               resizeMode="cover"
             />
