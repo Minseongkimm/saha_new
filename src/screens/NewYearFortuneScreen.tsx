@@ -10,12 +10,12 @@ import {
   Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
-import SectionHeader from '../components/SectionHeader';
-import CustomHeader from '../components/CustomHeader';
-import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
-import AIGuideSection from '../components/AIGuideSection';
-import BottomFixedButton from '../components/BottomFixedButton';
-import SimpleYearInteraction from '../components/SimpleYearInteraction';
+import SectionHeader from '../components/common/SectionHeader';
+import CustomHeader from '../components/common/CustomHeader';
+import ChatStartBottomSheet from '../components/bottomsheets/ChatStartBottomSheet';
+import AIGuideSection from '../components/common/AIGuideSection';
+import BottomFixedButton from '../components/common/BottomFixedButton';
+import SimpleYearInteraction from '../components/saju/SimpleYearInteraction';
 import { startChatWithExpert, getExpertByCategory } from '../utils/chat/chatUtils';
 import { useNewYearFortune } from '../hooks/useNewYearFortune';
 import { formatBoldText, removeBoldMarks } from '../utils/text/textFormatUtils';

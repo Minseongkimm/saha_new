@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../constants/colors';
-import CustomHeader from '../components/CustomHeader';
+import CustomHeader from '../components/common/CustomHeader';
 
 interface BannerDetailScreenProps {
   navigation: any;

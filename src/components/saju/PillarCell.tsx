@@ -4,7 +4,7 @@ import {
   getElementBackgroundColor,
   getElementTextColor,
   getElementWithKorean
-} from '../constants/fiveElements';
+} from '../../constants/fiveElements';
 
 interface PillarData {
   heavenly: string;

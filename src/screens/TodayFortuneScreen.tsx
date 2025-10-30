@@ -9,10 +9,10 @@ import {
   Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
-import CustomHeader from '../components/CustomHeader';
-import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
-import AIGuideSection from '../components/AIGuideSection';
-import BottomFixedButton from '../components/BottomFixedButton';
+import CustomHeader from '../components/common/CustomHeader';
+import ChatStartBottomSheet from '../components/bottomsheets/ChatStartBottomSheet';
+import AIGuideSection from '../components/common/AIGuideSection';
+import BottomFixedButton from '../components/common/BottomFixedButton';
 import { startChatWithExpert, getExpertByCategory } from '../utils/chat/chatUtils';
 import { useTodayFortune } from '../hooks/useTodayFortune';
 import { formatBoldText, removeBoldMarks } from '../utils/text/textFormatUtils';

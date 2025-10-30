@@ -18,7 +18,8 @@ import {
   getElementFromDayGan,
   koreanToHanja 
 } from '../constants/fiveElements';
-import ChargeBottomSheet from '../components/ChargeBottomSheet';
+import ChargeBottomSheet from '../components/bottomsheets/ChargeBottomSheet';
+import PaymentHistoryBottomSheet from '../components/bottomsheets/PaymentHistoryBottomSheet';
 import { fetchUserBalance as fetchUserBalanceUtil, refreshBalance as refreshBalanceUtil } from '../utils/payments/balance';
 
 interface MyInfoScreenProps {
@@ -31,6 +32,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
   const [loading, setLoading] = useState(true);
   const [dayGan, setDayGan] = useState('水'); // 일간 오행
   const [showChargeModal, setShowChargeModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
 
 
@@ -172,12 +174,20 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
                 </View>
                 <Text style={styles.balanceAmount}>{currentBalance}</Text>
               </View>
+              <View style={styles.buttonGroup}>
+                <TouchableOpacity
+                  style={styles.historyButton}
+                  onPress={() => setShowHistoryModal(true)}
+                >
+                  <Text style={styles.historyButtonText}>내역</Text>
+                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.chargeButton}
                   onPress={() => setShowChargeModal(true)}
                 >
-                <Text style={styles.chargeButtonText}>충전</Text>
-              </TouchableOpacity>
+                  <Text style={styles.chargeButtonText}>충전</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         </View>
@@ -247,6 +257,12 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
         onClose={() => setShowChargeModal(false)}
         onSelectCharge={handleChargeSelect}
       />
+
+      {/* 충전 내역 바텀시트 */}
+      <PaymentHistoryBottomSheet
+        visible={showHistoryModal}
+        onClose={() => setShowHistoryModal(false)}
+      />
     </SafeAreaView>
   );
 };
@@ -272,6 +288,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  buttonGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  historyButton: {
+    backgroundColor: 'white',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  historyButtonText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '600',
   },
   chargeButton: {
     backgroundColor: Colors.primaryColor,

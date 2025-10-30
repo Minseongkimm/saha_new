@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   TextInput,
 } from 'react-native';
-import { Colors } from '../constants/colors';
-import { RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from '../types/partner';
+import { Colors } from '../../constants/colors';
+import { RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from '../../types/partner';
 
 export interface BirthInfo {
   name: string;

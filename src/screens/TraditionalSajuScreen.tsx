@@ -9,13 +9,13 @@ import {
   Alert,
 } from 'react-native';
 import { Colors } from '../constants/colors';
-import SectionHeader from '../components/SectionHeader';
-import CustomHeader from '../components/CustomHeader';
-import SajuChart from '../components/SajuChart';
-import SajuAnalysis from '../components/SajuAnalysis';
-import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
-import AIGuideSection from '../components/AIGuideSection';
-import BottomFixedButton from '../components/BottomFixedButton';
+import SectionHeader from '../components/common/SectionHeader';
+import CustomHeader from '../components/common/CustomHeader';
+import SajuChart from '../components/saju/SajuChart';
+import SajuAnalysis from '../components/saju/SajuAnalysis';
+import ChatStartBottomSheet from '../components/bottomsheets/ChatStartBottomSheet';
+import AIGuideSection from '../components/common/AIGuideSection';
+import BottomFixedButton from '../components/common/BottomFixedButton';
 import { startChatWithExpert, getExpertByCategory } from '../utils/chat/chatUtils';
 import { useTraditionalSaju } from '../hooks/useTraditionalSaju';
 

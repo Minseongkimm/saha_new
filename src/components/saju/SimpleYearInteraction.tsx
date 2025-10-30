@@ -4,7 +4,7 @@ import {
   getElementFromStem,
   FiveElementColors,
   FiveElementBackgroundColors
-} from '../constants/fiveElements';
+} from '../../constants/fiveElements';
 
 interface SimpleYearInteractionProps {
   myDayGan: string;

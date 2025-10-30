@@ -11,16 +11,16 @@ import {
   Modal,
 } from 'react-native';
 import { Colors } from '../constants/colors';
-import CustomHeader from '../components/CustomHeader';
-import ChatStartBottomSheet from '../components/ChatStartBottomSheet';
-import BottomFixedButton from '../components/BottomFixedButton';
+import CustomHeader from '../components/common/CustomHeader';
+import ChatStartBottomSheet from '../components/bottomsheets/ChatStartBottomSheet';
+import BottomFixedButton from '../components/common/BottomFixedButton';
 import { supabase } from '../utils/database/supabaseClient';
 import { Expert } from '../types/expert';
 
 import { getExpertImage } from '../utils/expert/getExpertImage';
 import { getExpertListCache } from '../utils/expert/expertListCache';
 import { startChatWithExpert } from '../utils/chat/chatUtils';
-import BirthInputForm, { PartnerBirthInfo } from '../components/BirthInputForm';
+import BirthInputForm, { PartnerBirthInfo } from '../components/forms/BirthInputForm';
 import { RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from '../types/partner';
 import { getPartnerList, deletePartnerFromDatabase } from '../utils/partner/partnerDatabase';
 import { getPartnerListCache, isPartnerListFresh } from '../utils/partner/partnerListCache';

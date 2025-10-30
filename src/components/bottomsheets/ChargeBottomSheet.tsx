@@ -8,7 +8,7 @@ import {
   Animated,
   Image,
 } from 'react-native';
-import { Colors } from '../constants/colors';
+import { Colors } from '../../constants/colors';
 
 interface ChargeBottomSheetProps {
   visible: boolean;

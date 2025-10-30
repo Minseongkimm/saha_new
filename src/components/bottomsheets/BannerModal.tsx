@@ -9,8 +9,8 @@ import {
   Modal,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors } from '../constants/colors';
-import CustomHeader from './CustomHeader';
+import { Colors } from '../../constants/colors';
+import CustomHeader from '../common/CustomHeader';
 
 interface BannerModalProps {
   visible: boolean;

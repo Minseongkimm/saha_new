@@ -12,11 +12,11 @@ import {
   Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import ExpertCard from '../components/ExpertCard';
-import SectionHeader from '../components/SectionHeader';
-import CategoryChipStyle from '../components/CategoryChipStyle';
-import CategoryExpertSection from '../components/CategoryExpertSection';
-import BannerModal from '../components/BannerModal';
+import ExpertCard from '../components/expert/ExpertCard';
+import SectionHeader from '../components/common/SectionHeader';
+import CategoryChipStyle from '../components/expert/CategoryChipStyle';
+import CategoryExpertSection from '../components/expert/CategoryExpertSection';
+import BannerModal from '../components/bottomsheets/BannerModal';
 import { Colors } from '../constants/colors';
 import { supabase } from '../utils/database/supabaseClient';
 import { Expert, EXPERT_CATEGORIES } from '../types/expert';

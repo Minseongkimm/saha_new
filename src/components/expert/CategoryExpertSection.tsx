@@ -19,9 +19,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import ExpertCard from './ExpertCard';
-import SectionHeader from './SectionHeader';
-import { Expert, EXPERT_CATEGORIES } from '../types/expert';
-import { Colors } from '../constants/colors';
+import SectionHeader from '../common/SectionHeader';
+import { Expert, EXPERT_CATEGORIES } from '../../types/expert';
+import { Colors } from '../../constants/colors';
 
 interface CategoryExpertSectionProps {
   category: string; // 표시할 카테고리 키 (예: 'comprehensive', 'love')

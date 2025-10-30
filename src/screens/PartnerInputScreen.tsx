@@ -11,8 +11,8 @@ import {
 } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { Colors } from '../constants/colors';
-import CustomHeader from '../components/CustomHeader';
-import BirthInputForm from '../components/BirthInputForm';
+import CustomHeader from '../components/common/CustomHeader';
+import BirthInputForm from '../components/forms/BirthInputForm';
 import { PartnerBirthInfo } from '../types/partner';
 import { startChatWithExpert } from '../utils/chat/chatUtils';
 import { RootStackParamList } from '../types/navigation';

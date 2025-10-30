@@ -5,8 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { EXPERT_CATEGORIES } from '../types/expert';
-import { Colors } from '../constants/colors';
+import { EXPERT_CATEGORIES } from '../../types/expert';
+import { Colors } from '../../constants/colors';
 
 interface CategoryChipStyleProps {
   selectedCategory: string;

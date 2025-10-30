@@ -5,11 +5,11 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
-import { Colors } from '../constants/colors';
+import { Colors } from '../../constants/colors';
 import { 
   getElementFromBranch, 
   getElementFromStem,
-} from '../constants/fiveElements';
+} from '../../constants/fiveElements';
 import PillarCell from './PillarCell';
 
 interface SajuData {

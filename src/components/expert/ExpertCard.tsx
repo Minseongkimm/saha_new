@@ -19,9 +19,9 @@ import {
   TouchableOpacity,
   Dimensions,
 } from 'react-native';
-import { Expert } from '../types/expert';
-import { Colors } from '../constants/colors';
-import { getExpertImage } from '../utils/expert/getExpertImage';
+import { Expert } from '../../types/expert';
+import { Colors } from '../../constants/colors';
+import { getExpertImage } from '../../utils/expert/getExpertImage';
 
 interface ExpertCardProps {
   expert: Expert;
