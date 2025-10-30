@@ -25,9 +25,10 @@ const ChargeBottomSheet: React.FC<ChargeBottomSheetProps> = ({
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const chargeOptions = [
-    { id: 1000, saha_amount: '10', price: '₩1,000' },
-    { id: 5000, saha_amount: '50 ', price: '₩5,000' },
-    { id: 10000, saha_amount: '100 ', price: '₩10,000' },
+    { id: 1000, saha_amount: '10', price: '₩1,000', service_amount: '2', chip: null },
+    { id: 3000, saha_amount: '30', price: '₩3,000', service_amount: '5', chip: 'hot' },
+    { id: 5000, saha_amount: '50', price: '₩5,000', service_amount: '10', chip: null },
+    { id: 10000, saha_amount: '100', price: '₩10,000', service_amount: '15', chip: 'best' },
   ];
 
   useEffect(() => {
@@ -107,7 +108,17 @@ const ChargeBottomSheet: React.FC<ChargeBottomSheetProps> = ({
                     style={styles.sahaMoneyIcon}
                   />
                   <Text style={styles.chargeOptionTitle}>{option.saha_amount}</Text>
-                  <Text style={styles.chargeOptionTitle}> 사바</Text>
+                  <Text style={styles.chargeOptionTitle}>사바</Text>
+                  {option.service_amount !== '0' && (
+                    <Text style={styles.serviceAmountText}>+ {option.service_amount} 사바</Text>
+                  )}
+                  {option.chip && (
+                    <View style={[styles.chip, option.chip === 'hot' ? styles.hotChip : styles.bestChip]}>
+                      <Text style={[styles.chipText, option.chip === 'hot' ? styles.hotChipText : styles.bestChipText]}>
+                        {option.chip === 'hot' ? 'HOT' : 'BEST'}
+                      </Text>
+                    </View>
+                  )}
                 </View>
                 <View style={styles.priceButton}>
                   <Text style={styles.priceButtonText}>{option.price}</Text>
@@ -167,7 +178,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bottomSheetTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
     color: '#333',
   },
@@ -189,14 +200,15 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   chargeOptions: {
-    paddingHorizontal: 10,
-    paddingVertical: 17,
+    paddingHorizontal: 11,
+    paddingTop: 9,
+    paddingBottom: 17,
   },
   chargeOption: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: 11,
     paddingHorizontal: 15,
   },
   chargeOptionLeft: {
@@ -209,9 +221,16 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   chargeOptionTitle: {
+    marginRight: 2,
     fontSize: 16,
     fontWeight: '700',
     color: '#333',
+  },
+  serviceAmountText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#ff6b6b',
+    marginLeft: 4,
   },
   priceButton: {
     backgroundColor: Colors.primaryColor,
@@ -247,6 +266,29 @@ const styles = StyleSheet.create({
     color: '#999',
     textDecorationLine: 'underline',
     marginLeft: 0,
+  },
+  chip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 6,
+  },
+  hotChip: {
+    backgroundColor: '#FF4444',
+  },
+  bestChip: {
+    backgroundColor: '#FF4444',
+  },
+  chipText: {
+    fontSize: 10,
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  hotChipText: {
+    color: 'white',
+  },
+  bestChipText: {
+    color: 'white',
   },
 });
 
