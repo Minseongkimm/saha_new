@@ -9,11 +9,11 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { supabase } from '../utils/database/supabaseClient';
-import { calculateSaju } from '../utils/saju/ganji_local';
+import { supabase } from '../../utils/database/supabaseClient';
+import { calculateSaju } from '../../utils/saju/ganji_local';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from '../types/navigation';
-import { Colors } from '../constants/colors';
+import { RootStackParamList } from '../../types/navigation';
+import { Colors } from '../../constants/colors';
 
 interface BirthInfoScreenProps {
   navigation: {

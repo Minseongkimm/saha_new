@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
-import CustomHeader from '../components/common/CustomHeader';
+import CustomHeader from '../../components/common/CustomHeader';
 
 interface TermsScreenProps {
   navigation: any;

@@ -11,7 +11,7 @@ import {
   GestureResponderEvent,
 } from 'react-native';
 import { login } from '@react-native-seoul/kakao-login';
-import { supabase } from '../utils/database/supabaseClient';
+import { supabase } from '../../utils/database/supabaseClient';
 
 interface LoginScreenProps {
   navigation: {
@@ -110,7 +110,7 @@ function LoginScreen({ navigation }: LoginScreenProps) {
         {/* 상단 이미지 */}
         <View style={styles.imageContainer}>
           <Image 
-            source={require('../../assets/logo/logo_icon.png')} 
+            source={require('../../../assets/logo/logo_icon.png')} 
             style={styles.logoImage}
             resizeMode="contain"
           />
@@ -133,7 +133,7 @@ function LoginScreen({ navigation }: LoginScreenProps) {
           >
             <View style={styles.buttonContent}>
               <Image 
-                source={require('../../assets/icons/kakao_icon.png')} 
+                source={require('../../../assets/icons/kakao_icon.png')} 
                 style={styles.kakaoIcon}
                 resizeMode="contain"
               />

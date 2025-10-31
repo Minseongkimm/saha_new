@@ -8,7 +8,7 @@ import {
   SafeAreaView,
   Image,
 } from 'react-native';
-import { Colors } from '../constants/colors';
+import { Colors } from '../../constants/colors';
 
 interface LoadingScreenProps {
   onComplete?: () => void;

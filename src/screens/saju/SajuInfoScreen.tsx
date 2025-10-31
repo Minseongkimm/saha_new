@@ -11,9 +11,9 @@ import {
   Modal,
   ActivityIndicator,
 } from 'react-native';
-import { Colors } from '../constants/colors';
-import { supabase } from '../utils/database/supabaseClient';
-import { calculateSaju } from '../utils/saju/ganji_local';
+import { Colors } from '../../constants/colors';
+import { supabase } from '../../utils/database/supabaseClient';
+import { calculateSaju } from '../../utils/saju/ganji_local';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface SajuInfoScreenProps {

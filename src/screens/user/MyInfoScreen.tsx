@@ -10,19 +10,19 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Colors } from '../constants/colors';
-import { supabase } from '../utils/database/supabaseClient';
+import { Colors } from '../../constants/colors';
+import { supabase } from '../../utils/database/supabaseClient';
 import { 
   getElementColor, 
   getElementBackgroundColor, 
   getElementFromDayGan,
   koreanToHanja 
-} from '../constants/fiveElements';
-import ChargeBottomSheet from '../components/bottomsheets/ChargeBottomSheet';
-import PaymentHistoryBottomSheet from '../components/bottomsheets/PaymentHistoryBottomSheet';
-import { fetchUserBalance as fetchUserBalanceUtil, refreshBalance as refreshBalanceUtil } from '../utils/payments/balance';
-import { deleteUserAccount } from '../utils/user/deleteAccount';
-import { handleLogout as handleLogoutUtil } from '../utils/user/authUtils';
+} from '../../constants/fiveElements';
+import ChargeBottomSheet from '../../components/bottomsheets/ChargeBottomSheet';
+import PaymentHistoryBottomSheet from '../../components/bottomsheets/PaymentHistoryBottomSheet';
+import { fetchUserBalance as fetchUserBalanceUtil, refreshBalance as refreshBalanceUtil } from '../../utils/payments/balance';
+import { deleteUserAccount } from '../../utils/user/deleteAccount';
+import { handleLogout as handleLogoutUtil } from '../../utils/user/authUtils';
 
 interface MyInfoScreenProps {
   navigation: any;
@@ -222,7 +222,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
               <View style={styles.balanceLeft}>
                 <View style={styles.coinIcon}>
                   <Image 
-                    source={require('../../assets/money/saha_money.png')} 
+                    source={require('../../../assets/money/saha_money.png')} 
                     style={styles.coinImage}
                   />
                 </View>

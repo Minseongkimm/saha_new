@@ -3,12 +3,12 @@
  * 메시지 관리, 실시간 구독, 환영 메시지 생성, 사용자 정보 조회
  */
 import { useState, useEffect, useRef } from 'react';
-import { supabase } from '../../../utils/database/supabaseClient';
-import { getCachedMessages, setCachedMessages } from '../../../utils/chat/chatCache';
-import { markChatListNeedsRefresh } from '../../../utils/chat/chatListCache';
-import { welcomeService } from '../../../services/chat/welcomeService';
-import { ChatMessage } from '../../../types/chat';
-import { BirthInfo } from '../../../services/ai';
+import { supabase } from '../../../../utils/database/supabaseClient';
+import { getCachedMessages, setCachedMessages } from '../../../../utils/chat/chatCache';
+import { markChatListNeedsRefresh } from '../../../../utils/chat/chatListCache';
+import { welcomeService } from '../../../../services/chat/welcomeService';
+import { ChatMessage } from '../../../../types/chat';
+import { BirthInfo } from '../../../../services/ai';
 
 interface UseChatRoomProps {
   roomId: string;

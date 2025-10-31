@@ -4,8 +4,8 @@
  */
 import React from 'react';
 import { Text } from 'react-native';
-import { removeBoldMarkup } from '../../../utils/text/removeBoldMarkup';
-import { Colors } from '../../../constants/colors';
+import { removeBoldMarkup } from '../../../../utils/text/removeBoldMarkup';
+import { Colors } from '../../../../constants/colors';
 
 // **text** 형태를 볼드 처리하는 함수
 export const renderFormattedText = (text: string) => {

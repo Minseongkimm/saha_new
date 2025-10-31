@@ -10,8 +10,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Colors } from '../constants/colors';
-import { supabase } from '../utils/database/supabaseClient';
+import { Colors } from '../../constants/colors';
+import { supabase } from '../../utils/database/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface NotificationSettingsScreenProps {

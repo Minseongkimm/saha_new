@@ -6,7 +6,7 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { Colors } from '../constants/colors';
+import { Colors } from '../../constants/colors';
 
 interface SplashScreenProps {
   onFinish: () => void;
@@ -60,7 +60,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         ]}
       >
         <Image
-          source={require('../../assets/logo/logo_icon.png')}
+          source={require('../../../assets/logo/logo_icon.png')}
           style={styles.logoImage}
           resizeMode="contain"
         />

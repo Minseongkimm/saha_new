@@ -8,16 +8,16 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { Colors } from '../constants/colors';
-import SectionHeader from '../components/common/SectionHeader';
-import CustomHeader from '../components/common/CustomHeader';
-import SajuChart from '../components/saju/SajuChart';
-import SajuAnalysis from '../components/saju/SajuAnalysis';
-import ChatStartBottomSheet from '../components/bottomsheets/ChatStartBottomSheet';
-import AIGuideSection from '../components/common/AIGuideSection';
-import BottomFixedButton from '../components/common/BottomFixedButton';
-import { startChatWithExpert, getExpertByCategory } from '../utils/chat/chatUtils';
-import { useTraditionalSaju } from '../hooks/useTraditionalSaju';
+import { Colors } from '../../constants/colors';
+import SectionHeader from '../../components/common/SectionHeader';
+import CustomHeader from '../../components/common/CustomHeader';
+import SajuChart from '../../components/saju/SajuChart';
+import SajuAnalysis from '../../components/saju/SajuAnalysis';
+import ChatStartBottomSheet from '../../components/bottomsheets/ChatStartBottomSheet';
+import AIGuideSection from '../../components/common/AIGuideSection';
+import BottomFixedButton from '../../components/common/BottomFixedButton';
+import { startChatWithExpert, getExpertByCategory } from '../../utils/chat/chatUtils';
+import { useTraditionalSaju } from '../../hooks/useTraditionalSaju';
 
 
 interface TraditionalSajuScreenProps {
@@ -174,7 +174,7 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
                 <AIGuideSection
                   title="더 깊이 있는 이야기가 필요하다면"
                   description={`궁금한 점이나 더 자세한 해석이 필요하시다면${'\n'}AI 도사와 1:1 대화를 통해 맞춤형 조언을 받아보세요.`}
-                  imageSource={require('../../assets/logo/logo_icon.png')}
+                  imageSource={require('../../../assets/logo/logo_icon.png')}
                 />
               </View>
             )}

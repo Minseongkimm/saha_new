@@ -13,14 +13,14 @@ import {
   Animated,
   Alert,
 } from 'react-native';
-import { Colors } from '../constants/colors';
+import { Colors } from '../../constants/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { supabase } from '../utils/database/supabaseClient';
-import { Expert } from '../types/expert';
-import { getExpertImage } from '../utils/expert/getExpertImage';
+import { supabase } from '../../utils/database/supabaseClient';
+import { Expert } from '../../types/expert';
+import { getExpertImage } from '../../utils/expert/getExpertImage';
 import { useNavigation } from '@react-navigation/native';
-import { getChatListCache, setChatListCache, isChatListFresh, consumeChatListNeedsRefresh } from '../utils/chat/chatListCache';
-import { removeBoldMarkup } from '../utils/text/removeBoldMarkup';
+import { getChatListCache, setChatListCache, isChatListFresh, consumeChatListNeedsRefresh } from '../../utils/chat/chatListCache';
+import { removeBoldMarkup } from '../../utils/text/removeBoldMarkup';
 
 interface ChatListScreenProps {
   navigation: any;
@@ -99,7 +99,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
         const items: ChatItem[] = roomList.map((room: any) => {
           const expert: Expert | undefined = expertMap[room.expert_id];
           const name: string = expert ? expert.name : '전문가';
-          const profile: ImageSourcePropType = expert ? getExpertImage(expert.image_name) : require('../../assets/people/hoosi_guy.jpg');
+          const profile: ImageSourcePropType = expert ? getExpertImage(expert.image_name) : require('../../../assets/people/hoosi_guy.jpg');
           const fallbackMsg = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.message ?? '' : '';
           const lastText: string = room.last_message || fallbackMsg || '';
           const fallbackTs = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.created_at ?? null : null;
@@ -329,15 +329,10 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
           contentContainerStyle={[styles.chatListContent, chats.length === 0 ? styles.emptyListContent : undefined]}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              {/* <Image 
-                source={require('../../assets/saju/saju_example.png')} 
-                style={styles.emptyImage}
-                resizeMode="contain"
-              /> */}
-              <Text style={styles.emptyTitle}>당신의 이야기를 들려주세요</Text>
+              <Text style={styles.emptyTitle}>운명의 지도를 펼쳐보세요</Text>
               <Text style={styles.emptySubtitle}>
-                AI 도사들과 대화를 시작해보세요{'\n'}
-                당신만의 인생에 실마리를 찾아요
+                AI 도사에게 편하게 말을 걸고 {'\n'}나를 이해하는
+                질문부터 시작해보세요.
               </Text>
               <TouchableOpacity 
                 style={styles.startChatButton}

@@ -9,26 +9,23 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { RouteProp } from '@react-navigation/native';
-import { Colors } from '../constants/colors';
-import CustomHeader from '../components/common/CustomHeader';
-import BirthInputForm from '../components/forms/BirthInputForm';
-import { PartnerBirthInfo } from '../types/partner';
-import { startChatWithExpert } from '../utils/chat/chatUtils';
-import { RootStackParamList } from '../types/navigation';
-import { calculatePartnerSaju, convertSajuResultToSajuInfo } from '../utils/partner/partnerSajuCalculator';
-import { savePartnerToDatabase } from '../utils/partner/partnerDatabase';
-import { SajuCalculator } from '../utils/saju-calculator/core/SajuCalculator';
-import { SajuInfo } from '../utils/saju-calculator/types';
-import { supabase } from '../utils/database/supabaseClient';
-import { calculateSaju, SajuResult } from '../utils/saju/ganji_local';
+import { StackScreenProps } from '@react-navigation/stack';
+import { Colors } from '../../constants/colors';
+import CustomHeader from '../../components/common/CustomHeader';
+import BirthInputForm from '../../components/forms/BirthInputForm';
+import { PartnerBirthInfo } from '../../types/partner';
+import { startChatWithExpert } from '../../utils/chat/chatUtils';
+import { RootStackParamList } from '../../types/navigation';
+import { calculatePartnerSaju, convertSajuResultToSajuInfo } from '../../utils/partner/partnerSajuCalculator';
+import { savePartnerToDatabase } from '../../utils/partner/partnerDatabase';
+import { SajuCalculator } from '../../utils/saju-calculator/core/SajuCalculator';
+import { SajuInfo } from '../../utils/saju-calculator/types';
+import { supabase } from '../../utils/database/supabaseClient';
+import { calculateSaju, SajuResult } from '../../utils/saju/ganji_local';
 
-interface PartnerInputScreenProps {
-  navigation: any;
-  route: RouteProp<RootStackParamList, 'PartnerInput'>;
-}
+type PartnerInputScreenProps = StackScreenProps<RootStackParamList, 'PartnerInput'>;
 
-const PartnerInputScreen: React.FC<PartnerInputScreenProps> = ({ navigation, route }) => {
+const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
   const { expertId } = route.params;
   const [partnerInfo, setPartnerInfo] = useState<PartnerBirthInfo>({
     name: '',

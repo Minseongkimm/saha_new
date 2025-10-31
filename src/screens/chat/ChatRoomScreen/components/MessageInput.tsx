@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { Colors } from '../../../constants/colors';
+import { Colors } from '../../../../constants/colors';
 
 interface MessageInputProps {
   isAiResponding: boolean;

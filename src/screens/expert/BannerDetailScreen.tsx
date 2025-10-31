@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Colors } from '../constants/colors';
-import CustomHeader from '../components/common/CustomHeader';
+import { Colors } from '../../constants/colors';
+import CustomHeader from '../../components/common/CustomHeader';
 
 interface BannerDetailScreenProps {
   navigation: any;
@@ -37,7 +37,7 @@ const BannerDetailScreen: React.FC<BannerDetailScreenProps> = ({ navigation }) =
         {/* 사바세계 이미지 */}
         <View style={styles.imageContainer}>
           <Image
-            source={require('../../assets/guide/saha_world.jpg')}
+            source={require('../../../assets/guide/saha_world.jpg')}
             style={styles.worldImage}
             resizeMode="cover"
           />
@@ -122,8 +122,8 @@ const BannerDetailScreen: React.FC<BannerDetailScreenProps> = ({ navigation }) =
           </View>
 
           <View style={styles.sectionImageContainer}>
-            <Image
-              source={require('../../assets/guide/conversation_example.png')}
+              <Image
+                source={require('../../../assets/guide/conversation_example.png')}
               style={styles.sectionImage}
               resizeMode="cover"
             />

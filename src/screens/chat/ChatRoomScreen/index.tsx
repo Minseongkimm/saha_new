@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { Colors } from '../../constants/colors';
+import { Colors } from '../../../constants/colors';
 import { useChatRoom } from './hooks/useChatRoom';
 import { useMessageActions } from './hooks/useMessageActions';
 import MessageList from './components/MessageList';

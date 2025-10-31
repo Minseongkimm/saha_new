@@ -4,7 +4,7 @@
  */
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { INITIAL_QUESTIONS, INITIAL_QUESTIONS_BY_EXPERT } from '../../../services/chat/initialQuestions';
+import { INITIAL_QUESTIONS, INITIAL_QUESTIONS_BY_EXPERT } from '../../../../services/chat/initialQuestions';
 
 interface InitialQuestionsProps {
   expert: any;

@@ -4,8 +4,8 @@
  */
 import React, { useCallback, useMemo } from 'react';
 import { FlatList, View, Text, Image, StyleSheet } from 'react-native';
-import { ChatMessage } from '../../../types/chat';
-import { getExpertImage } from '../../../utils/expert/getExpertImage';
+import { ChatMessage } from '../../../../types/chat';
+import { getExpertImage } from '../../../../utils/expert/getExpertImage';
 import MessageItem from './MessageItem';
 import TypingIndicator from './TypingIndicator';
 

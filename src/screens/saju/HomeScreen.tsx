@@ -12,16 +12,16 @@ import {
   Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import ExpertCard from '../components/expert/ExpertCard';
-import SectionHeader from '../components/common/SectionHeader';
-import CategoryChipStyle from '../components/expert/CategoryChipStyle';
-import CategoryExpertSection from '../components/expert/CategoryExpertSection';
-import BannerModal from '../components/bottomsheets/BannerModal';
-import { Colors } from '../constants/colors';
-import { supabase } from '../utils/database/supabaseClient';
-import { Expert, EXPERT_CATEGORIES } from '../types/expert';
-import { getExpertListCache, setExpertListCache, isExpertListFresh } from '../utils/expert/expertListCache';
-// import CacheDebugPanel from '../components/CacheDebugPanel'; // 디버깅이 필요할 때 주석 해제
+import ExpertCard from '../../components/expert/ExpertCard';
+import SectionHeader from '../../components/common/SectionHeader';
+import CategoryChipStyle from '../../components/expert/CategoryChipStyle';
+import CategoryExpertSection from '../../components/expert/CategoryExpertSection';
+import BannerModal from '../../components/bottomsheets/BannerModal';
+import { Colors } from '../../constants/colors';
+import { supabase } from '../../utils/database/supabaseClient';
+import { Expert, EXPERT_CATEGORIES } from '../../types/expert';
+import { getExpertListCache, setExpertListCache, isExpertListFresh } from '../../utils/expert/expertListCache';
+// import CacheDebugPanel from '../../components/CacheDebugPanel'; // 디버깅이 필요할 때 주석 해제
 
 interface HomeScreenProps {
   navigation: any;
@@ -148,7 +148,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           activeOpacity={0.9}
         >
           <Image
-            source={require('../../assets/banner/home_banner2.jpg')}
+            source={require('../../../assets/banner/home_banner2.jpg')}
             style={styles.bannerImage}
             resizeMode="contain"
           />
@@ -171,7 +171,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             >
               <View style={styles.menuIcon}>
                 <Image
-                  source={require('../../assets/saju/jeongtong_saju.png')}
+                  source={require('../../../assets/saju/jeongtong_saju.png')}
                   style={styles.menuIconImage}
                 />
               </View>
@@ -185,7 +185,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             >
               <View style={styles.menuIcon}>
                 <Image
-                  source={require('../../assets/saju/calendar_saju.png')}
+                  source={require('../../../assets/saju/calendar_saju.png')}
                   style={styles.menuIconImage}
                 />
               </View>
@@ -199,7 +199,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             >
               <View style={styles.menuIcon}>
                 <Image
-                  source={require('../../assets/saju/newyear_saju.png')}
+                  source={require('../../../assets/saju/newyear_saju.png')}
                   style={styles.menuIconImage}
                 />
               </View>

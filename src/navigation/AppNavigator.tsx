@@ -4,22 +4,22 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { Image } from 'react-native';
 import { Session } from '@supabase/supabase-js';
 
-import SplashScreen from '../screens/SplashScreen';
+import SplashScreen from '../screens/entry/SplashScreen';
 import BottomTabNavigator from './BottomTabNavigator';
-import BannerDetailScreen from '../screens/BannerDetailScreen';
-import ExpertDetailScreen from '../screens/ExpertDetailScreen';
-import ChatRoomScreen from '../screens/ChatRoomScreen';
-import SajuInfoScreen from '../screens/SajuInfoScreen';
-import NotificationSettingsScreen from '../screens/NotificationSettingsScreen';
-import TraditionalSajuScreen from '../screens/TraditionalSajuScreen';
-import TodayFortuneScreen from '../screens/TodayFortuneScreen';
-import NewYearFortuneScreen from '../screens/NewYearFortuneScreen';
-import LoadingScreen from '../screens/LoadingScreen';
-import BirthInfoScreen from '../screens/BirthInfoScreen';
-import PartnerInputScreen from '../screens/PartnerInputScreen';
-import TermsScreen from '../screens/TermsScreen';
+import BannerDetailScreen from '../screens/expert/BannerDetailScreen';
+import ExpertDetailScreen from '../screens/expert/ExpertDetailScreen';
+import ChatRoomScreen from '../screens/chat/ChatRoomScreen';
+import SajuInfoScreen from '../screens/saju/SajuInfoScreen';
+import NotificationSettingsScreen from '../screens/user/NotificationSettingsScreen';
+import TraditionalSajuScreen from '../screens/saju/TraditionalSajuScreen';
+import TodayFortuneScreen from '../screens/saju/TodayFortuneScreen';
+import NewYearFortuneScreen from '../screens/saju/NewYearFortuneScreen';
+import LoadingScreen from '../screens/common/LoadingScreen';
+import BirthInfoScreen from '../screens/saju/BirthInfoScreen';
+import PartnerInputScreen from '../screens/partner/PartnerInputScreen';
+import TermsScreen from '../screens/user/TermsScreen';
 import { RootStackParamList } from '../types/navigation';
-import LoginScreen from '../screens/LoginScreen';
+import LoginScreen from '../screens/entry/LoginScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
