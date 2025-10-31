@@ -1,18 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import AnimatedBottomSheet from './AnimatedBottomSheet';
-import { fetchPaymentTransactions } from '../../utils/payments/transactions';
+import { fetchChargeTransactions, fetchUsageTransactions } from '../../utils/payments/transactions';
 import { PaymentTransaction } from '../../utils/payments/types';
+import { Colors } from '../../constants/colors';
+import { formatPaymentDate } from '../../utils/text/dateFormat';
 
 interface PaymentHistoryBottomSheetProps {
   visible: boolean;
   onClose: () => void;
 }
 
+type TabType = 'charge' | 'use';
+
 const PaymentHistoryBottomSheet: React.FC<PaymentHistoryBottomSheetProps> = ({
   visible,
   onClose,
 }) => {
+  const [activeTab, setActiveTab] = useState<TabType>('charge');
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -20,12 +25,14 @@ const PaymentHistoryBottomSheet: React.FC<PaymentHistoryBottomSheetProps> = ({
     if (visible) {
       fetchTransactions();
     }
-  }, [visible]);
+  }, [visible, activeTab]);
 
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const data = await fetchPaymentTransactions();
+      const data = activeTab === 'charge' 
+        ? await fetchChargeTransactions() 
+        : await fetchUsageTransactions();
       setTransactions(data);
     } catch (error) {
       console.error('거래 내역 조회 오류:', error);
@@ -34,28 +41,12 @@ const PaymentHistoryBottomSheet: React.FC<PaymentHistoryBottomSheetProps> = ({
     }
   };
 
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-
-    if (days === 0) return `오늘 - ${month}월 ${day}일`;
-    if (days === 1) return `어제 - ${month}월 ${day}일`;
-    if (days < 7) return `${days}일 전 - ${month}월 ${day}일`;
-    
-    // 7일 이상이면 날짜만 표시
-    return `${month}월 ${day}일`;
-  };
 
   const renderTransaction = ({ item }: { item: PaymentTransaction }) => (
     <View style={styles.transactionItem}>
       <View style={styles.transactionLeft}>
         <Text style={styles.transactionDescription}>{item.description}</Text>
-        <Text style={styles.transactionDate}>{formatDate(item.created_at)}</Text>
+        <Text style={styles.transactionDate}>{formatPaymentDate(item.created_at)}</Text>
       </View>
       <View style={styles.transactionRight}>
         <Text style={[
@@ -72,7 +63,7 @@ const PaymentHistoryBottomSheet: React.FC<PaymentHistoryBottomSheetProps> = ({
     <AnimatedBottomSheet visible={visible} onClose={onClose} maxHeight={'80%'} minHeight={'40%'} contentStyle={styles.bottomSheet}>
           <View style={styles.bottomSheetHeader}>
             <View style={styles.titleContainer}>
-              <Text style={styles.bottomSheetTitle}>충전 내역</Text>
+              <Text style={styles.bottomSheetTitle}>사용 내역</Text>
               <Text style={styles.descriptionText}>운명을 더 이해하려는 당신의 노력</Text>
             </View>
             <TouchableOpacity
@@ -80,6 +71,26 @@ const PaymentHistoryBottomSheet: React.FC<PaymentHistoryBottomSheetProps> = ({
               onPress={onClose}
             >
               <Text style={styles.closeButtonText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 탭 버튼 */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'charge' && styles.activeTab]}
+              onPress={() => setActiveTab('charge')}
+            >
+              <Text style={[styles.tabText, activeTab === 'charge' && styles.activeTabText]}>
+                충전 내역
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === 'use' && styles.activeTab]}
+              onPress={() => setActiveTab('use')}
+            >
+              <Text style={[styles.tabText, activeTab === 'use' && styles.activeTabText]}>
+                사용 내역
+              </Text>
             </TouchableOpacity>
           </View>
           
@@ -127,7 +138,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    minHeight: '40%',
+    minHeight: '45%',
     maxHeight: '80%',
   },
   bottomSheetHeader: {
@@ -135,9 +146,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingTop: 20,
+    paddingBottom: 14,
   },
   titleContainer: {
     flex: 1,
@@ -150,7 +160,7 @@ const styles = StyleSheet.create({
   descriptionText: {
     fontSize: 14,
     color: '#666',
-    marginTop: 1,
+    marginTop: 0,
     lineHeight: 20,
   },
   closeButton: {
@@ -181,7 +191,7 @@ const styles = StyleSheet.create({
   },
   transactionList: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 3,
   },
   transactionItem: {
     flexDirection: 'row',
@@ -212,10 +222,34 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chargeAmount: {
-    color: '#007AFF',
+    color: Colors.primaryColor,
   },
   useAmount: {
-    color: '#ff4757',
+    color: Colors.debitColor,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 3,
+    gap: 10,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+  },
+  activeTab: {
+    backgroundColor: Colors.primaryColor,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  activeTabText: {
+    color: 'white',
   },
 });
 

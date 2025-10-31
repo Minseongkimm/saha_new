@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   serviceAmountText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#ff6b6b',
+    color: Colors.debitColor,
     marginLeft: 4,
   },
   priceButton: {
@@ -217,10 +217,10 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   hotChip: {
-    backgroundColor: '#FF4444',
+    backgroundColor: Colors.debitColor,
   },
   bestChip: {
-    backgroundColor: '#FF4444',
+    backgroundColor: Colors.debitColor,
   },
   chipText: {
     fontSize: 10,

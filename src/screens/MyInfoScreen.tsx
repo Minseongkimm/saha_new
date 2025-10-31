@@ -179,7 +179,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
                   style={styles.historyButton}
                   onPress={() => setShowHistoryModal(true)}
                 >
-                  <Text style={styles.historyButtonText}>내역</Text>
+                  <Text style={styles.historyButtonText}>사용 내역</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.chargeButton}
