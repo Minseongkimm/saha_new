@@ -17,6 +17,7 @@ import NewYearFortuneScreen from '../screens/NewYearFortuneScreen';
 import LoadingScreen from '../screens/LoadingScreen';
 import BirthInfoScreen from '../screens/BirthInfoScreen';
 import PartnerInputScreen from '../screens/PartnerInputScreen';
+import TermsScreen from '../screens/TermsScreen';
 import { RootStackParamList } from '../types/navigation';
 import LoginScreen from '../screens/LoginScreen';
 
@@ -58,6 +59,13 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
             <Stack.Screen
               name="Login"
               component={LoginScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="Terms"
+              component={TermsScreen}
               options={{
                 headerShown: false,
               }}
@@ -150,6 +158,13 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
             <Stack.Screen
               name="Loading"
               component={LoadingScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="Terms"
+              component={TermsScreen}
               options={{
                 headerShown: false,
               }}

@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   Alert,
   Image,
+  Pressable,
+  GestureResponderEvent,
 } from 'react-native';
 import { login } from '@react-native-seoul/kakao-login';
 import { supabase } from '../utils/database/supabaseClient';
@@ -14,14 +16,28 @@ import { supabase } from '../utils/database/supabaseClient';
 interface LoginScreenProps {
   navigation: {
     replace: (screenName: string, params?: any) => void;
+    navigate: (screenName: string, params?: any) => void;
   };
 }
 
 function LoginScreen({ navigation }: LoginScreenProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+  const toggleTermsAgreement = (): void => {
+    setAgreedToTerms(prev => !prev);
+  };
+
+  const handleNavigateTerms = (type: 'terms' | 'privacy'): void => {
+    navigation.navigate('Terms', { type });
+  };
 
   // 카카오 로그인 (Native SDK 방식)
   const handleKakaoLogin = async () => {
+    if (!agreedToTerms) {
+      Alert.alert('약관 동의 필요', '서비스 이용을 위해 이용약관 및 개인정보처리방침에 동의해주세요.');
+      return;
+    }
     setIsLoading(true);
 
     try {
@@ -45,6 +61,20 @@ function LoginScreen({ navigation }: LoginScreenProps) {
         return;
       }
       if (data?.user) {
+        // 약관 동의 정보를 user_metadata에 저장
+        const { error: updateError } = await supabase.auth.updateUser({
+          data: {
+            ...data.user.user_metadata,
+            agreed_to_terms: true,
+            terms_agreed_at: new Date().toISOString(),
+          },
+        });
+
+        if (updateError) {
+          console.error('약관 동의 정보 저장 오류:', updateError);
+          // 계속 진행 (약관 동의는 필수이지만 저장 실패해도 로그인은 진행)
+        }
+
         // 사용자의 birth_infos 데이터 확인
         const { data: birthInfo, error: birthInfoError } = await supabase
           .from('birth_infos')
@@ -88,11 +118,9 @@ function LoginScreen({ navigation }: LoginScreenProps) {
 
         {/* 중간 텍스트 */}
         <View style={styles.textContainer}>
-          <Text style={styles.title}>사바 AI</Text>
-          <Text style={styles.subtitle}>당신만의 사주 길잡이</Text>
+          <Text style={styles.title}>사바</Text>
           <Text style={styles.description}>
-            사주AI와 대화{'\n'}
-            고민의 실마리를 드립니다
+          스스로를 알아가는 길, 사바AI와 함께
           </Text>
         </View>
 
@@ -110,11 +138,45 @@ function LoginScreen({ navigation }: LoginScreenProps) {
                 resizeMode="contain"
               />
               <Text style={styles.kakaoButtonText}>
-                {isLoading ? '로그인 중' : '카카오로 로그인'}
+                {isLoading ? '로그인 중' : '카카오 로그인'}
               </Text>
             </View>
           </TouchableOpacity>
 
+          {/* 약관 동의 */}
+          <View style={styles.termsContainer}>
+            <Pressable style={styles.checkboxTapArea} onPress={toggleTermsAgreement}>
+              <View style={styles.checkboxContainer}>
+                <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
+                  {agreedToTerms && <Text style={styles.checkmark}>✓</Text>}
+                </View>
+                <View style={styles.termsTextWrapper}>
+                  <Text style={styles.termsText}>
+                    <Text
+                      onPress={(event: GestureResponderEvent) => {
+                        event.stopPropagation();
+                        handleNavigateTerms('terms');
+                      }}
+                      style={styles.termsLink}
+                    >
+                      이용약관
+                    </Text>
+                    {' 및 '}
+                    <Text
+                      onPress={(event: GestureResponderEvent) => {
+                        event.stopPropagation();
+                        handleNavigateTerms('privacy');
+                      }}
+                      style={styles.termsLink}
+                    >
+                      개인정보처리방침
+                    </Text>
+                    에 동의합니다
+                  </Text>
+                </View>
+              </View>
+            </Pressable>
+          </View>
         </View>
       </View>
     </SafeAreaView>
@@ -136,8 +198,8 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   logoImage: {
-    width: 180,
-    height: 180,
+    width: 190,
+    height: 190,
   },
   textContainer: {
     alignItems: 'center',
@@ -150,13 +212,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     fontFamily: 'System', // 기본 시스템 폰트
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#333333',
-    marginBottom: 12,
-    textAlign: 'center',
-    lineHeight: 22,
   },
   description: {
     fontSize: 14,
@@ -171,18 +226,13 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
     borderWidth: 1,
   },
   buttonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  iconImage: {
-    width: 20,
-    height: 20,
-    marginRight: 8,
   },
   kakaoIcon: {
     width: 20,
@@ -191,9 +241,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   kakaoButton: {
-    // backgroundColor: '#FFFFFF',
-    // borderColor: '#E0E0E0',
-    // 카카오 색상
     backgroundColor: '#FEE500',
     borderColor: '#FEE500',
   },
@@ -202,14 +249,54 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  googleButton: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E0E0E0',
+  termsContainer: {
+    alignItems: 'center',
   },
-  googleButtonText: {
-    color: '#333333',
-    fontSize: 16,
-    fontWeight: '600',
+  checkboxTapArea: {
+    paddingVertical: 3,
+    paddingHorizontal: 0,
+    alignItems: 'center',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    maxWidth: '90%',
+    justifyContent: 'center',
+  },
+  termsTextWrapper: {
+    flexShrink: 1,
+    justifyContent: 'center',
+  },
+  checkbox: {
+    width: 17,
+    height: 17,
+    borderWidth: 1,
+    borderColor: '#cccccc',
+    borderRadius: 4,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#FEE500',
+    borderColor: '#FEE500',
+  },
+  checkmark: {
+    color: '#000000',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  termsText: {
+    fontSize: 13,
+    color: '#666666',
+    flex: 0,
+    flexShrink: 1,
+    flexWrap: 'wrap',
+    textAlign: 'left',
+  },
+  termsLink: {
+    color: '#666666',
+    textDecorationLine: 'underline',
   },
 });
 

@@ -14,6 +14,7 @@ export type RootStackParamList = {
   // Charge: undefined; // 결제 기능 임시 비활성화
   BirthInfo: { userId: string };
   PartnerInput: { expertId: string };
+  Terms: { type: 'terms' | 'privacy' };
 };
 
 export type NavigationProps = {

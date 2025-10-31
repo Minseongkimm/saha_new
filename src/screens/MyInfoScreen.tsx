@@ -21,6 +21,8 @@ import {
 import ChargeBottomSheet from '../components/bottomsheets/ChargeBottomSheet';
 import PaymentHistoryBottomSheet from '../components/bottomsheets/PaymentHistoryBottomSheet';
 import { fetchUserBalance as fetchUserBalanceUtil, refreshBalance as refreshBalanceUtil } from '../utils/payments/balance';
+import { deleteUserAccount } from '../utils/user/deleteAccount';
+import { handleLogout as handleLogoutUtil } from '../utils/user/authUtils';
 
 interface MyInfoScreenProps {
   navigation: any;
@@ -118,13 +120,65 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
           style: 'destructive',
           onPress: async () => {
             try {
-              await supabase.auth.signOut();
-              // navigation.replace 대신 세션 상태 변경을 기다림
-              // App.tsx의 onAuthStateChange가 자동으로 Login 화면으로 전환
+              await handleLogoutUtil();
             } catch (error) {
-              console.error('로그아웃 오류:', error);
               Alert.alert('오류', '로그아웃에 실패했습니다.');
             }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      '계정 탈퇴',
+      '나를 알아가기 위한 여정이 끝나신 건가요?\n다 아셨다면 저희는 그 결정을 존중합니다.',
+      [
+        {
+          text: '더 이용하기',
+          style: 'cancel',
+        },
+        {
+          text: '탈퇴하기',
+          style: 'destructive',
+          onPress: () => {
+            // 2단계: 최종 확인
+            Alert.alert(
+              '정말 탈퇴하시겠습니까?',
+              '탈퇴 시 구매내역, 사용내역, 잔액 정보를 제외한 모든 데이터는 삭제되며 복구는 불가능합니다.',
+              [
+                {
+                  text: '취소',
+                  style: 'cancel',
+                },
+                {
+                  text: '탈퇴하기',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      const result = await deleteUserAccount();
+                      const retainedLabelMap: Record<string, string> = {
+                        payments: '구매내역',
+                        usages: '사용내역',
+                        user_balances: '잔액 정보',
+                      };
+                      const retainedLabels = result.retainedTables
+                        .map((table) => retainedLabelMap[table] || table)
+                        .join(', ');
+                      const successMessage = retainedLabels.length > 0
+                        ? `${result.message}\n보관 항목: ${retainedLabels}`
+                        : result.message;
+                      Alert.alert('안내', successMessage);
+                      await handleLogoutUtil();
+                    } catch (error) {
+                      console.error('계정 탈퇴 오류:', error);
+                      Alert.alert('오류', '계정 탈퇴에 실패했습니다.');
+                    }
+                  },
+                },
+              ]
+            );
           },
         },
       ]
@@ -193,7 +247,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>계정 관리</Text>
+          <Text style={styles.sectionTitle}>내 정보</Text>
           <TouchableOpacity 
             style={styles.menuItem}
             onPress={() => navigation.navigate('SajuInfo')}
@@ -220,9 +274,6 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
             <Text style={styles.menuText}>앱 버전</Text>
             <Text style={styles.versionText}>1.0.0</Text>
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.section}>
           <TouchableOpacity style={styles.menuItem} onPress={() => {}}>
             <Text style={styles.menuText}>문의하기</Text>
             <Text style={styles.arrowIcon}>›</Text>
@@ -230,8 +281,13 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.sectionTitle}>계정 관리</Text>
           <TouchableOpacity style={[styles.menuItem, styles.logoutButton]} onPress={handleLogout}>
-            <Text style={[styles.menuText, styles.logoutText]}>로그아웃</Text>
+            <Text style={[styles.menuText, styles.smallMenuText, styles.logoutText]}>로그아웃</Text>
+            <Text style={styles.arrowIcon}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={handleDeleteAccount}>
+            <Text style={[styles.menuText, styles.smallMenuText, styles.deleteAccountText]}>계정 삭제</Text>
             <Text style={styles.arrowIcon}>›</Text>
           </TouchableOpacity>
         </View>
@@ -240,11 +296,17 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
           <Text style={styles.developerText}>© 2025 Saha App</Text>
           <Text style={styles.developerText}>개발: Saha Team</Text>
           <View style={styles.legalRow}>
-            <TouchableOpacity style={styles.legalLink} onPress={() => {}}>
+            <TouchableOpacity 
+              style={styles.legalLink} 
+              onPress={() => navigation.navigate('Terms', { type: 'terms' })}
+            >
               <Text style={styles.legalText}>이용약관</Text>
             </TouchableOpacity>
             <Text style={styles.separator}>l</Text>
-            <TouchableOpacity style={styles.legalLink} onPress={() => {}}>
+            <TouchableOpacity 
+              style={styles.legalLink} 
+              onPress={() => navigation.navigate('Terms', { type: 'privacy' })}
+            >
               <Text style={styles.legalText}>개인정보처리방침</Text>
             </TouchableOpacity>
           </View>
@@ -391,6 +453,9 @@ const styles = StyleSheet.create({
     color: '#333',
     marginLeft: 1,
   },
+  smallMenuText: {
+    fontSize: 15,
+  },
   versionText: {
     fontSize: 14,
     color: '#999',
@@ -400,7 +465,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   logoutText: {
-    color: '#ff4757',
+    color: '#666',
+  },
+  deleteAccountText: {
+    color: '#666',
   },
   developerInfo: {
     marginTop: 10,
