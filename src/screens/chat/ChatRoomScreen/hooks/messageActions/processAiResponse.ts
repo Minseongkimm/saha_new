@@ -12,7 +12,7 @@
 import { Alert } from 'react-native';
 import { supabase } from '../../../../../utils/database/supabaseClient';
 import { streamChat } from '../../../../../services/ai/edgeFunctionClient';
-import { extractFollowUpQuestions, removeFollowUpQuestionsFromText } from '../../utils/messageUtils';
+import { extractFollowUpQuestions, removeFollowUpQuestionsFromText } from '../../../../../utils/text/textFormatUtils';
 import { ChatMessage } from '../../../../../types/chat';
 import { BirthInfo } from '../../../../../services/ai';
 import { updateChatListPreview } from '../../../../../utils/chat/chatListCache';

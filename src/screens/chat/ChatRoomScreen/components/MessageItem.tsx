@@ -6,7 +6,7 @@ import React, { memo, useMemo } from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { Colors } from '../../../../constants/colors';
 import { ChatMessage } from '../../../../types/chat';
-import { removeCommasFromMessage } from '../../../../utils/text/removeCommas';
+import { formatBoldText } from '../../../../utils/text/textFormatUtils';
 
 interface MessageItemProps {
   item: ChatMessage;
@@ -16,28 +16,7 @@ interface MessageItemProps {
 
 const MessageItem: React.FC<MessageItemProps> = memo(({ item, expertImage, expertName }) => {
   const formattedText = useMemo(() => {
-    if (!item.message) return '';
-    
-    // 먼저 쉼표를 제거
-    const messageWithoutCommas = removeCommasFromMessage(item.message);
-    
-    const parts = messageWithoutCommas.split(/(\*\*.*?\*\*)/);
-    
-    return (
-      <Text>
-        {parts.map((part, index) => {
-          if (part.startsWith('**') && part.endsWith('**')) {
-            const boldText = part.slice(2, -2);
-            return (
-              <Text key={index} style={{ fontWeight: 'bold', color: Colors.primaryColor }}>
-                {boldText}
-              </Text>
-            );
-          }
-          return part;
-        })}
-      </Text>
-    );
+    return formatBoldText(item.message);
   }, [item.message]);
   
   const timestamp = useMemo(() => 

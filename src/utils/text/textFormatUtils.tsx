@@ -1,7 +1,8 @@
 import React from 'react';
-import { Text } from 'react-native';
+import { Text, TextStyle } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { removeCommasFromMessage } from './removeCommas';
+import { removeBoldMarkup } from './removeBoldMarkup';
 
 /**
  * **굵은 글씨** 마크다운을 파란색 볼드 텍스트로 변환
@@ -54,3 +55,57 @@ export const removeBoldMarks = (text: string | undefined | null): string => {
   return textWithoutCommas.replace(/\*\*/g, '');
 };
 
+
+export const renderHighlight = (text: string, key?: React.Key): React.ReactNode => {
+  return (
+    <Text key={key} style={highlightTextStyle}>
+      {text}
+    </Text>
+  );
+};
+
+export const highlightTextStyle: TextStyle = {
+  backgroundColor: 'rgba(255, 248, 240, 1.0)',
+  paddingHorizontal: 6,
+  paddingVertical: 3,
+  borderRadius: 5,
+  fontSize: 13,
+  fontWeight: '600',
+  color: '#000000',
+};
+
+/**
+ * 팔로업 질문 추출 함수
+ * AI 응답에서 "팔로업 질문:" 또는 "다음으로 궁금하신 점은 무엇인지요?" 섹션에서 질문들을 추출
+ */
+export const extractFollowUpQuestions = (text: string): string[] => {
+  const questions: string[] = [];
+  if (!text) return questions;
+  const sectionMatch1: RegExpMatchArray | null = text.match(/팔로업\s*질문:\s*([\s\S]*)$/);
+  const sectionMatch2: RegExpMatchArray | null = text.match(/다음으로\s*궁금하신\s*점은\s*무엇인지요\?\s*([\s\S]*)$/);
+  const section: string | null = sectionMatch1?.[1] ?? sectionMatch2?.[1] ?? null;
+  if (!section) return questions;
+  const itemRegex: RegExp = /^\s*\d+\.\s*(.+)$/gm;
+  let match: RegExpExecArray | null;
+  while ((match = itemRegex.exec(section)) !== null) {
+    const cleaned: string = removeBoldMarkup(match[1].trim());
+    if (cleaned) questions.push(cleaned);
+  }
+  return questions.slice(0, 4);
+};
+
+/**
+ * 팔로업 질문 제거 함수
+ * AI 응답 텍스트에서 팔로업 질문 섹션을 제거하여 메시지 본문만 남김
+ */
+export const removeFollowUpQuestionsFromText = (text: string): string => {
+  let cleanText = text;
+  
+  // 형식 1 제거
+  cleanText = cleanText.replace(/팔로업\s*질문:[\s\S]*$/, '').trim();
+  
+  // 형식 2 제거
+  cleanText = cleanText.replace(/다음으로\s*궁금하신\s*점은\s*무엇인지요\?[\s\S]*$/, '').trim();
+  
+  return cleanText;
+};
