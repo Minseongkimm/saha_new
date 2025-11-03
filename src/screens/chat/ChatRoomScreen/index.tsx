@@ -2,7 +2,7 @@
  * ChatRoomScreen - 채팅방 메인 화면
  * 채팅방의 전체 레이아웃과 컴포넌트들을 조합하여 구성
  */
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,8 @@ import MessageList from './components/MessageList';
 import MessageInput from './components/MessageInput';
 import InitialQuestions from './components/InitialQuestions';
 import FollowUpQuestions from './components/FollowUpQuestions';
+import InsufficientBalanceBottomSheet from '../../../components/bottomsheets/InsufficientBalanceBottomSheet';
+import ChargeBottomSheet from '../../../components/bottomsheets/ChargeBottomSheet';
 
 interface ChatRoomScreenProps {
   navigation: any;
@@ -29,6 +31,16 @@ interface ChatRoomScreenProps {
 
 const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
   const { roomId, expert, partnerData } = route.params;
+  const [showInsufficientBalanceSheet, setShowInsufficientBalanceSheet] = useState(false);
+  const [showChargeSheet, setShowChargeSheet] = useState(false);
+  const [insufficientBalanceInfo, setInsufficientBalanceInfo] = useState<{
+    balance: number;
+    freeMessageUsedCount: number;
+    freeMessageDailyLimit: number;
+  } | null>(null);
+  
+  // 전환 중인지 추적 (첫 번째가 닫히는 동안 두 번째를 미리 준비)
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   // 커스텀 훅들
   const {
@@ -58,8 +70,34 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     setMessages,
     setShouldAutoScroll,
     scrollToBottom,
-    onBalanceUpdate: refreshBalance
+    onBalanceUpdate: refreshBalance,
+    onBalanceInsufficient: (balanceCheck) => {
+      setInsufficientBalanceInfo({
+        balance: balanceCheck.balance ?? 0,
+        freeMessageUsedCount: balanceCheck.freeMessageInfo?.usedCount ?? 0,
+        freeMessageDailyLimit: balanceCheck.freeMessageInfo?.dailyLimit ?? 0,
+      });
+      setShowInsufficientBalanceSheet(true);
+    }
   });
+
+  const handleCharge = () => {
+    // 즉시 전환 (첫 번째 닫는 애니메이션을 기다리지 않고 바로 두 번째 열기)
+    setIsTransitioning(true);
+    setShowInsufficientBalanceSheet(false);
+    // React 상태 업데이트는 배칭되므로 동시에 업데이트 가능
+    // 하지만 Modal이 닫히는 동안 열리면 겹칠 수 있으므로 최소 지연
+    setTimeout(() => {
+      setShowChargeSheet(true);
+      setIsTransitioning(false);
+    }, 50); // 첫 번째 닫히는 애니메이션이 시작되는 즉시 두 번째 열기
+  };
+
+  const handleChargeSelect = (amount: number) => {
+    setShowChargeSheet(false);
+    // TODO: 충전 로직 구현
+    console.log(`충전 선택: ${amount} 사바`);
+  };
 
 
   // 메시지 변경 시 항상 최신으로 스크롤 (메시지 개수 변경 시만)
@@ -140,6 +178,24 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
           />
         </View>
       </KeyboardAvoidingView>
+
+      <InsufficientBalanceBottomSheet
+        visible={showInsufficientBalanceSheet && !isTransitioning}
+        onClose={() => setShowInsufficientBalanceSheet(false)}
+        onCharge={handleCharge}
+        currentBalance={insufficientBalanceInfo?.balance ?? 0}
+        freeMessageUsedCount={insufficientBalanceInfo?.freeMessageUsedCount ?? 0}
+        freeMessageDailyLimit={insufficientBalanceInfo?.freeMessageDailyLimit ?? 0}
+      />
+
+      <ChargeBottomSheet
+        visible={showChargeSheet || isTransitioning}
+        onClose={() => {
+          setShowChargeSheet(false);
+          setIsTransitioning(false);
+        }}
+        onSelectCharge={handleChargeSelect}
+      />
     </SafeAreaView>
   );
 };

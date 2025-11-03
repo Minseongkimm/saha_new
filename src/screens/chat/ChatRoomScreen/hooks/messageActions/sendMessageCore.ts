@@ -32,6 +32,7 @@ interface SendMessageCoreParams {
   setShouldAutoScroll: (value: boolean) => void;
   scrollToBottom: (animated: boolean) => void;
   onBalanceUpdate?: (expected?: RefreshBalanceExpected) => Promise<void>;
+  onBalanceInsufficient?: (balanceCheck: { freeMessageInfo?: any; balance?: number }) => void;
 }
 
 export async function sendMessageCore(params: SendMessageCoreParams): Promise<void> {
@@ -44,13 +45,19 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
     setMessages,
     setShouldAutoScroll,
     scrollToBottom,
-    onBalanceUpdate
+    onBalanceUpdate,
+    onBalanceInsufficient
   } = params;
   
   if (!messageText.trim()) return;
   
   const balanceCheck = await checkBalanceBeforeSend();
-  if (!balanceCheck.canSend) return;
+  if (!balanceCheck.canSend) {
+    if (onBalanceInsufficient) {
+      onBalanceInsufficient(balanceCheck);
+    }
+    return;
+  }
   const initialFreeMessageInfo = balanceCheck.freeMessageInfo;
   const initialBalance = balanceCheck.balance;
   
