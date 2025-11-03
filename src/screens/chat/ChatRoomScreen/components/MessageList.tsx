@@ -88,7 +88,6 @@ const MessageList: React.FC<MessageListProps> = ({
       renderItem={renderMessage}
       keyExtractor={(item) => item.id || item.created_at}
       style={styles.messagesList}
-      contentContainerStyle={styles.messagesContentContainer}
       showsVerticalScrollIndicator={false}
       onContentSizeChange={() => scrollToBottom(false)}
       onLayout={() => scrollToBottom(false)}
@@ -107,9 +106,6 @@ const MessageList: React.FC<MessageListProps> = ({
 const styles = StyleSheet.create({
   messagesList: {
     flex: 1,
-  },
-  messagesContentContainer: {
-    paddingBottom: 20, // 하단 여백 추가
   },
   messageContainer: {
     marginTop: 10,

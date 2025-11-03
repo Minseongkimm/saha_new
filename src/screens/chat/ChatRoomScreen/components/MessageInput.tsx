@@ -55,8 +55,9 @@ const styles = StyleSheet.create({
   messageInputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    padding: 16,
+    paddingHorizontal: 16,
     paddingTop: 8,
+    paddingBottom: 2,
   },
   textInput: {
     flex: 1,
