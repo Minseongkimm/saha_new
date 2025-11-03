@@ -9,7 +9,7 @@
  *   3. AI용 메시지 준비 (prepareMessagesForAI)
  *   4. AI 응답 처리 (processAiResponse)
  *   5. 무료 대화 ID 업데이트 (updateFreeMessageId)
- *   6. 잔액 UI 업데이트 (onBalanceUpdate)
+ *   6. 잔액 및 무료 메시지 정보 UI 업데이트 (onBalanceUpdate)
  * - 에러 발생 시 사용자 메시지 롤백 처리
  */
 import { Alert } from 'react-native';
@@ -32,7 +32,7 @@ interface SendMessageCoreParams {
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   setShouldAutoScroll: (value: boolean) => void;
   scrollToBottom: (animated: boolean) => void;
-  onBalanceUpdate?: (newBalance: number) => void;
+  onBalanceUpdate?: ((newBalance: number) => void) | (() => Promise<void>);
 }
 
 export async function sendMessageCore(params: SendMessageCoreParams): Promise<void> {
@@ -83,11 +83,19 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
       await updateFreeMessageId(roomId, userMessageId, aiMessageId);
     }
     
+    // 잔액 및 무료 메시지 정보 업데이트
+    // refreshBalance 함수가 전달되면 잔액과 무료 메시지 정보를 모두 업데이트
     if (onBalanceUpdate) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const newBalance = await fetchUserBalance(user.id);
-        onBalanceUpdate(newBalance);
+      try {
+        // refreshBalance 같은 함수인 경우 (파라미터 없음, Promise 반환)
+        await (onBalanceUpdate as () => Promise<void>)();
+      } catch {
+        // 숫자를 받는 콜백인 경우 (기존 호환성을 위해)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const newBalance = await fetchUserBalance(user.id);
+          (onBalanceUpdate as (balance: number) => void)(newBalance);
+        }
       }
     }
   } catch (error: any) {

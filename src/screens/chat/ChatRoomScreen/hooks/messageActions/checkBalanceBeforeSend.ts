@@ -19,8 +19,12 @@ export async function checkBalanceBeforeSend(): Promise<boolean> {
       Alert.alert('오류', '로그인이 필요합니다.');
       return false;
     }
-    const freeMessageCheck = await checkFreeMessageAvailable(user.id);
-    const currentBalance = await fetchUserBalance(user.id);
+    // 무료 메시지와 잔액을 한 번에 확인
+    const [freeMessageCheck, currentBalance] = await Promise.all([
+      checkFreeMessageAvailable(user.id),
+      fetchUserBalance(user.id)
+    ]);
+    
     if (!freeMessageCheck.available && currentBalance < 1) {
       Alert.alert(
         '잔액 부족',

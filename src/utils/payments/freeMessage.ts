@@ -47,7 +47,8 @@ export async function checkFreeMessageAvailable(userId: string): Promise<{
       return { available: false, usedCount: 0, dailyLimit: 0 };
     }
     
-    // 오늘 사용한 무료 대화 수 조회
+    // 오늘 사용한 무료 대화 수 조회 (UTC 기준으로 Edge function과 동일하게)
+    // Edge function과 동일한 방식으로 날짜 계산
     const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('free_messages')

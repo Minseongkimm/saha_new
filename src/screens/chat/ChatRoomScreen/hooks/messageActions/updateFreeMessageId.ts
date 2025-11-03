@@ -16,6 +16,7 @@ export async function updateFreeMessageId(
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
   
+  // Edge function과 동일한 방식으로 날짜 계산 (UTC 기준)
   const today = new Date().toISOString().split('T')[0];
   await supabase
     .from('free_messages')

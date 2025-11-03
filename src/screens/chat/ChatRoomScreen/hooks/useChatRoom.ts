@@ -10,6 +10,7 @@ import { welcomeService } from '../../../../services/chat/welcomeService';
 import { ChatMessage } from '../../../../types/chat';
 import { BirthInfo } from '../../../../services/ai';
 import { fetchUserBalance } from '../../../../utils/payments/balance';
+import { checkFreeMessageAvailable } from '../../../../utils/payments/freeMessage';
 
 interface UseChatRoomProps {
   roomId: string;
@@ -22,6 +23,11 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
   const [userBirthInfo, setUserBirthInfo] = useState<BirthInfo | null>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
+  const [freeMessageInfo, setFreeMessageInfo] = useState<{ usedCount: number; dailyLimit: number; available: boolean }>({
+    usedCount: 0,
+    dailyLimit: 1,
+    available: true
+  });
   const flatListRef = useRef<any>(null);
 
   const scrollToBottom = (animated: boolean) => {
@@ -199,6 +205,9 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
 
       const balance = await fetchUserBalance(user.id);
       setCurrentBalance(balance ?? 0);
+      
+      const freeInfo = await checkFreeMessageAvailable(user.id);
+      setFreeMessageInfo(freeInfo);
     };
 
     fetchUserBirthInfo();
@@ -207,8 +216,14 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
   const refreshBalance = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      const balance = await fetchUserBalance(user.id);
+      // 잔액과 무료 메시지 정보를 병렬로 조회하여 호출 최소화
+      const [balance, freeInfo] = await Promise.all([
+        fetchUserBalance(user.id),
+        checkFreeMessageAvailable(user.id)
+      ]);
+      
       setCurrentBalance(balance ?? 0);
+      setFreeMessageInfo(freeInfo);
     }
   };
 
@@ -222,6 +237,7 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
     flatListRef,
     scrollToBottom,
     currentBalance,
+    freeMessageInfo,
     refreshBalance
   };
 };

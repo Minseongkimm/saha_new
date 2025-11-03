@@ -41,6 +41,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     flatListRef,
     scrollToBottom,
     currentBalance,
+    freeMessageInfo,
     refreshBalance
   } = useChatRoom({ roomId, expert });
 
@@ -83,17 +84,26 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={19} color={Colors.primaryColor} />
-        </TouchableOpacity>
+        <View style={styles.leftHeader}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Icon name="arrow-back" size={19} color="#000000" />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.headerTitle}>{expert.title}</Text>
-        <View style={styles.balanceContainer}>
-          <Image
-            source={require('../../../../assets/money/saha_money.png')}
-            style={styles.balanceIcon}
-            resizeMode="contain"
-          />
-          <Text style={styles.balanceText}>{currentBalance.toLocaleString()}</Text>
+        <View style={styles.rightHeader}>
+          <View style={styles.balanceContainer}>
+            <Image
+              source={require('../../../../assets/money/saha_money.png')}
+              style={styles.balanceIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.balanceText}>{currentBalance.toLocaleString()}</Text>
+          </View>
+          {freeMessageInfo.dailyLimit > 0 && (
+            <Text style={styles.freeMessageText}>
+              매일 무료 {freeMessageInfo.dailyLimit - freeMessageInfo.usedCount}/{freeMessageInfo.dailyLimit}
+            </Text>
+          )}
         </View>
       </View>
       
@@ -146,14 +156,30 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     backgroundColor: 'white',
+    position: 'relative',
+  },
+  leftHeader: {
+    width: 60,
+    alignItems: 'flex-start',
+    zIndex: 2,
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    textAlign: 'center',
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+    zIndex: 0,
+  },
+  rightHeader: {
+    width: 120,
+    alignItems: 'flex-end',
+    zIndex: 1,
   },
   balanceContainer: {
     flexDirection: 'row',
@@ -170,6 +196,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#000000',
+  },
+  freeMessageText: {
+    fontSize: 10,
+    color: '#666',
+    marginTop: 2,
   },
   keyboardAvoidingView: {
     flex: 1,
