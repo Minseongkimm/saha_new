@@ -9,6 +9,7 @@ import { markChatListNeedsRefresh } from '../../../../utils/chat/chatListCache';
 import { welcomeService } from '../../../../services/chat/welcomeService';
 import { ChatMessage } from '../../../../types/chat';
 import { BirthInfo } from '../../../../services/ai';
+import { fetchUserBalance } from '../../../../utils/payments/balance';
 
 interface UseChatRoomProps {
   roomId: string;
@@ -20,6 +21,7 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
   const [loading, setLoading] = useState(true);
   const [userBirthInfo, setUserBirthInfo] = useState<BirthInfo | null>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const [currentBalance, setCurrentBalance] = useState<number>(0);
   const flatListRef = useRef<any>(null);
 
   const scrollToBottom = (animated: boolean) => {
@@ -194,10 +196,21 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
       if (data) {
         setUserBirthInfo(data as BirthInfo);
       }
+
+      const balance = await fetchUserBalance(user.id);
+      setCurrentBalance(balance ?? 0);
     };
 
     fetchUserBirthInfo();
   }, []);
+
+  const refreshBalance = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const balance = await fetchUserBalance(user.id);
+      setCurrentBalance(balance ?? 0);
+    }
+  };
 
   return {
     messages,
@@ -207,6 +220,8 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
     shouldAutoScroll,
     setShouldAutoScroll,
     flatListRef,
-    scrollToBottom
+    scrollToBottom,
+    currentBalance,
+    refreshBalance
   };
 };

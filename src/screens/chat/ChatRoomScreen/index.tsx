@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../../../constants/colors';
@@ -38,7 +39,9 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     shouldAutoScroll,
     setShouldAutoScroll,
     flatListRef,
-    scrollToBottom
+    scrollToBottom,
+    currentBalance,
+    refreshBalance
   } = useChatRoom({ roomId, expert });
 
   const {
@@ -53,7 +56,8 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     messages,
     setMessages,
     setShouldAutoScroll,
-    scrollToBottom
+    scrollToBottom,
+    onBalanceUpdate: refreshBalance
   });
 
 
@@ -83,7 +87,14 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
           <Icon name="arrow-back" size={19} color={Colors.primaryColor} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{expert.title}</Text>
-        <View style={styles.placeholder} />
+        <View style={styles.balanceContainer}>
+          <Image
+            source={require('../../../../assets/money/saha_money.png')}
+            style={styles.balanceIcon}
+            resizeMode="contain"
+          />
+          <Text style={styles.balanceText}>{currentBalance.toLocaleString()}</Text>
+        </View>
       </View>
       
       <KeyboardAvoidingView 
@@ -144,8 +155,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  placeholder: {
-    width: 50,
+  balanceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 60,
+    justifyContent: 'flex-end',
+  },
+  balanceIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 6,
+  },
+  balanceText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#000000',
   },
   keyboardAvoidingView: {
     flex: 1,

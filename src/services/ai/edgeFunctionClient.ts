@@ -187,7 +187,8 @@ export async function streamChat(
   expertCategory: string,
   messages: Array<{ role: string; content: string }>,
   sajuData: Record<string, unknown>,
-  onChunk: (chunk: string) => void
+  onChunk: (chunk: string) => void,
+  userMessageId?: string
 ): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
 
@@ -235,7 +236,13 @@ export async function streamChat(
       }
     };
     
-    xhr.send(JSON.stringify({ roomId, expertCategory, messages, sajuData }));
+    xhr.send(JSON.stringify({ 
+      roomId, 
+      expertCategory, 
+      messages, 
+      sajuData,
+      userMessageId 
+    }));
   });
 }
 
