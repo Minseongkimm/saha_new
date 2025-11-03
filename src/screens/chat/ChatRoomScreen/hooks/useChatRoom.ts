@@ -10,7 +10,7 @@ import { welcomeService } from '../../../../services/chat/welcomeService';
 import { ChatMessage } from '../../../../types/chat';
 import { BirthInfo } from '../../../../services/ai';
 import { fetchUserBalance } from '../../../../utils/payments/balance';
-import { checkFreeMessageAvailable } from '../../../../utils/payments/freeMessage';
+import { checkFreeMessageAvailable, FreeMessageStatus } from '../../../../utils/payments/freeMessage';
 
 interface UseChatRoomProps {
   roomId: string;
@@ -213,7 +213,17 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
     fetchUserBirthInfo();
   }, []);
 
-  const refreshBalance = async () => {
+  const refreshBalance = async (expected?: RefreshBalanceExpected) => {
+    if (expected) {
+      if (typeof expected.balance === 'number') {
+        setCurrentBalance(expected.balance);
+      }
+      if (expected.freeInfo) {
+        setFreeMessageInfo(expected.freeInfo);
+      }
+      return;
+    }
+    
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       // 잔액과 무료 메시지 정보를 병렬로 조회하여 호출 최소화
@@ -240,4 +250,9 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
     freeMessageInfo,
     refreshBalance
   };
+};
+
+export type RefreshBalanceExpected = {
+  freeInfo?: FreeMessageStatus;
+  balance?: number;
 };

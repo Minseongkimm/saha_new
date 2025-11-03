@@ -8,11 +8,24 @@ export interface FreeMessagePolicy {
   enabled: boolean;
 }
 
+export interface FreeMessageStatus {
+  available: boolean;
+  usedCount: number;
+  dailyLimit: number;
+}
+
+const POLICY_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+let policyCache: { value: FreeMessagePolicy; expiresAt: number } | null = null;
+
 /**
  * 무료 대화 정책 조회
  */
 export async function getFreeMessagePolicy(): Promise<FreeMessagePolicy | null> {
   try {
+    if (policyCache && policyCache.expiresAt > Date.now()) {
+      return policyCache.value;
+    }
+
     const { data, error } = await supabase
       .from('free_message_policy')
       .select('daily_free_count, enabled')
@@ -22,24 +35,35 @@ export async function getFreeMessagePolicy(): Promise<FreeMessagePolicy | null> 
     if (error) {
       console.error('무료 대화 정책 조회 오류:', error);
       // 기본값 반환
-      return { daily_free_count: 1, enabled: true };
+      const fallback = { daily_free_count: 1, enabled: true };
+      policyCache = {
+        value: fallback,
+        expiresAt: Date.now() + POLICY_CACHE_TTL_MS
+      };
+      return fallback;
     }
     
-    return data as FreeMessagePolicy;
+    const policy = data as FreeMessagePolicy;
+    policyCache = {
+      value: policy,
+      expiresAt: Date.now() + POLICY_CACHE_TTL_MS
+    };
+    return policy;
   } catch (error) {
     console.error('무료 대화 정책 조회 예외:', error);
-    return { daily_free_count: 1, enabled: true };
+    const fallback = { daily_free_count: 1, enabled: true };
+    policyCache = {
+      value: fallback,
+      expiresAt: Date.now() + POLICY_CACHE_TTL_MS
+    };
+    return fallback;
   }
 }
 
 /**
  * 오늘 무료 대화 사용 가능 여부 확인
  */
-export async function checkFreeMessageAvailable(userId: string): Promise<{
-  available: boolean;
-  usedCount: number;
-  dailyLimit: number;
-}> {
+export async function checkFreeMessageAvailable(userId: string): Promise<FreeMessageStatus> {
   try {
     // 정책 조회
     const policy = await getFreeMessagePolicy();

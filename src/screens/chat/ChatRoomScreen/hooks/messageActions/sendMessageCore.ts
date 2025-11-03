@@ -13,11 +13,10 @@
  * - 에러 발생 시 사용자 메시지 롤백 처리
  */
 import { Alert } from 'react-native';
-import { supabase } from '../../../../../utils/database/supabaseClient';
-import { fetchUserBalance } from '../../../../../utils/payments/balance';
 import { ChatMessage } from '../../../../../types/chat';
 import { BirthInfo } from '../../../../../services/ai';
 import { checkBalanceBeforeSend } from './checkBalanceBeforeSend';
+import { RefreshBalanceExpected } from '../useChatRoom';
 import { sendUserMessage } from './sendUserMessage';
 import { prepareMessagesForAI } from './prepareMessagesForAI';
 import { processAiResponse } from './processAiResponse';
@@ -32,7 +31,7 @@ interface SendMessageCoreParams {
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   setShouldAutoScroll: (value: boolean) => void;
   scrollToBottom: (animated: boolean) => void;
-  onBalanceUpdate?: ((newBalance: number) => void) | (() => Promise<void>);
+  onBalanceUpdate?: (expected?: RefreshBalanceExpected) => Promise<void>;
 }
 
 export async function sendMessageCore(params: SendMessageCoreParams): Promise<void> {
@@ -50,8 +49,10 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
   
   if (!messageText.trim()) return;
   
-  const canSend = await checkBalanceBeforeSend();
-  if (!canSend) return;
+  const balanceCheck = await checkBalanceBeforeSend();
+  if (!balanceCheck.canSend) return;
+  const initialFreeMessageInfo = balanceCheck.freeMessageInfo;
+  const initialBalance = balanceCheck.balance;
   
   let tempUserMessageId: string | null = null;
   let userMessageId: string | null = null;
@@ -79,24 +80,36 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
       scrollToBottom
     });
     
-    if (aiMessageId && userMessageId) {
+    const didUseFreeMessage = initialFreeMessageInfo?.available ?? false;
+    if (didUseFreeMessage && aiMessageId && userMessageId) {
       await updateFreeMessageId(roomId, userMessageId, aiMessageId);
     }
     
     // 잔액 및 무료 메시지 정보 업데이트
     // refreshBalance 함수가 전달되면 잔액과 무료 메시지 정보를 모두 업데이트
     if (onBalanceUpdate) {
-      try {
-        // refreshBalance 같은 함수인 경우 (파라미터 없음, Promise 반환)
-        await (onBalanceUpdate as () => Promise<void>)();
-      } catch {
-        // 숫자를 받는 콜백인 경우 (기존 호환성을 위해)
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const newBalance = await fetchUserBalance(user.id);
-          (onBalanceUpdate as (balance: number) => void)(newBalance);
+      const expected: RefreshBalanceExpected = {};
+      if (initialFreeMessageInfo) {
+        if (didUseFreeMessage) {
+          const nextUsedCount = initialFreeMessageInfo.usedCount + 1;
+          expected.freeInfo = {
+            available: nextUsedCount < initialFreeMessageInfo.dailyLimit,
+            usedCount: nextUsedCount,
+            dailyLimit: initialFreeMessageInfo.dailyLimit
+          };
+        } else {
+          expected.freeInfo = initialFreeMessageInfo;
         }
       }
+
+      if (typeof initialBalance === 'number') {
+        expected.balance = didUseFreeMessage
+          ? initialBalance
+          : Math.max(0, initialBalance - 1);
+      }
+
+      const hasExpectedPayload = expected.freeInfo !== undefined || expected.balance !== undefined;
+      await onBalanceUpdate(hasExpectedPayload ? expected : undefined);
     }
   } catch (error: any) {
     console.error('Error sending message:', error);
@@ -107,4 +120,5 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
     throw error;
   }
 }
+
 

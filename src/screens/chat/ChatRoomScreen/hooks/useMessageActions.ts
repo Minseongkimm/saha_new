@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { ChatMessage } from '../../../../types/chat';
 import { BirthInfo } from '../../../../services/ai';
 import { sendMessageCore } from './messageActions/sendMessageCore';
+import { RefreshBalanceExpected } from './useChatRoom';
 
 interface UseMessageActionsProps {
   roomId: string;
@@ -15,7 +16,7 @@ interface UseMessageActionsProps {
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   setShouldAutoScroll: (value: boolean) => void;
   scrollToBottom: (animated: boolean) => void;
-  onBalanceUpdate?: (newBalance: number) => void;
+  onBalanceUpdate?: (expected?: RefreshBalanceExpected) => Promise<void>;
 }
 
 export const useMessageActions = ({

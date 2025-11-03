@@ -9,15 +9,21 @@
  */
 import { Alert } from 'react-native';
 import { supabase } from '../../../../../utils/database/supabaseClient';
-import { checkFreeMessageAvailable } from '../../../../../utils/payments/freeMessage';
+import { checkFreeMessageAvailable, FreeMessageStatus } from '../../../../../utils/payments/freeMessage';
 import { fetchUserBalance } from '../../../../../utils/payments/balance';
 
-export async function checkBalanceBeforeSend(): Promise<boolean> {
+export interface BalanceCheckResult {
+  canSend: boolean;
+  freeMessageInfo?: FreeMessageStatus;
+  balance?: number;
+}
+
+export async function checkBalanceBeforeSend(): Promise<BalanceCheckResult> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       Alert.alert('오류', '로그인이 필요합니다.');
-      return false;
+      return { canSend: false };
     }
     // 무료 메시지와 잔액을 한 번에 확인
     const [freeMessageCheck, currentBalance] = await Promise.all([
@@ -30,12 +36,20 @@ export async function checkBalanceBeforeSend(): Promise<boolean> {
         '잔액 부족',
         `사바 잔액이 부족합니다.\n현재 잔액: ${currentBalance}\n무료 대화: ${freeMessageCheck.usedCount}/${freeMessageCheck.dailyLimit} 사용 완료`
       );
-      return false;
+      return {
+        canSend: false,
+        freeMessageInfo: freeMessageCheck,
+        balance: currentBalance ?? 0
+      };
     }
-    return true;
+    return {
+      canSend: true,
+      freeMessageInfo: freeMessageCheck,
+      balance: currentBalance ?? 0
+    };
   } catch (error) {
     console.error('사전 체크 오류:', error);
-    return true;
+    return { canSend: true };
   }
 }
 
