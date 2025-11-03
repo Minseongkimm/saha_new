@@ -15,6 +15,102 @@ interface ChatStreamRequest {
   messages: OpenAIMessage[];
   sajuData: Record<string, unknown>;
   expertCategory: string;
+  userMessageId?: string;  // 사용자 메시지 ID (무료 대화 추적용)
+}
+
+/**
+ * 잔액 체크 및 차감 (무료 대화 우선)
+ * @returns { useFreeMessage: boolean, chargeAmount: number | null }
+ */
+async function checkAndChargeBalance(
+  supabase: any,
+  userId: string,
+  roomId: string,
+  userMessageId?: string
+): Promise<{ useFreeMessage: boolean; chargeAmount: number | null; freeMessageRecordId?: string }> {
+  try {
+    // 1. 무료 대화 정책 조회
+    const { data: policy } = await supabase
+      .from('free_message_policy')
+      .select('daily_free_count, enabled')
+      .limit(1)
+      .single();
+    
+    const dailyFreeCount = policy?.daily_free_count || 1;
+    const freeMessageEnabled = policy?.enabled !== false;
+    
+    // 2. 오늘 사용한 무료 대화 수 확인
+    const today = new Date().toISOString().split('T')[0];
+    const { data: freeMessages } = await supabase
+      .from('free_messages')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('used_date', today);
+    
+    const usedFreeCount = freeMessages?.length || 0;
+    const canUseFreeMessage = freeMessageEnabled && usedFreeCount < dailyFreeCount;
+    
+    // 3. 무료 대화 사용 가능하면 사용
+    if (canUseFreeMessage) {
+      const { data: freeMessageData, error: freeMessageError } = await supabase
+        .from('free_messages')
+        .insert({
+          user_id: userId,
+          used_date: today,
+          chat_room_id: roomId,
+          user_message_id: userMessageId || null,
+        })
+        .select('id')
+        .single();
+      
+      if (freeMessageError) {
+        log('error', '무료 대화 기록 실패', freeMessageError);
+        // 실패해도 유료로 진행
+      } else {
+        log('info', '무료 대화 사용', { userId, roomId, usedFreeCount: usedFreeCount + 1 });
+        return { 
+          useFreeMessage: true, 
+          chargeAmount: null,
+          freeMessageRecordId: freeMessageData?.id 
+        };
+      }
+    }
+    
+    // 4. 무료 대화 불가능하면 잔액 체크
+    const { data: balance } = await supabase
+      .from('user_balances')
+      .select('current_balance')
+      .eq('user_id', userId)
+      .single();
+    
+    const currentBalance = balance?.current_balance || 0;
+    
+    if (currentBalance < 1) {
+      return { useFreeMessage: false, chargeAmount: null };
+    }
+    
+    // 5. 잔액 차감 (usages 테이블에 INSERT - Trigger가 자동으로 total_usage 업데이트)
+    const { error: usageError } = await supabase
+      .from('usages')
+      .insert({
+        user_id: userId,
+        session_id: roomId,
+        delta: -1, // 1 사바 차감
+        reason: 'message',
+      });
+    
+    if (usageError) {
+      log('error', '사바 차감 실패', usageError);
+      return { useFreeMessage: false, chargeAmount: null };
+    }
+    
+    log('info', '사바 차감 완료', { userId, roomId, balanceBefore: currentBalance });
+    return { useFreeMessage: false, chargeAmount: 1, freeMessageRecordId: undefined };
+    
+  } catch (error) {
+    log('error', '잔액 체크 및 차감 실패', error);
+    return { useFreeMessage: false, chargeAmount: null };
+  }
 }
 
 /**
@@ -248,6 +344,33 @@ Deno.serve(async (req: Request) => {
 
     // Supabase 클라이언트 초기화
     const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // Auth 헤더에서 사용자 ID 확인
+    const authHeader = req.headers.get('Authorization');
+    let userId: string | null = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (!authError && user) {
+        userId = user.id;
+      }
+    }
+    
+    if (!userId) {
+      throw new StreamingError('사용자 인증이 필요합니다.', 401);
+    }
+
+    // 잔액 체크 및 차감 (무료 대화 우선)
+    const { useFreeMessage, chargeAmount } = await checkAndChargeBalance(
+      supabase,
+      userId,
+      roomId,
+      body.userMessageId
+    );
+    
+    if (!useFreeMessage && chargeAmount === null) {
+      throw new StreamingError('잔액이 부족합니다.', 402);
+    }
 
     // 1. 채팅방 정보 및 요약 조회
     const { data: chatRoom } = await supabase
