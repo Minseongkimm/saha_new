@@ -34,5 +34,16 @@
             <data android:scheme="saha" />
         </intent-filter>
       </activity>
+      <!-- Kakao redirect handler for native login -->
+      <activity
+        android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+        android:exported="true">
+        <intent-filter>
+          <action android:name="android.intent.action.VIEW" />
+          <category android:name="android.intent.category.DEFAULT" />
+          <category android:name="android.intent.category.BROWSABLE" />
+          <data android:scheme="kakao8664599143dee6919c04f7b00e0a495d" android:host="oauth" />
+        </intent-filter>
+      </activity>
     </application>
 </manifest>

@@ -78,9 +78,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.saha_new"
+    namespace "com.saha"
     defaultConfig {
-        applicationId "com.saha_new"
+        applicationId "com.saha"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
@@ -117,4 +117,7 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+    
+    // Kakao SDK
+    implementation "com.kakao.sdk:v2-all:2.20.0"
 }
