@@ -10,6 +10,8 @@ import {
   Alert,
   Modal,
   ActivityIndicator,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { supabase } from '../../utils/database/supabaseClient';
@@ -295,9 +297,10 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
   };
 
   if (loading) {
+    const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 24 : 0;
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: statusBarHeight }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Text style={styles.backButtonText}>‹</Text>
           </TouchableOpacity>
@@ -312,10 +315,12 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
     );
   }
 
+  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 24 : 0;
+  
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: statusBarHeight }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Text style={styles.backButtonText}>‹</Text>
           </TouchableOpacity>
@@ -743,7 +748,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingBottom: 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
@@ -961,7 +966,6 @@ const styles = StyleSheet.create({
   timeDisabledText: {
     fontSize: 16,
     color: '#999',
-    fontStyle: 'italic',
   },
   arrowIcon: {
     fontSize: 18,

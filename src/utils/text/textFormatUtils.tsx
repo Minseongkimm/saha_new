@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TextStyle } from 'react-native';
+import { Text, TextStyle, Platform, View } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { removeCommasFromMessage } from './removeCommas';
 import { removeBoldMarkup } from './removeBoldMarkup';
@@ -18,14 +18,14 @@ export const formatBoldText = (text: string | undefined | null): React.ReactNode
   // 먼저 쉼표를 제거
   const textWithoutCommas = removeCommasFromMessage(text);
   
-  // **굵은 글씨** 처리
-  return textWithoutCommas.split(/(\*\*.*?\*\*)/).map((part: string, index: number) => {
+  // **굵은 글씨** 처리 (제목은 제외)
+  const parts = textWithoutCommas.split(/(\*\*.*?\*\*)/).map((part: string, index: number) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return (
         <Text 
           key={index} 
           style={{ 
-            fontWeight: 'bold', 
+            fontWeight: Platform.OS === 'android' ? '700' : 'bold', 
             color: Colors.primaryColor 
           }}
         >
@@ -33,8 +33,10 @@ export const formatBoldText = (text: string | undefined | null): React.ReactNode
         </Text>
       );
     }
-    return part;
+    return <Text key={index}>{part}</Text>;
   });
+  
+  return <>{parts}</>;
 };
 
 /**
@@ -82,7 +84,8 @@ export const extractFollowUpQuestions = (text: string): string[] => {
   const questions: string[] = [];
   if (!text) return questions;
   const sectionMatch1: RegExpMatchArray | null = text.match(/팔로업\s*질문:\s*([\s\S]*)$/);
-  const sectionMatch2: RegExpMatchArray | null = text.match(/다음으로\s*궁금하신\s*점은\s*무엇인지요\?\s*([\s\S]*)$/);
+  // 허용: "다음으로 궁금하신 점은 무엇인지요?" 변형(예: "금하신", "무엇인가요", 공백 변동)
+  const sectionMatch2: RegExpMatchArray | null = text.match(/다음으로\s*(?:궁)?금하신\s*점(?:은|이)?\s*무엇(?:인지요|인가요|일까요)\??\s*([\s\S]*)$/);
   const section: string | null = sectionMatch1?.[1] ?? sectionMatch2?.[1] ?? null;
   if (!section) return questions;
   const itemRegex: RegExp = /^\s*\d+\.\s*(.+)$/gm;
@@ -104,8 +107,8 @@ export const removeFollowUpQuestionsFromText = (text: string): string => {
   // 형식 1 제거
   cleanText = cleanText.replace(/팔로업\s*질문:[\s\S]*$/, '').trim();
   
-  // 형식 2 제거
-  cleanText = cleanText.replace(/다음으로\s*궁금하신\s*점은\s*무엇인지요\?[\s\S]*$/, '').trim();
+  // 형식 2 제거 (변형 허용)
+  cleanText = cleanText.replace(/다음으로\s*(?:궁)?금하신\s*점(?:은|이)?\s*무엇(?:인지요|인가요|일까요)\??[\s\S]*$/, '').trim();
   
   return cleanText;
 };

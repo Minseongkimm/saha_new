@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { 
   getElementFromStem,
   FiveElementColors,
@@ -177,9 +177,10 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 20,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 5,
-    elevation: 0.3,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: Platform.OS === 'android' ? 0.1 : 0.08,
+    shadowRadius: Platform.OS === 'android' ? 7 : 5,
+    elevation: Platform.OS === 'android' ? 0.6 : 0.3,
   },
   userInfo: {
     alignItems: 'center',

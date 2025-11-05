@@ -446,7 +446,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#2c3e50',
     textAlign: 'center',
-    fontStyle: 'italic',
     lineHeight: 28,
   },
   overallCard: {

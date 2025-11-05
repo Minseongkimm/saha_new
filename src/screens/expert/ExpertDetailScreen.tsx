@@ -810,7 +810,6 @@ const styles = StyleSheet.create({
   placeholderText: {
     fontSize: 16,
     color: '#6c757d',
-    fontStyle: 'italic',
   },
   modalContainer: {
     flex: 1,
@@ -918,7 +917,6 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 8,
     textAlign: 'center',
-    fontStyle: 'italic',
   },
   deleteAction: {
     flex: 1,

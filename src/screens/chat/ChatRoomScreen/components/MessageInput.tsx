@@ -3,7 +3,7 @@
  * 텍스트 입력창과 전송 버튼을 포함한 메시지 입력 UI
  */
 import React, { useState } from 'react';
-import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, TextInput, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../../../../constants/colors';
 
@@ -57,7 +57,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 2,
+    paddingBottom: Platform.OS === 'android' ? 10 : 2,
   },
   textInput: {
     flex: 1,
