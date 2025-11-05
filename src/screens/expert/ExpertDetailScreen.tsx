@@ -19,6 +19,7 @@ import { Expert } from '../../types/expert';
 
 import { getExpertImage } from '../../utils/expert/getExpertImage';
 import { getExpertListCache } from '../../utils/expert/expertListCache';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { startChatWithExpert } from '../../utils/chat/chatUtils';
 import BirthInputForm, { PartnerBirthInfo } from '../../components/forms/BirthInputForm';
 import { RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from '../../types/partner';
@@ -79,18 +80,38 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
   });
 
   useEffect(() => {
-    const cached = getExpertListCache();
-    if (cached) {
-      const found = cached.find((e) => e.id === expertId);
-      if (found && (found as any).expert_details) {
-        // 캐시에 expert_details가 있으면 DB 조회 없이 바로 사용
-        setExpert(found as ExpertWithDetails);
-        setLoading(false);
-        return;
+    (async () => {
+      // 1) 로컬 디테일 캐시(7일 TTL) 우선 사용
+      const cacheKey = `expert_detail_${expertId}_v1`;
+      try {
+        const raw = await AsyncStorage.getItem(cacheKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as { value: ExpertWithDetails; expiresAt: number };
+          if (parsed.expiresAt > Date.now()) {
+            setExpert(parsed.value);
+            setLoading(false);
+            // SWR: 백그라운드 최신화
+            void fetchExpertDetails(true);
+            return;
+          }
+        }
+      } catch {}
+
+      // 2) 리스트 캐시에 details가 포함되었는지 확인
+      const cached = getExpertListCache();
+      if (cached) {
+        const found = cached.find((e) => e.id === expertId);
+        if (found && (found as any).expert_details) {
+          setExpert(found as ExpertWithDetails);
+          setLoading(false);
+          // SWR
+          void fetchExpertDetails(true);
+          return;
+        }
       }
-    }
-    // 캐시가 없거나 expert_details가 없으면 DB 조회
-    fetchExpertDetails();
+      // 3) DB 조회
+      fetchExpertDetails(false);
+    })();
   }, []);
 
   const handleStartChat = () => {
@@ -266,7 +287,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
     setShowPartnerModal(false);
   };
 
-  const fetchExpertDetails = async () => {
+  const fetchExpertDetails = async (swr: boolean) => {
     try {
       const { data, error } = await supabase
         .from('experts')
@@ -279,13 +300,18 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
 
       if (error) throw error;
       
-      // DB에서 가져온 데이터를 그대로 사용
+      // DB에서 가져온 데이터를 그대로 사용 + 디테일 캐시(7일)
       setExpert(data);
+      try {
+        const cacheKey = `expert_detail_${expertId}_v1`;
+        const TTL_7D = 7 * 24 * 60 * 60 * 1000;
+        await AsyncStorage.setItem(cacheKey, JSON.stringify({ value: data, expiresAt: Date.now() + TTL_7D }));
+      } catch {}
     } catch (error) {
       console.error('Error fetching expert details:', error);
       Alert.alert('오류', '전문가 정보를 불러오는데 실패했습니다.');
     } finally {
-      setLoading(false);
+      if (!swr) setLoading(false);
     }
   };
 
@@ -666,7 +692,7 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.05,
     shadowRadius: 4,
-    elevation: 1,
+    elevation: 0.3,
   },
   quoteBorderText: {
     fontSize: 15,

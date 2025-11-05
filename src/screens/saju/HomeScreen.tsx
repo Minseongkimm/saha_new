@@ -8,11 +8,10 @@ import {
   Dimensions,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import ExpertCard from '../../components/expert/ExpertCard';
 import SectionHeader from '../../components/common/SectionHeader';
 import CategoryChipStyle from '../../components/expert/CategoryChipStyle';
 import CategoryExpertSection from '../../components/expert/CategoryExpertSection';
@@ -37,18 +36,44 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const categoryRefs = useRef<{ [key: string]: View | null }>({});
 
   useEffect(() => {
-    const FRESH_MS = 30 * 60 * 1000; // 30분
+    const FRESH_MS = 24 * 60 * 60 * 1000; // 24시간
     if (isExpertListFresh(FRESH_MS)) {
       const cached = getExpertListCache();
       if (cached) {
         setExperts(cached);
         setLoading(false);
         // 백그라운드 최신화
-        void fetchExperts();
+        void (async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            await fetchExperts();
+          }
+        })();
         return;
       }
     }
-    fetchExperts();
+    // 세션이 준비되면 호출 (안드에서 복원 지연 대비)
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await fetchExperts();
+        return;
+      }
+      // 짧은 지연 후 1회 재시도
+      await new Promise((r) => setTimeout(r, 400));
+      const { data: { user: user2 } } = await supabase.auth.getUser();
+      if (user2) {
+        await fetchExperts();
+        return;
+      }
+      // 인증 이벤트로 1회만 트리거
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_evt, session) => {
+        if (session?.user) {
+          void fetchExperts();
+          subscription.unsubscribe();
+        }
+      });
+    })();
     
     // 앱 시작 시 배너 모달 표시 확인
     checkAndShowBannerModal();
@@ -273,7 +298,7 @@ const styles = StyleSheet.create({
     height: Dimensions.get('window').height * 0.15,
     width: Dimensions.get('window').width - 30,
     position: 'relative',
-    marginTop: 15,
+    marginTop: Platform.OS === 'android' ? 0 : 15,
     marginLeft: 15,
     marginRight: 15,
     borderRadius: 15,
@@ -298,7 +323,8 @@ const styles = StyleSheet.create({
     borderColor: '#f5f5f5',
     shadowColor: Colors.primaryColor,
     shadowOpacity: 0.08,
-    shadowRadius: 15,
+    shadowRadius: 13,
+    elevation: 0.3,
   },
   sajuCardHeader: {
     marginTop: -3,

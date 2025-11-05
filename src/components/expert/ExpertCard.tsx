@@ -111,6 +111,7 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.15,
     shadowRadius: 6,
+    elevation: 0.3,
     overflow: 'hidden',
   },
   imageContainer: {
@@ -152,6 +153,7 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3,
+    elevation: 0.3,
   },
   badgePopular: {
     backgroundColor: '#FF6B6B',

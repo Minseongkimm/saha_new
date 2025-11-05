@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 5,
-    elevation: 3,
+    elevation: 0.3,
   },
   userInfo: {
     alignItems: 'center',

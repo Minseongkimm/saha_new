@@ -3,7 +3,7 @@
  * 사용자/전문가 메시지를 렌더링하고 **볼드** 마크다운 처리
  */
 import React, { memo, useMemo } from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, Platform } from 'react-native';
 import { Colors } from '../../../../constants/colors';
 import { ChatMessage } from '../../../../types/chat';
 import { formatBoldText } from '../../../../utils/text/textFormatUtils';
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: Platform.OS === 'android' ? 1 : 0.3,
   },
   messageText: {
     fontSize: 14,

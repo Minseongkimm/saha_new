@@ -45,7 +45,6 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
           headerStyle: {
             backgroundColor: '#FFFFFFFF',
             borderBottomWidth: 0,
-            elevation: 0,
             shadowOpacity: 0,
           },
           headerTintColor: '#fff',
@@ -84,6 +83,11 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
                   </View>
                 ),
                 headerTitleAlign: 'center',
+                headerStyle: {
+                  borderBottomWidth: 0,
+                  elevation: 0,
+                  shadowOpacity: 0,
+                },
               }}
             />
             <Stack.Screen

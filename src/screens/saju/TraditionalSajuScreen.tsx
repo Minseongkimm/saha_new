@@ -260,6 +260,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 0.5,
     borderColor: '#f5f5f5',
+    shadowColor: Colors.primaryColor,
+    shadowOpacity: 0.08,
+    shadowRadius: 5,
+    elevation: 0.5,
     alignItems: 'center',
   },
   loadingText: {

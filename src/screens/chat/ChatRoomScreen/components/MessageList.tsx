@@ -3,7 +3,7 @@
  * FlatList를 사용하여 메시지 목록을 렌더링하고 스크롤 관리
  */
 import React, { useCallback, useMemo } from 'react';
-import { FlatList, View, Text, Image, StyleSheet } from 'react-native';
+import { FlatList, View, Text, Image, StyleSheet, Platform } from 'react-native';
 import { ChatMessage } from '../../../../types/chat';
 import { getExpertImage } from '../../../../utils/expert/getExpertImage';
 import MessageItem from './MessageItem';
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 0.3,
   },
   timestampBase: {
     fontSize: 12,

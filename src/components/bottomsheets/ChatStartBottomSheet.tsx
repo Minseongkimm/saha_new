@@ -9,6 +9,7 @@ import {
   Dimensions,
   PanResponder,
   Animated,
+  Platform,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
 
@@ -206,7 +207,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingBottom: 15, // Safe area 간격 줄임
+    paddingBottom: Platform.OS === 'android' ? 0 : 15, // 안드로이드 하단 여백 줄임
     maxHeight: height * 0.53, // 화면 높이의 60%로 제한
     shadowColor: '#000',
     shadowOffset: {
@@ -215,7 +216,7 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 20,
-    elevation: 10,
+    elevation: 0.3,
   },
   bottomSheetHeader: {
     position: 'relative',
@@ -244,8 +245,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   bottomSheetContent: {
-    paddingHorizontal: 24,
-    paddingVertical: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
   },
   headerSection: {
     alignItems: 'center',
@@ -254,7 +255,7 @@ const styles = StyleSheet.create({
   logo: {
     width: 40,
     height: 40,
-    marginBottom: 12,
+    marginBottom: 15,
   },
   title: {
     fontSize: 20,
@@ -267,7 +268,8 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#5a6c7d',
     textAlign: 'center',
-    marginBottom: 10,
+    marginTop: 5,
+    marginBottom: 20,
   },
   bottomSheetFooter: {
     paddingHorizontal: 20,
@@ -279,6 +281,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    ...(Platform.OS === 'ios' && { marginBottom: 10 }),
   },
   startButtonText: {
     color: 'white',

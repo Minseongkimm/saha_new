@@ -6,6 +6,7 @@ import {
   StyleSheet,
   StatusBar,
   SafeAreaView,
+  Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../../constants/colors';
@@ -21,11 +22,13 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
   onBackPress,
   rightComponent,
 }) => {
+  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 10 : 0;
+  
   return (
     <>
       <StatusBar backgroundColor="white" barStyle="dark-content" />
       <SafeAreaView style={styles.safeArea}>
-        <View style={styles.container}>
+        <View style={[styles.container, { paddingTop: statusBarHeight }]}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={onBackPress}
@@ -52,11 +55,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   container: {
-    height: 56,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
     paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'android' ? 8 : 0,
     borderBottomWidth: 0.5,
     borderBottomColor: '#e0e0e0',
   },
