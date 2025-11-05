@@ -9,6 +9,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { supabase } from '../../utils/database/supabaseClient';
@@ -21,6 +22,7 @@ import {
 import ChargeBottomSheet from '../../components/bottomsheets/ChargeBottomSheet';
 import PaymentHistoryBottomSheet from '../../components/bottomsheets/PaymentHistoryBottomSheet';
 import { fetchUserBalance as fetchUserBalanceUtil, refreshBalance as refreshBalanceUtil } from '../../utils/payments/balance';
+import { handleChargeFlow } from '../../utils/payments/chargeFlow';
 import { deleteUserAccount } from '../../utils/user/deleteAccount';
 import { handleLogout as handleLogoutUtil } from '../../utils/user/authUtils';
 
@@ -82,9 +84,22 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
 
   const loadUserInfo = async () => {
     try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      // 세션 보장: 안드에서 복원 지연 대비
+      let { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
-        navigation.replace('Login');
+        // 짧은 지연 후 1회 재시도
+        await new Promise((r) => setTimeout(r, 400));
+        ({ data: { user }, error: authError } = await supabase.auth.getUser());
+      }
+
+      if (authError || !user) {
+        // 인증 이벤트로 1회만 트리거
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_evt, session) => {
+          if (session?.user) {
+            void loadUserInfo();
+            subscription.unsubscribe();
+          }
+        });
         return;
       }
 
@@ -100,10 +115,18 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
     }
   };
 
-  const handleChargeSelect = (amount: number) => {
+  const handleChargeSelect = async (amount: number) => {
     setShowChargeModal(false);
-    // TODO: 충전 로직 구현
-    console.log(`충전 선택: ${amount} 상평통보`);
+    await handleChargeFlow(amount, {
+      onSuccess: (newBalance) => {
+        // 잔액 업데이트
+        setCurrentBalance(newBalance);
+        refreshBalance();
+      },
+      onError: (error) => {
+        console.error('충전 오류:', error);
+      },
+    });
   };
 
   const handleLogout = () => {
@@ -339,7 +362,7 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: 'center',
-    paddingVertical: 30,
+    paddingVertical: Platform.OS === 'android' ? 20 : 30,
     backgroundColor: 'white',
     marginBottom: 0,
   },

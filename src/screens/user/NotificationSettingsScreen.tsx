@@ -9,10 +9,13 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { supabase } from '../../utils/database/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 interface NotificationSettingsScreenProps {
   navigation: any;
@@ -26,6 +29,8 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
   });
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  
+  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 10;
 
   // 설정 로드
   useEffect(() => {
@@ -96,9 +101,9 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: statusBarHeight }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>‹</Text>
+            <Icon name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>알림 설정</Text>
           <View style={styles.headerRight} />
@@ -114,9 +119,9 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: statusBarHeight }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>‹</Text>
+            <Icon name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>알림 설정</Text>
           <View style={styles.headerRight} />
@@ -151,7 +156,7 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
             />
           </View>
 
-          <View style={[styles.settingItem, styles.settingItemLast]}>
+          <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
               <Text style={styles.settingLabel}>오늘의 운세 알림</Text>
               <Text style={styles.settingDescription}>매일 오늘의 운세를 알려드립니다</Text>
@@ -167,10 +172,10 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
 
         <View style={styles.infoSection}>
           <Text style={styles.infoText}>
-            • 전체 알림: 모든 알림을 한 번에 켜고 끌 수 있습니다{'\n'}
-            • 채팅 알림: 새로운 메시지가 올 때 알림을 받습니다{'\n'}
-            • 오늘의 운세: 매일 아침 오늘의 운세를 알려드립니다{'\n'}
-            • 설정은 자동으로 저장됩니다
+            전체 알림: 모든 알림을 한 번에 켜고 끌 수 있습니다{'\n'}
+            채팅 알림: 새로운 메시지가 올 때 알림을 받습니다{'\n'}
+            오늘의 운세: 매일 아침 오늘의 운세를 알려드립니다{'\n'}
+            설정은 자동으로 저장됩니다
           </Text>
         </View>
       </ScrollView>
@@ -191,18 +196,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingBottom: 0,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   backButton: {
-    padding: 8,
-  },
-  backButtonText: {
-    fontSize: 24,
-    color: Colors.primaryColor,
-    fontWeight: 'bold',
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
   headerTitle: {
     fontSize: 18,
@@ -252,9 +256,9 @@ const styles = StyleSheet.create({
   },
   infoSection: {
     backgroundColor: 'white',
-    marginTop: 20,
+    marginTop: 5,
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 10,
   },
   infoText: {
     fontSize: 14,

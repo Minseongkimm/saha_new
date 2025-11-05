@@ -148,15 +148,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   imageContainer: {
+    width: '100%',
     height: 200,
-    marginHorizontal: 15,
+    marginTop: 0,
     overflow: 'hidden',
-    borderRadius: 12,
-    marginTop: 2,
   },
   worldImage: {
     width: '100%',
     height: '100%',
+    resizeMode: 'cover',
   },
   sectionImageContainer: {
     height: 660,

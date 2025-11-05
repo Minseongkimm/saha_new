@@ -111,8 +111,10 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.15,
     shadowRadius: 6,
-    elevation: 0.3,
     overflow: 'hidden',
+    ...(Platform.OS === 'android' && {
+      borderWidth: 0,
+    }),
   },
   imageContainer: {
     position: 'relative',
