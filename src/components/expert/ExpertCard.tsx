@@ -18,6 +18,7 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { Expert } from '../../types/expert';
 import { Colors } from '../../constants/colors';
@@ -110,7 +111,6 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.15,
     shadowRadius: 6,
-    elevation: 8,
     overflow: 'hidden',
   },
   imageContainer: {
@@ -152,7 +152,6 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 3,
-    elevation: 5,
   },
   badgePopular: {
     backgroundColor: '#FF6B6B',
@@ -230,7 +229,6 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.02,
     shadowRadius: 1,
-    elevation: 1,
   },
   quoteText: {
     fontSize: 12,
@@ -241,9 +239,11 @@ const styles = StyleSheet.create({
   },
   signatureText: {
     fontSize: 11,
-    fontStyle: 'italic',
     color: '#888',
-    marginTop: 2,
+    marginTop: 1,
+    ...(Platform.OS === 'android' && {
+      paddingLeft: 3,
+    }),
   },
 });
 

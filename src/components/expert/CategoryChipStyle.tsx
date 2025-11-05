@@ -4,6 +4,7 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
 import { EXPERT_CATEGORIES } from '../../types/expert';
 import { Colors } from '../../constants/colors';
@@ -68,7 +69,7 @@ const styles = StyleSheet.create({
   chip: {
     flex: 1,
     paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingVertical: Platform.OS === 'android' ? 7 : 8,
     borderRadius: 8,
     backgroundColor: '#f8f9fa',
     borderWidth: 0,
@@ -80,7 +81,6 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.04,
     shadowRadius: 2,
-    elevation: 1,
   },
   selectedChip: {
     backgroundColor: Colors.primaryColor,
@@ -91,7 +91,6 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.25,
     shadowRadius: 6,
-    elevation: 4,
   },
   chipText: {
     fontSize: 11,

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Image } from 'react-native';
+import { Image, View, Platform } from 'react-native';
 import { Session } from '@supabase/supabase-js';
 
 import SplashScreen from '../screens/entry/SplashScreen';
@@ -52,37 +52,38 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
           headerTitleStyle: {
             fontWeight: 'bold',
           },
+          headerTitleAlign: 'center',
         }}
+        initialRouteName={session ? 'MainTabs' : 'Login'}
       >
-        {!session ? (
-          <>
-            <Stack.Screen
-              name="Login"
-              component={LoginScreen}
-              options={{
-                headerShown: false,
-              }}
-            />
-            <Stack.Screen
-              name="Terms"
-              component={TermsScreen}
-              options={{
-                headerShown: false,
-              }}
-            />
-          </>
-        ) : (
+        <Stack.Screen
+          name="Terms"
+          component={TermsScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
+        
+        {session ? (
           <>
             <Stack.Screen
               name="MainTabs"
               component={BottomTabNavigator}
               options={{
                 headerTitle: () => (
-                  <Image
-                    source={require('../../assets/logo/logo_icon.png')}
-                    style={{ width: 40, height: 40, resizeMode: 'contain', marginBottom: 7 }}
-                  />
+                  <View style={{ 
+                    flex: 1, 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    ...(Platform.OS === 'android' && { position: 'absolute', left: 0, right: 0 })
+                  }}>
+                    <Image
+                      source={require('../../assets/logo/logo_icon.png')}
+                      style={{ width: 40, height: 40, resizeMode: 'contain' }}
+                    />
+                  </View>
                 ),
+                headerTitleAlign: 'center',
               }}
             />
             <Stack.Screen
@@ -162,14 +163,15 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
                 headerShown: false,
               }}
             />
-            <Stack.Screen
-              name="Terms"
-              component={TermsScreen}
-              options={{
-                headerShown: false,
-              }}
-            />
           </>
+        ) : (
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{
+              headerShown: false,
+            }}
+          />
         )}
       </Stack.Navigator>
     </NavigationContainer>
