@@ -306,7 +306,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
                 <Icon name="close" size={20} color={'#333'} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.headerIconBtn} onPress={() => setDeleteModalVisible(true)} disabled={selectedCount === 0}>
-                <Icon name="trash" size={20} color={selectedCount === 0 ? '#bbb' : '#ff6b6b'} />
+                <Icon name="trash" size={20} color={selectedCount === 0 ? '#bbb' : Colors.primaryColor} />
               </TouchableOpacity>
             </View>
           ) : (
@@ -452,7 +452,6 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: Colors.primaryColor,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -463,6 +462,7 @@ const styles = StyleSheet.create({
   },
   checkboxUnselected: {
     backgroundColor: 'white',
+    borderColor: '#ccc',
   },
   profileImage: {
     width: 50,
