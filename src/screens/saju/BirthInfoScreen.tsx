@@ -187,8 +187,14 @@ interface SajuResult {
         return;
       }
 
-      // 저장 성공 시 MainTabs로 이동
-      navigation.replace('MainTabs');
+      // 저장 성공 시 MainTabs로 이동 (세션 상태 업데이트를 위해 약간의 딜레이)
+      setTimeout(() => {
+        try {
+          navigation.replace('MainTabs');
+        } catch (error) {
+          console.error('네비게이션 에러:', error);
+        }
+      }, 100);
 
     } catch (error) {
       Alert.alert('오류', '생년월일 정보 저장에 실패했습니다.');

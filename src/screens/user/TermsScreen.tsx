@@ -8,7 +8,7 @@ interface TermsScreenProps {
 }
 
 const TermsScreen: React.FC<TermsScreenProps> = ({ navigation, route }) => {
-  const { type } = route.params; // 'terms' or 'privacy'
+  const { type } = route.params || { type: 'terms' }; // 'terms' or 'privacy'
 
   const getTitle = () => {
     return type === 'privacy' ? '개인정보처리방침' : '이용약관';

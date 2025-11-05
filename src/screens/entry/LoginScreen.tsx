@@ -86,12 +86,34 @@ function LoginScreen({ navigation }: LoginScreenProps) {
           throw birthInfoError;
         }
 
-        // 이미 생년월일 정보가 있으면 MainTabs로, 없으면 BirthInfo 화면으로 이동
-        if (birthInfo) {
-          navigation.replace('MainTabs');
-        } else {
-          navigation.replace('BirthInfo', { userId: data.user.id });
-        }
+        // 세션 상태 업데이트를 위해 세션 확인 후 네비게이션
+        const checkSessionAndNavigate = async () => {
+          let retries = 0;
+          const maxRetries = 10;
+          
+          while (retries < maxRetries) {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              try {
+                // 이미 생년월일 정보가 있으면 MainTabs로, 없으면 BirthInfo 화면으로 이동
+                if (birthInfo) {
+                  navigation.replace('MainTabs');
+                } else {
+                  navigation.replace('BirthInfo', { userId: data.user.id });
+                }
+                return;
+              } catch (error) {
+                console.error('네비게이션 에러:', error);
+                // App.tsx의 세션 상태 변경으로 자동 네비게이션될 때까지 대기
+                return;
+              }
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+            retries++;
+          }
+        };
+        
+        checkSessionAndNavigate();
       } else {
         console.error('❌ === Supabase 로그인 성공했으나 사용자 데이터 없음 ===');
         Alert.alert('로그인 실패', '사용자 정보를 가져올 수 없습니다.');
