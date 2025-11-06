@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import AnimatedBottomSheet from './AnimatedBottomSheet';
 import { Colors } from '../../constants/colors';
+import { CHARGE_OPTIONS } from '../../constants/payments';
 
 interface ChargeBottomSheetProps {
   visible: boolean;
@@ -16,12 +17,13 @@ const ChargeBottomSheet: React.FC<ChargeBottomSheetProps> = ({
 }) => {
   // Animation handled by AnimatedBottomSheet
 
-  const chargeOptions = [
-    { id: 1000, saha_amount: '10', price: '₩1,000', service_amount: '2', chip: null },
-    { id: 3000, saha_amount: '30', price: '₩3,000', service_amount: '5', chip: 'hot' },
-    { id: 5000, saha_amount: '50', price: '₩5,000', service_amount: '10', chip: null },
-    { id: 10000, saha_amount: '100', price: '₩10,000', service_amount: '15', chip: 'best' },
-  ];
+  const chargeOptions = CHARGE_OPTIONS.map((option) => ({
+    id: option.id,
+    saha_amount: option.sahaAmount.toString(),
+    price: `₩${option.priceMinor.toLocaleString()}`,
+    service_amount: option.bonusSaha.toString(),
+    chip: option.chip,
+  }));
 
   // no-op
 

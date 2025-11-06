@@ -2,8 +2,11 @@
 // - verifyAndGrant: 스토어 영수증 검증 + 잔액 지급 요청
 // - fetchBalance: 서버에서 현재 잔액 조회
 import { VerifyPayload, VerifyResponse, BalanceResponse } from './types';
+import { supabase } from '../database/supabaseClient';
+import { SUPABASE_URL, USE_MOCK_IAP } from '../../config/env';
+import { fetchUserBalance } from './balance';
+import { mockVerifyAndGrant } from './mockIap';
 
-// NOTE: Replace with your actual API base if you are not calling Supabase Edge functions directly.
 const DEFAULT_TIMEOUT_MS = 15000;
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
@@ -18,20 +21,47 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs = DEFAULT_TIMEOUT_MS): Pr
     });
   });
 }
-
+/**
+ * 스토어 영수증 검증 및 잔액 지급
+ */
 export async function verifyAndGrant(payload: VerifyPayload): Promise<VerifyResponse> {
-  // Placeholder implementation. Wire this to your Edge Function or server endpoint.
-  // Example: const res = await fetch(`${API_BASE}/iap/verify-and-grant`, { ... })
-  // For now, return a safe mocked shape to avoid runtime errors while wiring UI.
-  void payload;
-  return {
-    status: 'approved',
-    currentBalance: 0,
-  };
+  // Mock 모드에서는 Mock 검증 로직 사용
+  if (USE_MOCK_IAP) {
+    return mockVerifyAndGrant(payload);
+  }
+
+  try {
+    // 세션 토큰 가져오기
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('로그인이 필요합니다');
+    }
+
+    // Edge Function 호출
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/verify-iap`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json().catch(() => ({}))) as { message?: string };
+      throw new Error(errorData.message || `서버 오류: ${response.status}`);
+    }
+
+    const result = (await response.json()) as VerifyResponse;
+    return result;
+  } catch (error) {
+    console.error('영수증 검증 실패:', error);
+    throw error;
+  }
 }
 
 export async function fetchBalance(): Promise<BalanceResponse> {
-  // Placeholder implementation. In production, fetch from a secure endpoint or Supabase RPC.
+  // balance.ts의 refreshBalance를 사용하므로 여기서는 사용하지 않음
   return withTimeout(Promise.resolve({ currentBalance: 0 }));
 }
 

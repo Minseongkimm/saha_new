@@ -13,6 +13,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppNavigator from './src/navigation/AppNavigator';
 import { supabase } from './src/utils/database/supabaseClient';
 import { Session } from '@supabase/supabase-js';
+import { initIAP } from './src/utils/payments/iapClient';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -28,13 +29,19 @@ function App() {
   // 앱 초기화
   useEffect(() => {
     // 앱이 처음 시작될 때 초기 세션 확인
-    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+    // Android에서 세션 복원이 늦을 수 있으므로 명시적으로 처리
+    supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
+      if (error) {
+        console.error('세션 조회 오류:', error);
+      }
+      console.log('[App] 초기 세션:', initialSession ? '있음' : '없음');
       setSession(initialSession);
       setLoading(false);
     });
 
     // 인증 상태 변경 리스너
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+      console.log('[App] 인증 상태 변경:', event, currentSession ? '세션 있음' : '세션 없음');
       setSession(currentSession);
     });
 
@@ -50,6 +57,12 @@ function App() {
       }
     }).catch((error) => {
       console.error('❌ === 초기 URL 확인 중 오류 ===', error);
+    });
+
+    // IAP 초기화 (인앱결제)
+    initIAP().catch((error) => {
+      console.error('IAP 초기화 실패:', error);
+      // IAP 초기화 실패해도 앱은 정상 작동
     });
 
     return () => {
