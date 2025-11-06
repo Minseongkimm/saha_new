@@ -43,7 +43,18 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
   // 사용자 정보 로드
   useEffect(() => {
     loadUserInfo();
-  }, []);
+    
+    // 화면 포커스 시 잔액 갱신
+    const unsubscribe = navigation.addListener('focus', async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const balance = await fetchUserBalanceUtil(user.id);
+        setCurrentBalance(balance);
+      }
+    });
+    
+    return unsubscribe;
+  }, [navigation]);
 
   const fetchUserProfile = async (userId: string) => {
     // 프로필: 이름/이메일/사주 정보
@@ -77,7 +88,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
     setCurrentBalance(balance ?? 0);
   };
 
-  const refreshBalance = async () => {
+  const refreshBalance = async (): Promise<void> => {
     const balance = await refreshBalanceUtil();
     if (balance !== null) setCurrentBalance(balance);
   };
@@ -119,9 +130,8 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
     setShowChargeModal(false);
     await handleChargeFlow(amount, {
       onSuccess: (newBalance) => {
-        // 잔액 업데이트
+        // 서버에서 반환된 잔액으로 즉시 업데이트 (서버가 이미 DB에서 조회한 정확한 값)
         setCurrentBalance(newBalance);
-        refreshBalance();
       },
       onError: (error) => {
         console.error('충전 오류:', error);
