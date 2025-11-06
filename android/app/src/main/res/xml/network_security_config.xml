@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 기본 설정: HTTPS만 허용, 시스템 인증서 신뢰 -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Metro 번들러 (개발용 localhost) 허용 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.2.2</domain>
+    </domain-config>
+    
+    <!-- Supabase와 카카오 도메인 명시적 허용 (HTTPS) -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">tdzkgyixpthhzzcfnotu.supabase.co</domain>
+        <domain includeSubdomains="true">kauth.kakao.com</domain>
+        <domain includeSubdomains="true">kapi.kakao.com</domain>
+        <domain includeSubdomains="true">talkauth.kakao.com</domain>
+    </domain-config>
+</network-security-config>
+

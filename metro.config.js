@@ -11,6 +11,10 @@ const config = {
     assetExts: ['bin', 'txt', 'jpg', 'png', 'json', 'ttf', 'otf'],
     platforms: ['ios', 'android', 'native', 'web'],
     sourceExts: ['js', 'json', 'ts', 'tsx', 'jsx'],
+    blockList: [
+      /\.DS_Store$/,
+      /.*\/\.DS_Store$/,
+    ],
   },
   transformer: {
     getTransformOptions: async () => ({
@@ -21,6 +25,15 @@ const config = {
     }),
   },
   watchFolders: [],
+  watchOptions: {
+    ignored: [
+      '**/node_modules/**',
+      '**/.git/**',
+      '**/.DS_Store',
+      '**/android/build/**',
+      '**/ios/build/**',
+    ],
+  },
 };
 
 module.exports = mergeConfig(getDefaultConfig(__dirname), config);
