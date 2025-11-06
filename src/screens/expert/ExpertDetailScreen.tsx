@@ -275,7 +275,6 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
 
   const handlePartnerInfoSave = async () => {
     // TODO: 상대방 정보 저장 로직 구현
-    console.log('상대방 정보 저장:', partnerInfo);
     setShowPartnerModal(false);
     // 저장 후 채팅 시작
     if (expert?.id) {

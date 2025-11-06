@@ -61,11 +61,9 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
       setIsLoading(true);
       
       // 1. 상대방 사주 계산
-      console.log('상대방 사주 계산 중...');
       const partnerSajuData = await calculatePartnerSaju(partnerInfo);
 
       // 2. 로컬 궁합 계산 (사용자 사주 + 상대 사주)
-      console.log('궁합 계산 중...');
       const sajuCalculator = new SajuCalculator();
 
       // 사용자 사주 정보 불러오기 → SajuInfo 변환
@@ -109,10 +107,7 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
         : null;
 
       // 3. DB에 상대방 정보 저장 (궁합 결과 포함)
-      console.log('상대방 정보 저장 중...');
       const partnerId: string = await savePartnerToDatabase(partnerInfo, partnerSajuData, compatibilityResult);
-      
-      console.log('상대방 정보 저장 완료:', partnerId);
       
       // 4. 채팅 시작 (상대방 정보 + 로컬 궁합 포함)
       const partnerData = {

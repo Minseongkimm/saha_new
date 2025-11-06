@@ -20,7 +20,6 @@ export const forceSignOut = async () => {
     if (authKeys.length > 0) {
       await AsyncStorage.multiRemove(authKeys);
     }
-    console.log('🔓 Forced sign out successful');
   } catch (error) {
     console.error('Force sign out error:', error);
   }

@@ -42,7 +42,6 @@ export async function deleteUserAccount(): Promise<DeleteAccountResult> {
     }
 
     const result = await response.json() as DeleteAccountResult;
-    console.log('계정 삭제 완료:', result);
     return result;
   } catch (error) {
     console.error('계정 삭제 오류:', error);

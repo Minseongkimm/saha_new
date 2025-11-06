@@ -137,9 +137,6 @@ export class SajuCache {
       
       if (sajuKeys.length > 0) {
         await AsyncStorage.multiRemove(sajuKeys);
-        console.log(`모든 사주 캐시 삭제 완료 (${sajuKeys.length}개 키)`);
-      } else {
-        console.log('삭제할 사주 캐시가 없습니다.');
       }
     } catch (error) {
       console.error('전체 사주 캐시 삭제 실패:', error);

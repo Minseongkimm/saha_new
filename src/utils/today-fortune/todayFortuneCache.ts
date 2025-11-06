@@ -89,7 +89,6 @@ export class TodayFortuneCache {
       
       if (fortuneKeys.length > 0) {
         await AsyncStorage.multiRemove(fortuneKeys);
-        console.log(`모든 오늘의 운세 캐시 삭제 완료 (${fortuneKeys.length}개 키)`);
       }
     } catch (error) {
       console.error('전체 오늘의 운세 캐시 삭제 실패:', error);
@@ -130,7 +129,6 @@ export class TodayFortuneCache {
       
       if (keysToRemove.length > 0) {
         await AsyncStorage.multiRemove(keysToRemove);
-        console.log(`오래된 오늘의 운세 캐시 ${keysToRemove.length}개 삭제 완료`);
       }
     } catch (error) {
       console.error('오늘의 운세 캐시 정리 실패:', error);

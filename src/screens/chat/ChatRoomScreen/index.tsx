@@ -95,14 +95,11 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   };
 
   const handleChargeSelect = async (amount: number) => {
-    console.log('[ChatRoomScreen] 충전 버튼 클릭:', amount, '원');
     setShowChargeSheet(false);
-    console.log('[ChatRoomScreen] handleChargeFlow 호출 시작...');
     
     try {
       await handleChargeFlow(amount, {
-        onSuccess: (newBalance) => {
-          console.log('[ChatRoomScreen] 충전 성공, 새 잔액:', newBalance);
+        onSuccess: () => {
           // 잔액 업데이트 (refreshBalance가 자동으로 호출되지만, 명시적으로도 호출)
           refreshBalance();
         },
