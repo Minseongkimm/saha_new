@@ -39,7 +39,7 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer key={session ? 'auth' : 'guest'}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: {
@@ -55,16 +55,15 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
         }}
         initialRouteName={session ? 'MainTabs' : 'Login'}
       >
-        <Stack.Screen
-          name="Terms"
-          component={TermsScreen}
-          options={{
-            headerShown: false,
-          }}
-        />
-        
         {session ? (
           <>
+            <Stack.Screen
+              name="Terms"
+              component={TermsScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
             <Stack.Screen
               name="MainTabs"
               component={BottomTabNavigator}
@@ -169,13 +168,22 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
             />
           </>
         ) : (
-          <Stack.Screen
-            name="Login"
-            component={LoginScreen}
-            options={{
-              headerShown: false,
-            }}
-          />
+          <>
+            <Stack.Screen
+              name="Login"
+              component={LoginScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="Terms"
+              component={TermsScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+          </>
         )}
       </Stack.Navigator>
     </NavigationContainer>

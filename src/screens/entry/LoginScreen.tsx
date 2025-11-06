@@ -17,6 +17,7 @@ interface LoginScreenProps {
   navigation: {
     replace: (screenName: string, params?: any) => void;
     navigate: (screenName: string, params?: any) => void;
+    reset: (config: { index: number; routes: Array<{ name: string; params?: any }> }) => void;
   };
 }
 
@@ -86,41 +87,31 @@ function LoginScreen({ navigation }: LoginScreenProps) {
           throw birthInfoError;
         }
 
-        // 세션 상태 업데이트를 위해 세션 확인 후 네비게이션
+        // 세션 상태 업데이트를 위해 세션을 충분히 기다린 뒤 네비게이션
         const checkSessionAndNavigate = async () => {
+          // 세션이 설정될 때까지 폴링
           let retries = 0;
-          const maxRetries = 10;
-          
+          const maxRetries = 20;
           while (retries < maxRetries) {
             const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-              try {
-                // 이미 생년월일 정보가 있으면 MainTabs로, 없으면 BirthInfo 화면으로 이동
-                if (birthInfo) {
-                  navigation.replace('MainTabs');
-                } else {
-                  navigation.replace('BirthInfo', { userId: data.user.id });
-                }
-                return;
-              } catch (error) {
-                console.error('네비게이션 에러:', error);
-                // App.tsx의 세션 상태 변경으로 자동 네비게이션될 때까지 대기
-                return;
-              }
-            }
+            if (session) break;
             await new Promise(resolve => setTimeout(resolve, 100));
             retries++;
+          }
+
+          // 세션이 준비되면: 생년월일 정보 없으면 BirthInfo로, 있으면 아무 것도 하지 않음
+          // (AppNavigator가 세션에 따라 자동으로 MainTabs로 이동)
+          if (!birthInfo) {
+            navigation.replace('BirthInfo', { userId: data.user.id });
           }
         };
         
         checkSessionAndNavigate();
       } else {
-        console.error('❌ === Supabase 로그인 성공했으나 사용자 데이터 없음 ===');
         Alert.alert('로그인 실패', '사용자 정보를 가져올 수 없습니다.');
       }
       setIsLoading(false);
     } catch (error) {
-      console.error('💥 === 카카오 로그인 예외 ===', error);     
       Alert.alert('로그인 실패', '카카오 로그인에 실패했습니다.');
       setIsLoading(false);
     }

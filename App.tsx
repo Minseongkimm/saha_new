@@ -34,14 +34,12 @@ function App() {
       if (error) {
         console.error('세션 조회 오류:', error);
       }
-      console.log('[App] 초기 세션:', initialSession ? '있음' : '없음');
       setSession(initialSession);
       setLoading(false);
     });
 
     // 인증 상태 변경 리스너
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
-      console.log('[App] 인증 상태 변경:', event, currentSession ? '세션 있음' : '세션 없음');
       setSession(currentSession);
     });
 

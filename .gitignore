@@ -74,6 +74,11 @@ supabase/.env.local
 supabase/.temp/
 supabase/.branches/
 
+# Apple Private Keys (절대 Git에 커밋하지 않음)
+*.p8
+*.pem
+AuthKey_*.p8
+
 # Yarn
 .yarn/*
 !.yarn/patches
