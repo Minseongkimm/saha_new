@@ -11,6 +11,7 @@ import ExpertDetailScreen from '../screens/expert/ExpertDetailScreen';
 import ChatRoomScreen from '../screens/chat/ChatRoomScreen';
 import SajuInfoScreen from '../screens/saju/SajuInfoScreen';
 import NotificationSettingsScreen from '../screens/user/NotificationSettingsScreen';
+import ContactSupportScreen from '../screens/user/ContactSupportScreen';
 import TraditionalSajuScreen from '../screens/saju/TraditionalSajuScreen';
 import TodayFortuneScreen from '../screens/saju/TodayFortuneScreen';
 import NewYearFortuneScreen from '../screens/saju/NewYearFortuneScreen';
@@ -134,6 +135,13 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
             <Stack.Screen
               name="NotificationSettings"
               component={NotificationSettingsScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="ContactSupport"
+              component={ContactSupportScreen}
               options={{
                 headerShown: false,
               }}

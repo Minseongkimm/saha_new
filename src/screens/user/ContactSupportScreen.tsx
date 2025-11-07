@@ -1,0 +1,206 @@
+import React from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, Linking, Alert, ScrollView } from 'react-native';
+import { StackScreenProps } from '@react-navigation/stack';
+import { RootStackParamList } from '../../types/navigation';
+import { Colors } from '../../constants/colors';
+import CustomHeader from '../../components/common/CustomHeader';
+
+const SUPPORT_EMAIL: string = 'support@saha.app';
+const EMAIL_SUBJECT: string = '사바 고객 문의';
+const EMAIL_BODY_TEMPLATE: string = '안녕하세요 사바관련 문의 드립니다.\n\n문의 유형: \n\n상세 내용: \n\n발생 일시: \n\n첨부 자료: \n\n이메일 (간편 로그인과 다른 주소일 때만): \n\n앱 버전: 1.0.0\n';
+
+type ContactSupportScreenProps = StackScreenProps<RootStackParamList, 'ContactSupport'>;
+
+const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation }) => {
+  const handlePressBack = () => {
+    navigation.goBack();
+  };
+  const handlePressEmail = async () => {
+    const encodedBody: string = encodeURIComponent(EMAIL_BODY_TEMPLATE);
+    const mailtoUrl: string = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(EMAIL_SUBJECT)}&body=${encodedBody}`;
+    const canOpen: boolean = await Linking.canOpenURL(mailtoUrl);
+    if (!canOpen) {
+      Alert.alert('안내', '이 기기에서 이메일 앱을 열 수 없습니다.');
+      return;
+    }
+    try {
+      await Linking.openURL(mailtoUrl);
+    } catch (error) {
+      Alert.alert('안내', '이메일 앱 실행에 실패했습니다. 다시 시도해 주세요.');
+    }
+  };
+  return (
+    <View style={styles.container}>
+      <CustomHeader title="고객 지원" onBackPress={handlePressBack} />
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.hero}>
+          <Text style={styles.title}>무엇을 도와드릴까요?</Text>
+          <Text style={styles.subtitle}>정확하고 빠른 답변을 위해 아래 안내를 참고해 주세요.</Text>
+        </View>
+        <View style={styles.callout}>
+          <Text style={styles.calloutTitle}>문의 전송 전에 확인해 주세요</Text>
+          <View style={styles.bulletRow}>
+            <Text style={styles.bullet}>•</Text>
+            <Text style={styles.bulletText}>문의 목적을 알려 주시면 더 정확하게 살펴볼 수 있어요.</Text>
+          </View>
+          <View style={styles.bulletRow}>
+            <Text style={styles.bullet}>•</Text>
+            <Text style={styles.bulletText}>어느 화면에서 어떤 경험을 하셨는지 공유해 주시면 큰 도움이 돼요.</Text>
+          </View>
+          <View style={[styles.bulletRow]}>
+            <Text style={styles.bullet}>•</Text>
+            <Text style={styles.bulletText}>오류 메시지, 스크린샷을 보내 주시면 확인이 빨라져요.</Text>
+          </View>
+          <View style={[styles.bulletRow, styles.bulletRowLast]}>
+            <Text style={styles.bullet}>•</Text>
+            <Text style={styles.bulletText}>간편 로그인 주소와 다른 메일로 보낸다면 그 주소를 함께 알려 주세요.</Text>
+          </View>
+        </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>함께 적어 주시면 좋아요</Text>
+          <View style={styles.bulletRow}>
+            <Text style={styles.bullet}>•</Text>
+            <Text style={styles.bulletText}>사용 중인 기기와 OS 버전</Text>
+          </View>
+          <View style={[styles.bulletRow, styles.bulletRowLast]}>
+            <Text style={styles.bullet}>•</Text>
+            <Text style={styles.bulletText}>앱 버전</Text>
+          </View>
+          
+        </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>응답 안내</Text>
+          <View style={styles.bulletRow}>
+            <Text style={styles.bullet}>•</Text>
+            <Text style={styles.sectionBody}>접수시간 :평일 10~18시(24시간 이내 답변)</Text>
+          </View>
+          <View style={[styles.bulletRow, styles.bulletRowLast]}>
+            <Text style={styles.bullet}>•</Text>
+            <Text style={styles.sectionBody}>문의 메일 : {SUPPORT_EMAIL}</Text>
+          </View>
+        </View>
+      </ScrollView>
+      <View style={styles.footer}>
+        <TouchableOpacity style={styles.emailButton} onPress={handlePressEmail}>
+          <Text style={styles.emailButtonText}>이메일로 문의하기</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 32,
+  },
+  hero: {
+    marginBottom: 24,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#222222',
+    marginBottom: 5,
+  },
+  description: {
+    fontSize: 15,
+    color: '#555555',
+    lineHeight: 22,
+  },
+  callout: {
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    backgroundColor: '#F7F9FC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginBottom: 24,
+  },
+  calloutTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 16,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  bulletRowLast: {
+    marginBottom: 0,
+  },
+  bullet: {
+    width: 18,
+    fontSize: 16,
+    lineHeight: 22,
+    color: '#1E293B',
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 22,
+  },
+  section: {
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#EDF2F7',
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  sectionBody: {
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 22,
+  },
+  footer: {
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF2F6',
+    backgroundColor: '#FFFFFF',
+  },
+  footerDescription: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  emailButton: {
+    backgroundColor: Colors.primaryColor,
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  emailButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  emailHint: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    marginTop: 12,
+  },
+});
+
+export default ContactSupportScreen;
+

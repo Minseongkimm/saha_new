@@ -15,6 +15,7 @@ export type RootStackParamList = {
   BirthInfo: { userId: string };
   PartnerInput: { expertId: string };
   Terms: { type: 'terms' | 'privacy' };
+  ContactSupport: undefined;
 };
 
 export type NavigationProps = {

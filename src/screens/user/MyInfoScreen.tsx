@@ -134,7 +134,12 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
         setCurrentBalance(newBalance);
       },
       onError: (error) => {
-        console.error('충전 오류:', error);
+        console.error('충전 오류 상세:', {
+          error,
+          message: error?.message,
+          stack: error?.stack,
+          code: (error as any)?.code,
+        });
       },
     });
   };
@@ -307,7 +312,10 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
             <Text style={styles.menuText}>앱 버전</Text>
             <Text style={styles.versionText}>1.0.0</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={() => {}}>
+          <TouchableOpacity
+            style={styles.menuItem}
+            onPress={() => navigation.navigate('ContactSupport')}
+          >
             <Text style={styles.menuText}>문의하기</Text>
             <Text style={styles.arrowIcon}>›</Text>
           </TouchableOpacity>
@@ -372,7 +380,7 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: 'center',
-    paddingVertical: Platform.OS === 'android' ? 20 : 30,
+    paddingVertical: Platform.OS === 'android' ? 20 : 28,
     backgroundColor: 'white',
     marginBottom: 0,
   },
@@ -422,7 +430,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 12,
     padding: 16,
-    marginTop: 12,
+    marginTop: 8,
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
@@ -470,7 +478,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    paddingTop: 20,
+    paddingTop: 12,
     borderBottomColor: 'transparent',
   },
   menuItem: {
