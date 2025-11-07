@@ -20,14 +20,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     if let path = Bundle.main.path(forResource: "Info", ofType: "plist"),
        let plist = NSDictionary(contentsOfFile: path),
        let kakaoAppKey = plist["KAKAO_APP_KEY"] as? String {
-      print("🔑 === 카카오 앱 키 로드 성공 === \(kakaoAppKey)")
-      KakaoSDK.initSDK(appKey: kakaoAppKey)
-      print("✅ === 카카오 SDK 초기화 완료 ===")
+      KakaoSDK.initSDK(appKey: kakaoAppKey.trimmingCharacters(in: .whitespacesAndNewlines))
     } else {
-      print("❌ === 카카오 앱 키 로드 실패 ===")
-      // 하드코딩된 앱 키로 초기화 시도
       KakaoSDK.initSDK(appKey: "8664599143dee6919c04f7b00e0a495d")
-      print("✅ === 카카오 SDK 하드코딩 초기화 완료 ===")
     }
     
     let delegate = ReactNativeDelegate()
@@ -56,7 +51,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   }
 }
 
-class ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
+class  ReactNativeDelegate: RCTDefaultReactNativeFactoryDelegate {
   override func sourceURL(for bridge: RCTBridge) -> URL? {
     self.bundleURL()
   }
