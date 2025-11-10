@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    paddingTop: 12,
+    paddingTop: 22,
     borderBottomColor: 'transparent',
   },
   menuItem: {
