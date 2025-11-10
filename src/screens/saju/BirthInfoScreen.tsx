@@ -18,6 +18,9 @@ import { Colors } from '../../constants/colors';
 interface BirthInfoScreenProps {
   navigation: {
     replace: (screenName: string) => void;
+    goBack: () => void;
+    canGoBack?: () => boolean;
+    navigate: (screenName: string, params?: any) => void;
   };
   route: RouteProp<RootStackParamList, 'BirthInfo'>;
 }
@@ -187,10 +190,15 @@ interface SajuResult {
         return;
       }
 
-      // 저장 성공 시 MainTabs로 이동 (세션 상태 업데이트를 위해 약간의 딜레이)
+      // 저장 성공 시 redirectTo가 있으면 해당 화면으로, 없으면 MainTabs로 이동
       setTimeout(() => {
         try {
-          navigation.replace('MainTabs');
+          const redirectTo = route.params?.redirectTo;
+          if (redirectTo) {
+            navigation.replace(redirectTo);
+          } else {
+            navigation.replace('MainTabs');
+          }
         } catch (error) {
           console.error('네비게이션 에러:', error);
         }
@@ -428,7 +436,13 @@ interface SajuResult {
 
         <TouchableOpacity 
           style={styles.skipButton}
-          onPress={() => navigation.replace('MainTabs')}
+          onPress={() => {
+            if (typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+              navigation.goBack();
+              return;
+            }
+            navigation.replace('MainTabs');
+          }}
         >
           <Text style={styles.skipButtonText}>다음에 입력하기</Text>
         </TouchableOpacity>

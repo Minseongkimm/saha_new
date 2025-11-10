@@ -26,9 +26,10 @@ const Stack = createStackNavigator<RootStackParamList>();
 
 interface AppNavigatorProps {
   session: Session | null;
+  initialAuthRouteName?: 'MainTabs' | 'BirthInfo' | 'Loading';
 }
 
-const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
+const AppNavigator: React.FC<AppNavigatorProps> = ({ session, initialAuthRouteName = 'MainTabs' }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const handleSplashFinish = () => {
@@ -40,7 +41,7 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
   }
 
   return (
-    <NavigationContainer key={session ? 'auth' : 'guest'}>
+    <NavigationContainer key={session ? `auth-${initialAuthRouteName}` : 'guest'}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: {
@@ -54,7 +55,7 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session }) => {
           },
           headerTitleAlign: 'center',
         }}
-        initialRouteName={session ? 'MainTabs' : 'Login'}
+        initialRouteName={session ? initialAuthRouteName : 'Login'}
       >
         {session ? (
           <>

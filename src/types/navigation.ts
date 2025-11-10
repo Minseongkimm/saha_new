@@ -12,7 +12,7 @@ export type RootStackParamList = {
   NewYearFortune: undefined;
   Loading: undefined;
   // Charge: undefined; // 결제 기능 임시 비활성화
-  BirthInfo: { userId: string };
+  BirthInfo: { userId?: string; redirectTo?: string };
   PartnerInput: { expertId: string };
   Terms: { type: 'terms' | 'privacy' };
   ContactSupport: undefined;

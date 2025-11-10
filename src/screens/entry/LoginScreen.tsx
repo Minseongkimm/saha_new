@@ -99,11 +99,7 @@ function LoginScreen({ navigation }: LoginScreenProps) {
             retries++;
           }
 
-          // 세션이 준비되면: 생년월일 정보 없으면 BirthInfo로, 있으면 아무 것도 하지 않음
-          // (AppNavigator가 세션에 따라 자동으로 MainTabs로 이동)
-          if (!birthInfo) {
-            navigation.replace('BirthInfo', { userId: data.user.id });
-          }
+          // 로그인 후 라우팅은 App에서 처리됨(여기서 네비게이션하지 않음)
         };
         
         checkSessionAndNavigate();

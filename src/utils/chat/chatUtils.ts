@@ -1,6 +1,7 @@
 import { supabase } from '../database/supabaseClient';
 import { markChatListNeedsRefresh } from './chatListCache';
 import { Alert } from 'react-native';
+import { ensureBirthInfoOrNavigate } from '../user/birthInfoGuard';
 
 /**
  * 카테고리로 전문가 조회
@@ -38,6 +39,10 @@ export const startChatWithExpert = async (
   expertId: string,
   partnerData?: any
 ) => {
+  // BirthInfo 검사: 없으면 입력 화면으로
+  const ok = await ensureBirthInfoOrNavigate(navigation);
+  if (!ok) return;
+
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     Alert.alert('오류', '로그인이 필요합니다.');

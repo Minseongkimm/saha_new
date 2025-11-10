@@ -21,6 +21,7 @@ import { supabase } from '../../utils/database/supabaseClient';
 import { Expert, EXPERT_CATEGORIES } from '../../types/expert';
 import { getExpertListCache, setExpertListCache, isExpertListFresh } from '../../utils/expert/expertListCache';
 // import CacheDebugPanel from '../../components/CacheDebugPanel'; // 디버깅이 필요할 때 주석 해제
+import { ensureBirthInfoOrNavigate } from '../../utils/user/birthInfoGuard';
 
 interface HomeScreenProps {
   navigation: any;
@@ -192,7 +193,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <TouchableOpacity 
               style={styles.menuItem} 
               activeOpacity={0.8}
-              onPress={() => navigation.navigate('JeongtongSaju')}
+              onPress={async () => {
+                const ok = await ensureBirthInfoOrNavigate(navigation, 'JeongtongSaju');
+                if (!ok) return;
+                navigation.navigate('JeongtongSaju');
+              }}
             >
               <View style={styles.menuIcon}>
                 <Image
@@ -206,7 +211,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <TouchableOpacity 
               style={styles.menuItem} 
               activeOpacity={0.8}
-              onPress={() => navigation.navigate('TodayFortune')}
+              onPress={async () => {
+                const ok = await ensureBirthInfoOrNavigate(navigation, 'TodayFortune');
+                if (!ok) return;
+                navigation.navigate('TodayFortune');
+              }}
             >
               <View style={styles.menuIcon}>
                 <Image
@@ -220,7 +229,11 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             <TouchableOpacity 
               style={styles.menuItem} 
               activeOpacity={0.8}
-              onPress={() => navigation.navigate('NewYearFortune')}
+              onPress={async () => {
+                const ok = await ensureBirthInfoOrNavigate(navigation, 'NewYearFortune');
+                if (!ok) return;
+                navigation.navigate('NewYearFortune');
+              }}
             >
               <View style={styles.menuIcon}>
                 <Image
