@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
@@ -18,6 +17,7 @@ import AIGuideSection from '../../components/common/AIGuideSection';
 import BottomFixedButton from '../../components/common/BottomFixedButton';
 import { startChatWithExpert, getExpertByCategory } from '../../utils/chat/chatUtils';
 import { useTraditionalSaju } from '../../hooks/useTraditionalSaju';
+import SabaLoader from '../../components/common/SabaLoader';
 
 
 interface TraditionalSajuScreenProps {
@@ -105,8 +105,7 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
         onBackPress={() => navigation.goBack()}
       />
         <View style={styles.centerContainer}>
-              <ActivityIndicator size="large" color={Colors.primaryColor} />
-              <Text style={styles.loadingText}>만세력 표를 불러오는 중...</Text>
+              <SabaLoader message="만세력 표를 불러오는 중" />
             </View>
       </View>
     );
@@ -182,8 +181,7 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
             {/* 로딩 중 (데이터가 하나도 없을 때만) */}
             {!isStreaming && !analysisData && (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={Colors.primaryColor} />
-                <Text style={styles.loadingText}>사주 해석을 확인하는 중...</Text>
+                <SabaLoader message="사주 해석을 확인하는 중" />
               </View>
             )}
             
@@ -265,11 +263,6 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 0.5,
     alignItems: 'center',
-  },
-  loadingText: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 12,
   },
   noDataTitle: {
     fontSize: 18,

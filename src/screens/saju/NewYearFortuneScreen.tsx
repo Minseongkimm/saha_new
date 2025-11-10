@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Image,
   Alert,
 } from 'react-native';
@@ -19,6 +18,7 @@ import SimpleYearInteraction from '../../components/saju/SimpleYearInteraction';
 import { startChatWithExpert, getExpertByCategory } from '../../utils/chat/chatUtils';
 import { useNewYearFortune } from '../../hooks/useNewYearFortune';
 import { formatBoldText, removeBoldMarks } from '../../utils/text/textFormatUtils';
+import SabaLoader from '../../components/common/SabaLoader';
 
 interface NewYearFortuneScreenProps {
   navigation: any;
@@ -142,7 +142,14 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
   };
 
   // 로딩 상태 처리 (스트리밍 중이 아닐 때만)
-  if ((sajuInitializing || sajuLoading || loading) && !isStreaming) {
+  const isInitialLoading = (sajuInitializing || sajuLoading || loading) && !isStreaming;
+
+  if (isInitialLoading) {
+    const loadingMessage = sajuInitializing
+      ? '사주 데이터를 불러오는 중'
+      : sajuLoading
+        ? '사주를 계산하는 중'
+        : '신년운세를 확인하는 중';
     return (
       <View style={styles.container}>
         <CustomHeader 
@@ -150,12 +157,7 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
           onBackPress={() => navigation.goBack()}
         />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primaryColor} />
-          <Text style={styles.loadingText}>
-            {sajuInitializing ? '사주 데이터를 불러오는 중...' : 
-             sajuLoading ? '사주를 계산하는 중...' : 
-             '신년운세를 확인하는 중...'}
-          </Text>
+          <SabaLoader message={loadingMessage} />
         </View>
       </View>
     );
@@ -216,8 +218,12 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
           {/* 스트리밍 인디케이터 - 항상 위에 표시 */}
           {isStreaming && (
             <View style={styles.streamingIndicatorContainer}>
-              <ActivityIndicator size="small" color={Colors.primaryColor} style={{ marginRight: 8 }} />
-              <Text style={styles.streamingIndicator}>AI가 신년운세를 분석하는 중...</Text>
+              <SabaLoader
+                size={32}
+                message="AI가 신년운세를 분석하는 중"
+                containerStyle={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}
+                textStyle={{ marginTop: 0, marginLeft: 8 }}
+              />
             </View>
           )}
 
@@ -499,11 +505,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 14,
-    color: '#666',
   },
   errorContainer: {
     flex: 1,

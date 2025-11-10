@@ -6,7 +6,6 @@ import {
   Image,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
   Modal,
 } from 'react-native';
@@ -25,6 +24,7 @@ import BirthInputForm, { PartnerBirthInfo } from '../../components/forms/BirthIn
 import { RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from '../../types/partner';
 import { getPartnerList, deletePartnerFromDatabase } from '../../utils/partner/partnerDatabase';
 import { getPartnerListCache, isPartnerListFresh } from '../../utils/partner/partnerListCache';
+import SabaLoader from '../../components/common/SabaLoader';
 
 interface ExpertDetailScreenProps {
   navigation: any;
@@ -317,7 +317,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
   if (loading || !expert) {
     return (
       <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color={Colors.primaryColor} />
+        <SabaLoader message="" />
       </View>
     );
   }

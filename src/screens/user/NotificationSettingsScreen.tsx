@@ -8,7 +8,6 @@ import {
   ScrollView,
   Switch,
   Alert,
-  ActivityIndicator,
   Platform,
   StatusBar,
 } from 'react-native';
@@ -16,6 +15,7 @@ import { Colors } from '../../constants/colors';
 import { supabase } from '../../utils/database/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
+import SabaLoader from '../../components/common/SabaLoader';
 
 interface NotificationSettingsScreenProps {
   navigation: any;
@@ -109,8 +109,7 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
           <View style={styles.headerRight} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primaryColor} />
-          <Text style={styles.loadingText}>설정을 불러오는 중...</Text>
+          <SabaLoader message="설정을 불러오는 중" />
         </View>
       </SafeAreaView>
     );
@@ -270,11 +269,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 50,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
   },
 });
 

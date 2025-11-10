@@ -7,13 +7,13 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { supabase } from '../../utils/database/supabaseClient';
 import { calculateSaju } from '../../utils/saju/ganji_local';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../types/navigation';
 import { Colors } from '../../constants/colors';
+import SabaLoader from '../../components/common/SabaLoader';
 
 interface BirthInfoScreenProps {
   navigation: {
@@ -429,7 +429,7 @@ interface SajuResult {
         {isLoading && (
           <View style={styles.loadingOverlay}>
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={Colors.primaryColor} />
+              <SabaLoader size={60} message="" />
             </View>
           </View>
         )}

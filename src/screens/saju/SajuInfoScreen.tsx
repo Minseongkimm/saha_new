@@ -9,7 +9,6 @@ import {
   TextInput,
   Alert,
   Modal,
-  ActivityIndicator,
   Platform,
   StatusBar,
 } from 'react-native';
@@ -17,6 +16,7 @@ import { Colors } from '../../constants/colors';
 import { supabase } from '../../utils/database/supabaseClient';
 import { calculateSaju } from '../../utils/saju/ganji_local';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import SabaLoader from '../../components/common/SabaLoader';
 
 interface SajuInfoScreenProps {
   navigation: any;
@@ -296,8 +296,9 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
     });
   };
 
+  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 24 : 0;
+
   if (loading) {
-    const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 24 : 0;
     return (
       <SafeAreaView style={styles.container}>
         <View style={[styles.header, { paddingTop: statusBarHeight }]}>
@@ -308,15 +309,12 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
           <View style={styles.headerRight} />
         </View>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primaryColor} />
-          <Text style={styles.loadingText}>사주 정보를 불러오는 중...</Text>
+          <SabaLoader message="사주 정보를 불러오는 중" />
         </View>
       </SafeAreaView>
     );
   }
 
-  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 24 : 0;
-  
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
@@ -1101,11 +1099,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 50,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
   },
 });
 

@@ -8,7 +8,6 @@ import {
   ScrollView,
   Image,
   Alert,
-  ActivityIndicator,
   Platform,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
@@ -25,6 +24,7 @@ import { fetchUserBalance as fetchUserBalanceUtil, refreshBalance as refreshBala
 import { handleChargeFlow } from '../../utils/payments/chargeFlow';
 import { deleteUserAccount } from '../../utils/user/deleteAccount';
 import { handleLogout as handleLogoutUtil } from '../../utils/user/authUtils';
+import SabaLoader from '../../components/common/SabaLoader';
 
 interface MyInfoScreenProps {
   navigation: any;
@@ -227,8 +227,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primaryColor} />
-          <Text style={styles.loadingText}>사용자 정보를 불러오는 중...</Text>
+          <SabaLoader message="내 정보를 불러오는중" />
         </View>
       </SafeAreaView>
     );
@@ -550,11 +549,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 50,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#666',
   },
 });
 

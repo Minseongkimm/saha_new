@@ -16,12 +16,12 @@ import {
   View,
   Text,
   StyleSheet,
-  ActivityIndicator,
 } from 'react-native';
 import ExpertCard from './ExpertCard';
 import SectionHeader from '../common/SectionHeader';
 import { Expert, EXPERT_CATEGORIES } from '../../types/expert';
 import { Colors } from '../../constants/colors';
+import SabaLoader from '../common/SabaLoader';
 
 interface CategoryExpertSectionProps {
   category: string; // 표시할 카테고리 키 (예: 'comprehensive', 'love')
@@ -52,7 +52,7 @@ const CategoryExpertSection: React.FC<CategoryExpertSectionProps> = ({
           style={styles.header}
         />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primaryColor} />
+          <SabaLoader size={64} message="" />
         </View>
       </View>
     );

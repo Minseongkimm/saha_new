@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
@@ -24,6 +23,7 @@ import {
   getCategoryScoreText,
   getCategoryScoreColor,
 } from '../../utils/today-fortune/todayFortuneScoreUtils';
+import SabaLoader from '../../components/common/SabaLoader';
 
 interface TodayFortuneScreenProps {
   navigation: any;
@@ -328,8 +328,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
           onBackPress={() => navigation.goBack()}
         />
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={Colors.primaryColor} />
-          <Text style={styles.loadingText}>사주 정보를 불러오는 중...</Text>
+          <SabaLoader message="사주 정보를 불러오는 중" />
         </View>
       </View>
     );
@@ -383,8 +382,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
             </>
           ) : (
             <View style={styles.centerContainer}>
-              <ActivityIndicator size="large" color={Colors.primaryColor} />
-              <Text style={styles.loadingText}>오늘의 운세를 확인하는 중...</Text>
+              <SabaLoader message="오늘의 운세를 확인하는 중" />
             </View>
           )}
         </View>
@@ -421,11 +419,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     minHeight: 400,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 12,
   },
   content: {
     padding: 20,

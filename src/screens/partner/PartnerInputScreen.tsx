@@ -6,11 +6,11 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   ScrollView,
 } from 'react-native';
 import { StackScreenProps } from '@react-navigation/stack';
 import { Colors } from '../../constants/colors';
+import SabaLoader from '../../components/common/SabaLoader';
 import CustomHeader from '../../components/common/CustomHeader';
 import BirthInputForm from '../../components/forms/BirthInputForm';
 import { PartnerBirthInfo } from '../../types/partner';
@@ -158,7 +158,11 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator size="small" color="white" />
+            <SabaLoader
+              size={28}
+              message=""
+              containerStyle={{ justifyContent: 'center', alignItems: 'center' }}
+            />
           ) : (
             <Text style={styles.saveButtonText}>저장하고 채팅 시작</Text>
           )}

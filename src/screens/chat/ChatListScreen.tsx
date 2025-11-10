@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   FlatList,
   Image,
-  ActivityIndicator,
   ImageSourcePropType,
   Modal,
   Animated,
@@ -22,6 +21,7 @@ import { getExpertImage } from '../../utils/expert/getExpertImage';
 import { useNavigation } from '@react-navigation/native';
 import { getChatListCache, setChatListCache, isChatListFresh, consumeChatListNeedsRefresh } from '../../utils/chat/chatListCache';
 import { removeBoldMarkup } from '../../utils/text/removeBoldMarkup';
+import SabaLoader from '../../components/common/SabaLoader';
 
 interface ChatListScreenProps {
   navigation: any;
@@ -318,7 +318,9 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
       </View>
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primaryColor} />
+          <SabaLoader
+            message="대화속에 실마리가 있습니다"
+          />
         </View>
       ) : (
         <FlatList

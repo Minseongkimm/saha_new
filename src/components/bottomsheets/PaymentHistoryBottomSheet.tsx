@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
 import AnimatedBottomSheet from './AnimatedBottomSheet';
 import { fetchChargeTransactions, fetchUsageTransactions } from '../../utils/payments/transactions';
 import { PaymentTransaction } from '../../utils/payments/types';
 import { Colors } from '../../constants/colors';
 import { formatPaymentDate } from '../../utils/text/dateFormat';
+import SabaLoader from '../../components/common/SabaLoader';
 
 interface PaymentHistoryBottomSheetProps {
   visible: boolean;
@@ -95,8 +96,8 @@ const PaymentHistoryBottomSheet: React.FC<PaymentHistoryBottomSheetProps> = ({
           </View>
           
           {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
+            <View style={styles.loadingWrapper}>
+              <SabaLoader size={64} message="" />
             </View>
           ) : transactions.length === 0 ? (
             <View style={styles.emptyContainer}>
@@ -250,6 +251,12 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     color: 'white',
+  },
+  loadingWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
   },
 });
 
