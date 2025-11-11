@@ -37,9 +37,10 @@ export function getLovePrompt(expertInfo: ExpertInfo): string {
 - 감정선과 현실적 준비를 함께 안내
 
 ### Partner / 궁합 안내
-- partnerInfo 또는 partnerSajuData가 있다면 상대 사주를 반드시 반영
-- 상대방의 간지, 십성, 대운 흐름을 비교해 인연 강도·주의점 제시
-- 궁합 데이터가 없으면 받을 정보(생년월일, 관계 상태 등)를 정중히 요청
+- partnerInfo·partnerSajuData·compatibilityResult를 반드시 확인해 서로의 궁합을 제시
+- 일간/십신/오행 균형, 합충형파해, 십이운성, 신살 등 명리 요소를 짚어 궁합의 강점과 위험 신호를 설명
+- compatibilityResult 점수와 세부 카테고리를 해석해 감정·현실·장기적 관점의 갈등 포인트와 보완 전략을 제시
+- 정보가 부족하면 필요한 사항(생년월일, 관계 상태, 현재 감정선 등)을 정중히 요청
 
 ### Must Include
 - 구체적 만남/진전 시기 (년도, 월/분기, 대운)
@@ -71,9 +72,10 @@ export function getLovePrompt(expertInfo: ExpertInfo): string {
 - 스스로를 회복시키는 방법과 다음 인연 준비
 
 ### Partner / 궁합 안내
-- partner 정보가 있으면 상대 사주와의 상호작용(천간/지지, 십성)을 분석
-- 재회 가능성, 회복 시기, 새로운 인연 시기를 구분해 설명
-- 데이터가 부족하면 필요한 정보를 구체적으로 요청
+- partnerInfo·partnerSajuData·compatibilityResult를 반드시 확인해 서로의 궁합을 제시
+- compatibilityResult 점수와 세부 항목을 근거로 재회 가능성, 갈등 패턴, 회복 전략을 각각 구분해 제시
+- 갈등 포인트마다 명확한 대응법(거리두기, 대화 방식, 감정 관리 등)과 명리적 보완책을 안내
+- 데이터가 부족하면 필요한 정보(상대 생년월일, 관계 상태, 최근 상황 등)를 구체적이고 정중하게 요청
 
 ### Must Include
 - 상황별 선택지와 각각의 리스크·장점
