@@ -33,6 +33,7 @@ interface SendMessageCoreParams {
   scrollToBottom: (animated: boolean) => void;
   onBalanceUpdate?: (expected?: RefreshBalanceExpected) => Promise<void>;
   onBalanceInsufficient?: (balanceCheck: { freeMessageInfo?: any; balance?: number }) => void;
+  partnerData?: any;
 }
 
 export async function sendMessageCore(params: SendMessageCoreParams): Promise<void> {
@@ -46,7 +47,8 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
     setShouldAutoScroll,
     scrollToBottom,
     onBalanceUpdate,
-    onBalanceInsufficient
+    onBalanceInsufficient,
+    partnerData
   } = params;
   
   if (!messageText.trim()) return;
@@ -84,7 +86,8 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
       userMessageId,
       tempAiMessageId,
       setMessages,
-      scrollToBottom
+      scrollToBottom,
+      partnerData
     });
     
     const didUseFreeMessage = initialFreeMessageInfo?.available ?? false;

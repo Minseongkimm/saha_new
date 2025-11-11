@@ -2,6 +2,8 @@ export interface ChatRoom {
   id: string;
   user_id: string;
   expert_id: string;
+  chat_context: string;
+  partner_saju_id: string | null;
   last_message: string | null;
   last_message_at: string | null;
   created_at: string;

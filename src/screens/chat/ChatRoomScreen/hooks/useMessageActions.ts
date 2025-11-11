@@ -18,6 +18,7 @@ interface UseMessageActionsProps {
   scrollToBottom: (animated: boolean) => void;
   onBalanceUpdate?: (expected?: RefreshBalanceExpected) => Promise<void>;
   onBalanceInsufficient?: (balanceCheck: { freeMessageInfo?: any; balance?: number }) => void;
+  partnerData?: any;
 }
 
 export const useMessageActions = ({
@@ -29,7 +30,8 @@ export const useMessageActions = ({
   setShouldAutoScroll,
   scrollToBottom,
   onBalanceUpdate,
-  onBalanceInsufficient
+  onBalanceInsufficient,
+  partnerData
 }: UseMessageActionsProps) => {
   const [isAiResponding, setIsAiResponding] = useState(false);
   const [hasNewMessageThisSession, setHasNewMessageThisSession] = useState(false);
@@ -51,7 +53,8 @@ export const useMessageActions = ({
         setShouldAutoScroll,
         scrollToBottom,
         onBalanceUpdate,
-        onBalanceInsufficient
+        onBalanceInsufficient,
+        partnerData
       });
     } finally {
       setIsAiResponding(false);

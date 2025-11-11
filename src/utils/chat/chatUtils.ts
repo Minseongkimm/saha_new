@@ -63,12 +63,33 @@ export const startChatWithExpert = async (
     }
 
     // 2. 기존 채팅방 확인
-    const { data: existingRoom } = await supabase
+    const isLoveCategory: boolean = expert.category === 'love';
+    const partnerSajuId: string | null = partnerData?.partnerId ?? partnerData?.partnerSajuId ?? null;
+    const chatContext: string = isLoveCategory
+      ? partnerSajuId
+        ? 'love_compatibility'
+        : 'love_personal'
+      : 'general';
+
+    let roomQuery = supabase
       .from('chat_rooms')
       .select('id, expert_name')
       .eq('user_id', user.id)
       .eq('expert_id', expert.id)
-      .single();
+      .eq('chat_context', chatContext)
+      .limit(1);
+
+    if (chatContext === 'love_compatibility' && partnerSajuId) {
+      roomQuery = roomQuery.eq('partner_saju_id', partnerSajuId);
+    } else if (chatContext === 'love_personal') {
+      roomQuery = roomQuery.is('partner_saju_id', null);
+    }
+
+    const { data: existingRoom, error: roomLookupError } = await roomQuery.maybeSingle();
+
+    if (roomLookupError) {
+      console.error('Chat room lookup error:', roomLookupError);
+    }
 
     let chatRoomId;
 
@@ -81,7 +102,9 @@ export const startChatWithExpert = async (
         .insert({
           user_id: user.id,
           expert_id: expert.id,
-          expert_name: expert.name  // 도사 이름도 함께 저장
+          expert_name: expert.name,
+          chat_context: chatContext,
+          partner_saju_id: partnerSajuId,
         })
         .select()
         .single();

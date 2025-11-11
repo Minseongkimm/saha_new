@@ -2,13 +2,274 @@
 
 // @deno-types="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/module/index.d.ts"
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { createOpenAIStream, transformToSSE } from '../_shared/openai-streaming.ts';
+import { createOpenAIStream } from '../_shared/openai-streaming.ts';
 import { handleCorsPreFlight, getStreamingHeaders } from '../_shared/cors.ts';
 import { createErrorResponse, validateRequest, validateEnvVars, StreamingError } from '../_shared/error-handler.ts';
-import { buildChatPrompt } from '../_shared/prompts/index.ts';
 import { AI_CONFIG, getEnvVar, log } from '../_shared/config.ts';
 import { OpenAIMessage } from '../_shared/types.ts';
-import { calculateTokenCost, formatTokenUsage } from '../_shared/token-calculator.ts';
+import { formatTokenUsage } from '../_shared/token-calculator.ts';
+
+type SupabaseDatabaseClient = ReturnType<typeof createClient>;
+
+interface ConfigRow {
+  key: string;
+  value: string;
+}
+
+interface ExpertInfoRecord {
+  id?: string;
+  name?: string;
+  expert_quote?: string;
+  signature_phrase?: string;
+}
+
+interface OpenAIUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+interface ChatMessageRecord {
+  sender_type: string;
+  message: string;
+}
+
+interface BuildUserPromptParams {
+  expertSummary?: string;
+  sajuSummary: string;
+  conversationSummary?: string | null;
+  historyLines: string[];
+  currentQuestion: string;
+}
+
+const SYSTEM_PROMPT_BASE_KEY = 'chat_system_prompt';
+const SYSTEM_PROMPT_CATEGORY_PREFIX = 'chat_system_prompt_';
+const SYSTEM_PROMPT_EXPERT_PREFIX = 'chat_system_prompt_expert_';
+const FALLBACK_SYSTEM_PROMPT = '당신은 전문 사주 상담가입니다. 제공된 정보를 바탕으로 공감 가면서도 실생활에 도움이 되는 조언을 전달하세요.';
+
+/**
+ * Reduce message text length while keeping key intent for history preview.
+ */
+function truncateMessage(content: string, maxLength: number = 120): string {
+  const compact = content.replace(/\s+/g, ' ').trim();
+  if (compact.length <= maxLength) {
+    return compact;
+  }
+  return `${compact.slice(0, maxLength - 3)}...`;
+}
+
+/**
+ * Convert nested keyed records into a compact printable string.
+ */
+function formatKeyedRecord(value: unknown, maxEntries: number = 5, maxNested: number = 3): string {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return '';
+  }
+  const entries = Object.entries(value as Record<string, unknown>)
+    .slice(0, maxEntries)
+    .map(([key, nested]) => {
+      if (Array.isArray(nested)) {
+        const items = (nested as unknown[])
+          .slice(0, maxNested)
+          .map(item => String(item))
+          .join('|');
+        return `${key}:${items}`;
+      }
+      if (nested && typeof nested === 'object') {
+        const innerEntries = Object.entries(nested as Record<string, unknown>)
+          .slice(0, maxNested)
+          .map(([innerKey, innerValue]) => `${innerKey}:${String(innerValue)}`)
+          .join('|');
+        return `${key}:{${innerEntries}}`;
+      }
+      return `${key}:${String(nested)}`;
+    });
+  return entries.join(', ');
+}
+
+/**
+ * Summarize daewoon list entries into age:ganji pairs.
+ */
+function formatDaewoon(value: unknown, maxEntries: number = 6): string {
+  if (!Array.isArray(value)) {
+    return '';
+  }
+  const entries = (value as Array<Record<string, unknown>>)
+    .slice(0, maxEntries)
+    .map(item => {
+      if (!item || typeof item !== 'object') {
+        return String(item);
+      }
+      const record = item as Record<string, unknown>;
+      const age = record.age !== undefined ? String(record.age) : '';
+      const ganji = record.ganji ? String(record.ganji) : record.year ? String(record.year) : '';
+      if (age && ganji) {
+        return `${age}:${ganji}`;
+      }
+      if (ganji) {
+        return ganji;
+      }
+      return age;
+    })
+    .filter(entry => entry.length > 0);
+  return entries.join(', ');
+}
+
+/**
+ * Build the condensed saju context section for the user prompt.
+ */
+function buildSajuSummary(data: Record<string, unknown>): string {
+  const lines: string[] = [];
+  const year = typeof data.yearHangulGanji === 'string' ? data.yearHangulGanji : '';
+  const month = typeof data.monthHangulGanji === 'string' ? data.monthHangulGanji : '';
+  const day = typeof data.dayHangulGanji === 'string' ? data.dayHangulGanji : '';
+  const time = typeof data.timeHangulGanji === 'string' ? data.timeHangulGanji : '';
+  const pillars = [year, month, day, time].filter(Boolean).join(' ');
+  if (pillars) {
+    lines.push(`Pillars: ${pillars}`);
+  }
+  const stemSasin = Array.isArray(data.stemSasin) ? (data.stemSasin as string[]).filter(Boolean).join(', ') : '';
+  if (stemSasin) {
+    lines.push(`StemSasin: ${stemSasin}`);
+  }
+  const branchSasin = Array.isArray(data.branchSasin) ? (data.branchSasin as string[]).filter(Boolean).join(', ') : '';
+  if (branchSasin) {
+    lines.push(`BranchSasin: ${branchSasin}`);
+  }
+  const sibun = Array.isArray(data.sibun) ? (data.sibun as string[]).filter(Boolean).join(', ') : '';
+  if (sibun) {
+    lines.push(`Sibun: ${sibun}`);
+  }
+  const gongmang = typeof data.gongmang === 'string' && data.gongmang ? data.gongmang : '';
+  if (gongmang) {
+    lines.push(`Gongmang: ${gongmang}`);
+  }
+  const fiveElements = formatKeyedRecord(data.fiveProperties, 5, 5);
+  if (fiveElements) {
+    lines.push(`FiveElements: ${fiveElements}`);
+  }
+  const sinsal = formatKeyedRecord(data.sinsal, 4, 3);
+  if (sinsal) {
+    lines.push(`Sinsal: ${sinsal}`);
+  }
+  const guin = formatKeyedRecord(data.guin, 4, 3);
+  if (guin) {
+    lines.push(`Guin: ${guin}`);
+  }
+  const relations = formatKeyedRecord(data.jijiRelations, 4, 3);
+  if (relations) {
+    lines.push(`JijiRelations: ${relations}`);
+  }
+  const daewoon = formatDaewoon(data.daewoon);
+  if (daewoon) {
+    lines.push(`Daewoon: ${daewoon}`);
+  }
+  return lines.join('\n');
+}
+
+/**
+ * Create bullet style history lines from recent chat messages.
+ */
+function createHistoryLines(messages: OpenAIMessage[]): string[] {
+  if (messages.length <= 1) {
+    return [];
+  }
+  const recent = messages.slice(Math.max(messages.length - 4, 0), messages.length - 1);
+  return recent.map(message => {
+    const role = message.role === 'assistant' ? 'Assistant' : 'User';
+    return `- ${role}: ${truncateMessage(message.content)}`;
+  });
+}
+
+/**
+ * Summarize expert profile data for inclusion in the prompt.
+ */
+function createExpertSummary(expertInfo: ExpertInfoRecord | null): string {
+  if (!expertInfo || typeof expertInfo !== 'object') {
+    return '';
+  }
+  const name = typeof expertInfo.name === 'string' ? expertInfo.name : '';
+  if (!name) {
+    return '';
+  }
+  const quote = typeof expertInfo.expert_quote === 'string' && expertInfo.expert_quote ? `Quote: ${expertInfo.expert_quote}` : '';
+  const signature = typeof expertInfo.signature_phrase === 'string' && expertInfo.signature_phrase ? `Signature: ${expertInfo.signature_phrase}` : '';
+  return [ `Name: ${name}`, quote, signature ].filter(item => item.length > 0).join('\n');
+}
+
+function parseJsonField<T>(value: unknown): T | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return null;
+    }
+  }
+  if (typeof value === 'object') {
+    return value as T;
+  }
+  return null;
+}
+
+/**
+ * Assemble the user-supplied prompt combining expert, saju, history and question sections.
+ */
+function buildUserPrompt(params: BuildUserPromptParams): string {
+  const sections: string[] = [];
+  if (params.expertSummary && params.expertSummary.length > 0) {
+    sections.push(`### Expert\n${params.expertSummary}`);
+  }
+  sections.push(`### Saju Snapshot\n${params.sajuSummary}`);
+  if (params.conversationSummary) {
+    sections.push(`### Conversation Summary\n${params.conversationSummary}`);
+  }
+  if (params.historyLines.length > 0) {
+    sections.push(`### Recent Messages\n${params.historyLines.join('\n')}`);
+  }
+  sections.push(`### Current Question\n${params.currentQuestion}`);
+  return sections.join('\n\n');
+}
+
+/**
+ * Load base and category-specific system prompts from the config storage.
+ */
+async function fetchSystemPrompt(
+  supabase: SupabaseDatabaseClient,
+  expertCategory: string,
+  expertId?: string
+): Promise<string> {
+  const expertKey = expertId ? `${SYSTEM_PROMPT_EXPERT_PREFIX}${expertId}` : undefined;
+  const targetKeys = [
+    SYSTEM_PROMPT_BASE_KEY,
+    expertKey,
+    `${SYSTEM_PROMPT_CATEGORY_PREFIX}${expertCategory}`,
+  ].filter((key): key is string => Boolean(key));
+  const { data, error } = await supabase
+    .from('config')
+    .select('key, value')
+    .in('key', targetKeys);
+  if (error) {
+    log('error', '시스템 프롬프트 조회 실패', error);
+    return FALLBACK_SYSTEM_PROMPT;
+  }
+  if (!data || data.length === 0) {
+    return FALLBACK_SYSTEM_PROMPT;
+  }
+  const records = data as ConfigRow[];
+  const base = records.find(record => record.key === SYSTEM_PROMPT_BASE_KEY)?.value || '';
+  const expert = expertKey
+    ? records.find(record => record.key === expertKey)?.value || ''
+    : '';
+  const category = records.find(record => record.key === `${SYSTEM_PROMPT_CATEGORY_PREFIX}${expertCategory}`)?.value || '';
+  const promptSections = [base, expert, category].filter(section => section && section.length > 0);
+  if (promptSections.length === 0) {
+    return FALLBACK_SYSTEM_PROMPT;
+  }
+  return promptSections.join('\n');
+}
 
 interface ChatStreamRequest {
   roomId: string;
@@ -16,6 +277,7 @@ interface ChatStreamRequest {
   sajuData: Record<string, unknown>;
   expertCategory: string;
   userMessageId?: string;  // 사용자 메시지 ID (무료 대화 추적용)
+  partnerSajuId?: string;
 }
 
 /**
@@ -23,7 +285,7 @@ interface ChatStreamRequest {
  * @returns { useFreeMessage: boolean, chargeAmount: number | null }
  */
 async function checkAndChargeBalance(
-  supabase: any,
+  supabase: SupabaseDatabaseClient,
   userId: string,
   roomId: string,
   userMessageId?: string
@@ -117,9 +379,9 @@ async function checkAndChargeBalance(
  * 토큰 사용량 업데이트
  */
 async function updateTokenUsage(
-  supabase: any,
+  supabase: SupabaseDatabaseClient,
   roomId: string,
-  usage: any,
+  usage: OpenAIUsage,
   model: string
 ): Promise<void> {
   try {
@@ -169,7 +431,7 @@ async function updateTokenUsage(
  */
 function transformToSSEWithTokenTracking(
   openaiStream: ReadableStream,
-  supabase: any,
+  supabase: SupabaseDatabaseClient,
   roomId: string,
   model: string,
   openaiMessages: OpenAIMessage[],
@@ -244,7 +506,9 @@ function transformToSSEWithTokenTracking(
                 if (piece) {
                   responseText += piece as string;
                 }
-              } catch (_) {}
+              } catch (_) {
+                // Ignore JSON parse errors for keep-alive chunks
+              }
               controller.enqueue(encoder.encode(trimmedLine + '\n\n'));
             }
           }
@@ -336,14 +600,14 @@ Deno.serve(async (req: Request) => {
     const body: ChatStreamRequest = await req.json();
     validateRequest(body, ['roomId', 'messages', 'sajuData', 'expertCategory']);
 
-    const { roomId, messages, sajuData, expertCategory } = body;
+    const { roomId, messages, sajuData, expertCategory, partnerSajuId } = body;
     
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       throw new StreamingError('대화 메시지가 필요합니다.', 400);
     }
 
     // Supabase 클라이언트 초기화
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase: SupabaseDatabaseClient = createClient(supabaseUrl, supabaseKey);
     
     // Auth 헤더에서 사용자 ID 확인
     const authHeader = req.headers.get('Authorization');
@@ -385,55 +649,95 @@ Deno.serve(async (req: Request) => {
     // 전문가 정보 조회 (role, tone 등을 위해)
     const { data: expertInfo } = await supabase
       .from('experts')
-      .select('name, expert_quote, signature_phrase, category')
+      .select('id, name, expert_quote, signature_phrase, category')
       .eq('category', expertCategory)
       .single();
 
     // 사주 정보가 saju_data 안에 중첩되어 있는 경우 처리
-    const actualSajuData: any = sajuData.saju_data || sajuData;
+    const nestedSajuData = (sajuData as { saju_data?: Record<string, unknown> }).saju_data;
+    const actualSajuData: Record<string, unknown> = nestedSajuData && typeof nestedSajuData === 'object'
+      ? nestedSajuData
+      : sajuData;
+
+    if (expertCategory === 'love' && partnerSajuId) {
+      const { data: partnerRecord, error: partnerError } = await supabase
+        .from('partner_saju')
+        .select('partner_name, relationship_status, birth_info, saju_data, compatibility_result')
+        .eq('id', partnerSajuId)
+        .single();
+
+      if (partnerError) {
+        log('warn', 'partner_saju 조회 실패', partnerError);
+      } else if (partnerRecord) {
+        const partnerBirthInfo = parseJsonField<Record<string, unknown>>(partnerRecord.birth_info);
+        const partnerSajuData = parseJsonField<Record<string, unknown>>(partnerRecord.saju_data);
+        const compatibilityResult = parseJsonField<Record<string, unknown>>(partnerRecord.compatibility_result);
+
+        (actualSajuData as Record<string, unknown>).partnerInfo = {
+          name: partnerRecord.partner_name,
+          relationshipStatus: partnerRecord.relationship_status,
+          birthInfo: partnerBirthInfo,
+        };
+
+        if (partnerSajuData) {
+          (actualSajuData as Record<string, unknown>).partnerSajuData = partnerSajuData;
+        }
+
+        if (compatibilityResult) {
+          (actualSajuData as Record<string, unknown>).compatibilityResult = compatibilityResult;
+        }
+
+        log('debug', '[partner_saju] Partner data attached', {
+          partnerSajuId,
+          partnerName: partnerRecord.partner_name,
+        });
+      }
+    }
 
     // 새로운 프롬프트 시스템으로 시스템 프롬프트 생성
-    const systemPromptBase = buildChatPrompt(
+    const systemPrompt = await fetchSystemPrompt(
+      supabase,
       expertCategory,
-      expertInfo || { name: '사주 전문가', expert_quote: '', signature_phrase: '' },
-      actualSajuData,
-      chatRoom?.conversation_summary
+      typeof expertInfo?.id === 'string' ? expertInfo?.id : undefined
     );
-    
-    // 변수 치환 (사주 정보)
-    const birthInfoStr = JSON.stringify(actualSajuData, null, 2);
+    log('debug', '[fetchSystemPrompt] System prompt resolved', {
+      expertCategory,
+      expertId: expertInfo?.id ?? null,
+      length: systemPrompt.length,
+    });
     const lastQuestion = messages.length > 0 ? messages[messages.length - 1].content : '질문 없음';
-    const prevHistory = messages.length > 1 ? messages.slice(0, -1).map(m => m.content).join('\n') : '이전 대화 없음';
-    
-    const filledPrompt = systemPromptBase
-      .replace('{birth_info}', birthInfoStr)
-      .replace('{yearHangulGanji}', actualSajuData.yearHangulGanji || '')
-      .replace('{monthHangulGanji}', actualSajuData.monthHangulGanji || '')
-      .replace('{dayHangulGanji}', actualSajuData.dayHangulGanji || '')
-      .replace('{timeHangulGanji}', actualSajuData.timeHangulGanji || '')
-      .replace('{stemSasin}', actualSajuData.stemSasin?.join(', ') || '없음')
-      .replace('{branchSasin}', actualSajuData.branchSasin?.join(', ') || '없음')
-      .replace('{sibun}', actualSajuData.sibun?.join(', ') || '없음')
-      .replace('{gongmang}', actualSajuData.gongmang || '없음')
-      .replace('{fiveProperties}', JSON.stringify(actualSajuData.fiveProperties) || '없음')
-      .replace('{jijiAmjangan}', JSON.stringify(actualSajuData.jijiAmjangan) || '없음')
-      .replace('{sal}', JSON.stringify(actualSajuData.sal) || '없음')
-      .replace('{guin}', JSON.stringify(actualSajuData.guin) || '없음')
-      .replace('{sinsal}', JSON.stringify(actualSajuData.sinsal) || '없음')
-      .replace('{jijiRelations}', JSON.stringify(actualSajuData.jijiRelations) || '없음')
-      .replace('{daewoon}', JSON.stringify(actualSajuData.daewoon) || '없음')
-      .replace('{history}', prevHistory)
-      .replace('{question}', lastQuestion);
+    const sajuSummary = buildSajuSummary(actualSajuData);
+    log('debug', 'Request payload received', {
+      roomId,
+      expertCategory,
+      partnerSajuId: partnerSajuId ?? null,
+    });
+    log('debug', '[buildSajuSummary] Saju summary preview', { length: sajuSummary.length, preview: sajuSummary.slice(0, 200) });
+    const historyLines = createHistoryLines(messages);
+    log('debug', '[createHistoryLines] History lines preview', historyLines);
+    const expertSummary = createExpertSummary((expertInfo ?? null) as ExpertInfoRecord | null);
+    log('debug', '[createExpertSummary] Expert summary preview', { length: expertSummary.length, preview: expertSummary.slice(0, 200) });
+    const userPrompt = buildUserPrompt({
+      expertSummary,
+      sajuSummary,
+      conversationSummary: chatRoom?.conversation_summary || null,
+      historyLines,
+      currentQuestion: lastQuestion,
+    });
+    log('debug', '[buildUserPrompt] User prompt assembled', {
+      length: userPrompt.length,
+      preview: userPrompt.slice(0, 200),
+    });
 
-
-
-    // 3. 메시지 구성 (요약은 이미 systemPrompt에 포함됨)
     const openaiMessages: OpenAIMessage[] = [
       {
         role: 'system',
-        content: filledPrompt,
+        content: systemPrompt,
       },
-      ...messages
+      {
+        role: 'user',
+        content: userPrompt,
+      },
     ];
 
     const openaiStream = await createOpenAIStream({
@@ -480,9 +784,9 @@ Deno.serve(async (req: Request) => {
             .range(startIndex, endIndex - 1);
           
           if (messagesToSummarize && messagesToSummarize.length > 0) {
-            const messagesToSummarizeFormatted: OpenAIMessage[] = messagesToSummarize.map((m: any) => ({
-              role: m.sender_type === 'user' ? 'user' : 'assistant',
-              content: m.message
+            const messagesToSummarizeFormatted: OpenAIMessage[] = (messagesToSummarize as ChatMessageRecord[]).map(message => ({
+              role: message.sender_type === 'user' ? 'user' : 'assistant',
+              content: message.message
             }));
             
             // 요약 생성

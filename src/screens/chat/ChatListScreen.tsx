@@ -66,6 +66,8 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
           .select(`
             id,
             expert_id,
+            chat_context,
+            partner_saju_id,
             last_message,
             last_message_at,
             created_at,
@@ -97,9 +99,36 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
         (experts || []).forEach((e: any) => {
           expertMap[e.id] = e as Expert;
         });
+
+        const compatibilityPartnerIds: string[] = Array.from(new Set(
+          roomList
+          .filter((room: any) => room.chat_context === 'love_compatibility' && room.partner_saju_id)
+          .map((room: any) => room.partner_saju_id)
+        ));
+
+        let partnerNameMap: Record<string, string> = {};
+        if (compatibilityPartnerIds.length > 0) {
+          const { data: partners, error: partnerError } = await supabase
+            .from('partner_saju')
+            .select('id, partner_name')
+            .in('id', compatibilityPartnerIds);
+          if (!partnerError && partners) {
+            partners.forEach((partner: any) => {
+              partnerNameMap[partner.id] = partner.partner_name;
+            });
+          }
+        }
+
         const items: ChatItem[] = roomList.map((room: any) => {
           const expert: Expert | undefined = expertMap[room.expert_id];
-          const name: string = expert ? expert.name : '전문가';
+          const baseName: string = expert ? expert.name : '전문가';
+          let displayName: string = baseName;
+          if (room.chat_context === 'love_compatibility') {
+            const partnerLabel: string | undefined = room.partner_saju_id ? partnerNameMap[room.partner_saju_id] : undefined;
+            displayName = partnerLabel ? `${baseName} · 궁합 (${partnerLabel})` : `${baseName} · 궁합`;
+          } else if (room.chat_context === 'love_personal') {
+            displayName = `${baseName} · 연애상담`;
+          }
           const profile: ImageSourcePropType = expert ? getExpertImage(expert.image_name) : require('../../../assets/people/hoosi_guy.jpg');
           const fallbackMsg = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.message ?? '' : '';
           const lastText: string = room.last_message || fallbackMsg || '';
@@ -108,7 +137,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
           const tsStr: string = tsIso ? new Date(tsIso).toLocaleString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '';
           return {
             id: room.id,
-            name,
+            name: displayName,
             lastMessage: lastText,
             timestamp: tsStr,
             profileImage: profile,

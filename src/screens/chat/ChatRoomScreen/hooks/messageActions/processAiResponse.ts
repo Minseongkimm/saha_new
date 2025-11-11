@@ -28,6 +28,7 @@ interface ProcessAiResponseParams {
   tempAiMessageId: string;
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
   scrollToBottom: (animated: boolean) => void;
+  partnerData?: any;
 }
 
 export async function processAiResponse(params: ProcessAiResponseParams): Promise<{
@@ -41,8 +42,9 @@ export async function processAiResponse(params: ProcessAiResponseParams): Promis
     userBirthInfo,
     userMessageId,
     tempAiMessageId,
-  setMessages,
-  scrollToBottom
+    setMessages,
+    scrollToBottom,
+    partnerData
   } = params;
   
   let aiFinalText = '';
@@ -58,11 +60,39 @@ export async function processAiResponse(params: ProcessAiResponseParams): Promis
   scrollToBottom(true);
   
   try {
+    const sajuPayload: Record<string, unknown> = {
+      ...(userBirthInfo || {}),
+    };
+
+    if (partnerData) {
+      const parsedPartnerInfo = typeof partnerData.partnerInfo === 'string'
+        ? safeParseJson(partnerData.partnerInfo)
+        : partnerData.partnerInfo;
+      const parsedPartnerSaju = typeof partnerData.partnerSajuData === 'string'
+        ? safeParseJson(partnerData.partnerSajuData)
+        : partnerData.partnerSajuData;
+      const parsedCompatibility = typeof partnerData.compatibilityResult === 'string'
+        ? safeParseJson(partnerData.compatibilityResult)
+        : partnerData.compatibilityResult;
+
+      if (parsedPartnerInfo) {
+        sajuPayload.partnerInfo = parsedPartnerInfo;
+      }
+      if (parsedPartnerSaju) {
+        sajuPayload.partnerSajuData = parsedPartnerSaju;
+      }
+      if (parsedCompatibility) {
+        sajuPayload.compatibilityResult = parsedCompatibility;
+      }
+    }
+
+    const partnerSajuId = partnerData?.partnerId ?? partnerData?.partnerSajuId ?? null;
+
     aiFinalText = await streamChat(
       roomId,
       expertCategory,
       messages,
-      (userBirthInfo || {}) as Record<string, unknown>,
+      sajuPayload,
       (chunk: string) => {
         setMessages(prev => prev.map(msg => 
           msg.id === tempAiMessageId
@@ -70,7 +100,8 @@ export async function processAiResponse(params: ProcessAiResponseParams): Promis
             : msg
         ));
       },
-      userMessageId || undefined
+      userMessageId || undefined,
+      partnerSajuId || undefined
     );
   } catch (error: any) {
     if (error.message?.includes('잔액') || error.message?.includes('402')) {
@@ -120,5 +151,13 @@ export async function processAiResponse(params: ProcessAiResponseParams): Promis
     aiMessageId: insertedAiMessage?.id || null,
     finalText: aiFinalText
   };
+}
+
+function safeParseJson<T>(value: string): T | null {
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
 }
 

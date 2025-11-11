@@ -64,7 +64,43 @@ export async function handleChargeFlow(
     // 성공 메시지 표시
     Alert.alert('충전 완료', `${totalSaha} 사바가 충전되었습니다.`);
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.';
+    // 에러 상세 정보 로깅 (디버깅용)
+    console.error('충전 플로우 에러 상세:', {
+      error,
+      errorType: typeof error,
+      errorConstructor: error?.constructor?.name,
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorCode: (error as any)?.code,
+      errorStack: error instanceof Error ? error.stack : undefined,
+    });
+
+    let errorMessage = '알 수 없는 오류가 발생했습니다.';
+    
+    if (error instanceof Error) {
+      errorMessage = error.message;
+      
+      // react-native-iap 에러 코드 처리
+      const errorCode = (error as any)?.code;
+      if (errorCode === 'E_ITEM_UNAVAILABLE') {
+        errorMessage = '상품을 찾을 수 없습니다.\nApp Store Connect에서 상품이 등록되어 있는지 확인해주세요.';
+      } else if (errorCode === 'E_NETWORK_ERROR' || errorMessage.includes('네트워크') || errorMessage.includes('Network')) {
+        errorMessage = '네트워크 연결을 확인해주세요.';
+      } else if (errorCode === 'E_SERVICE_ERROR' || errorMessage.includes('서비스') || errorMessage.includes('Service')) {
+        errorMessage = '결제 서비스에 일시적인 문제가 있습니다.\n잠시 후 다시 시도해주세요.';
+      } else if (errorMessage.includes('초기화') || errorMessage.includes('init')) {
+        errorMessage = '결제 시스템 초기화에 실패했습니다.\n앱을 재시작해주세요.';
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('시간이 초과')) {
+        errorMessage = '결제 시간이 초과되었습니다.\n다시 시도해주세요.';
+      } else if (errorMessage.includes('Request timeout')) {
+        errorMessage = '서버 응답 시간이 초과되었습니다.\n네트워크를 확인하고 다시 시도해주세요.';
+      } else if (errorMessage.includes('로그인이 필요')) {
+        errorMessage = '로그인이 필요합니다.\n앱을 재시작해주세요.';
+      } else if (errorMessage.includes('서버 오류')) {
+        errorMessage = '서버에 일시적인 문제가 있습니다.\n잠시 후 다시 시도해주세요.';
+      }
+    } else if (error && typeof error === 'object' && 'message' in error) {
+      errorMessage = String((error as any).message);
+    }
 
     // 사용자 취소는 조용히 처리
     if (errorMessage.includes('취소')) {

@@ -80,7 +80,8 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         freeMessageDailyLimit: balanceCheck.freeMessageInfo?.dailyLimit ?? 0,
       });
       setShowInsufficientBalanceSheet(true);
-    }
+    },
+    partnerData
   });
 
   const handleCharge = () => {

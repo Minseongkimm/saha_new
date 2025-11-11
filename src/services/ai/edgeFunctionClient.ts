@@ -188,7 +188,8 @@ export async function streamChat(
   messages: Array<{ role: string; content: string }>,
   sajuData: Record<string, unknown>,
   onChunk: (chunk: string) => void,
-  userMessageId?: string
+  userMessageId?: string,
+  partnerSajuId?: string
 ): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
 
@@ -241,7 +242,8 @@ export async function streamChat(
       expertCategory, 
       messages, 
       sajuData,
-      userMessageId 
+      userMessageId,
+      partnerSajuId
     }));
   });
 }
