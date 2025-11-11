@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Image, View, Platform } from 'react-native';
+import { Image, View, Platform, ActivityIndicator } from 'react-native';
 import { Session } from '@supabase/supabase-js';
 
 import SplashScreen from '../screens/entry/SplashScreen';
@@ -15,7 +15,6 @@ import ContactSupportScreen from '../screens/user/ContactSupportScreen';
 import TraditionalSajuScreen from '../screens/saju/TraditionalSajuScreen';
 import TodayFortuneScreen from '../screens/saju/TodayFortuneScreen';
 import NewYearFortuneScreen from '../screens/saju/NewYearFortuneScreen';
-import LoadingScreen from '../screens/common/LoadingScreen';
 import BirthInfoScreen from '../screens/saju/BirthInfoScreen';
 import PartnerInputScreen from '../screens/partner/PartnerInputScreen';
 import TermsScreen from '../screens/user/TermsScreen';
@@ -23,6 +22,15 @@ import { RootStackParamList } from '../types/navigation';
 import LoginScreen from '../screens/entry/LoginScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
+
+const LOADING_INDICATOR_COLOR = '#007AFF';
+const LOADING_SCREEN_BACKGROUND = '#FFFFFF';
+
+const LoadingIndicatorScreen: React.FC = () => (
+  <View style={{ flex: 1, backgroundColor: LOADING_SCREEN_BACKGROUND, alignItems: 'center', justifyContent: 'center' }}>
+    <ActivityIndicator size="large" color={LOADING_INDICATOR_COLOR} />
+  </View>
+);
 
 interface AppNavigatorProps {
   session: Session | null;
@@ -170,7 +178,7 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session, initialAuthRouteNa
             />
             <Stack.Screen
               name="Loading"
-              component={LoadingScreen}
+              component={LoadingIndicatorScreen}
               options={{
                 headerShown: false,
               }}
