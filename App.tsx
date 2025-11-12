@@ -19,6 +19,7 @@ function App() {
   const isDarkMode = useColorScheme() === 'dark';
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initialAuthRouteName, setInitialAuthRouteName] = useState<'MainTabs' | 'BirthInfo' | 'Loading'>('MainTabs');
 
   // 딥링크 처리 (네이티브 SDK용 - 간단한 처리)
   // 네이티브 SDK가 자동으로 처리하므로 추가 작업 불필요
@@ -39,8 +40,25 @@ function App() {
     });
 
     // 인증 상태 변경 리스너
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, currentSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
       setSession(currentSession);
+      // 사용자가 방금 로그인한 경우에만 BirthInfo 유무를 검사하여 초기 라우트 결정
+      if (event === 'SIGNED_IN' && currentSession?.user) {
+        // 먼저 인증 스택을 'Loading'으로 진입시켜 깜빡임 방지
+        setInitialAuthRouteName('Loading');
+        try {
+          const { data } = await supabase
+            .from('birth_infos')
+            .select('id')
+            .eq('user_id', currentSession.user.id)
+            .single();
+          setInitialAuthRouteName(data ? 'MainTabs' : 'BirthInfo');
+        } catch {
+          setInitialAuthRouteName('MainTabs');
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setInitialAuthRouteName('MainTabs');
+      }
     });
 
     // 딥링크 리스너 (네이티브 SDK용)
@@ -79,7 +97,7 @@ function App() {
         barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
         backgroundColor="#007AFF"
       />
-      <AppNavigator session={session} />
+      <AppNavigator session={session} initialAuthRouteName={initialAuthRouteName} />
     </SafeAreaProvider>
   );
 }

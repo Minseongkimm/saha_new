@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 
-import { createClient } from '@supabase/supabase-js';
+// @deno-types="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/module/index.d.ts"
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { handleCorsPreFlight, getJsonHeaders } from '../_shared/cors.ts';
 import { createErrorResponse, validateRequest, validateEnvVars } from '../_shared/error-handler.ts';
 import { log, getEnvVar } from '../_shared/config.ts';
@@ -65,81 +66,210 @@ interface VerifyResponse {
   message?: string;
 }
 
+function maskToken(token: string): string {
+  if (!token) {
+    return 'empty-token';
+  }
+  const trimmed = token.replace(/\s+/g, '');
+  if (trimmed.length <= 12) {
+    return `${trimmed.slice(0, 4)}***`;
+  }
+  return `${trimmed.slice(0, 6)}...${trimmed.slice(-6)}`;
+}
+
 /**
- * Apple JWS 검증
+ * Apple JWT 토큰 생성 (App Store Server API 인증용)
  */
-function verifyAppleReceipt(jws: string): {
+async function generateAppleJWT(): Promise<string> {
+  const keyId = getEnvVar('APPLE_KEY_ID', true);
+  const issuerId = getEnvVar('APPLE_ISSUER_ID', true);
+  const privateKey = getEnvVar('APPLE_PRIVATE_KEY', true);
+
+  // JWT Header
+  const header = {
+    alg: 'ES256',
+    kid: keyId,
+    typ: 'JWT',
+  };
+
+  // JWT Payload
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss: issuerId,
+    iat: now,
+    exp: now + 3600, // 1시간 유효
+    aud: 'appstoreconnect-v1',
+    bid: 'com.saha', // Bundle ID
+  };
+
+  // JWT 서명 생성 (Deno에서는 crypto.subtle 사용)
+  const headerBase64 = btoa(JSON.stringify(header)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const payloadBase64 = btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const message = `${headerBase64}.${payloadBase64}`;
+
+  // PEM 형식의 Private Key를 CryptoKey로 변환
+  const pemHeader = '-----BEGIN PRIVATE KEY-----';
+  const pemFooter = '-----END PRIVATE KEY-----';
+  const pemContents = privateKey
+    .replace(pemHeader, '')
+    .replace(pemFooter, '')
+    .replace(/\s/g, '');
+  
+  const keyData = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8',
+    keyData,
+    {
+      name: 'ECDSA',
+      namedCurve: 'P-256',
+    },
+    false,
+    ['sign']
+  );
+
+  // ECDSA 서명
+  const signature = await crypto.subtle.sign(
+    {
+      name: 'ECDSA',
+      hash: 'SHA-256',
+    },
+    cryptoKey,
+    new TextEncoder().encode(message)
+  );
+
+  // Base64 URL 인코딩
+  const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+
+  return `${message}.${signatureBase64}`;
+}
+
+/**
+ * Apple JWS 검증 (App Store Server API 사용)
+ */
+async function verifyAppleReceipt(jws: string): Promise<{
   transactionId: string;
   productId: string;
   purchaseDate: number;
   isValid: boolean;
-} {
+}> {
   try {
-    // Apple App Store Server API를 사용하여 JWS 검증
-    // 실제 구현에서는 Apple의 공개 키로 JWT 서명 검증 필요
-    // 여기서는 간단한 구조만 제공 (실제 검증은 Apple API 호출 필요)
-    
-    // JWS는 3부분으로 구성: header.payload.signature
     const parts = jws.split('.');
     if (parts.length !== 3) {
       throw new Error('Invalid JWS format');
     }
 
-    // Payload 디코딩 (실제로는 서명 검증 후)
     const payload = JSON.parse(
       new TextDecoder().decode(
         base64UrlDecode(parts[1])
       )
     );
 
-    return {
-      transactionId: payload.transactionId || payload.originalTransactionId || '',
-      productId: payload.productId || '',
-      purchaseDate: payload.purchaseDate || Date.now(),
-      isValid: true, // 실제로는 Apple 공개 키로 서명 검증 필요
-    };
-  } catch (error) {
-    log('error', 'Apple JWS 검증 실패', error);
-    throw new Error('Apple 영수증 검증 실패');
-  }
-}
+    const environment = typeof payload.environment === 'string' ? payload.environment.toLowerCase() : '';
 
-/**
- * Google Purchase Token 검증
- */
-function verifyGooglePurchase(
-  _packageName: string,
-  _productId: string,
-  purchaseToken: string
-): {
-  purchaseId: string;
-  purchaseTime: number;
-  isValid: boolean;
-} {
-  try {
-    // Google Play Developer API를 사용하여 검증
-    // 실제 구현에서는 Google OAuth 토큰이 필요
-    // 여기서는 구조만 제공 (실제 검증은 Google API 호출 필요)
+    if (environment === 'xcode') {
+      const baseTransactionId = payload.transactionId || payload.originalTransactionId || crypto.randomUUID();
+      const simulatedTransactionId = crypto.randomUUID();
+      const simulatedProductId = payload.productId || payload.productID || payload.productIdentifier || payload.product_id || '';
+
+      log('info', 'StoreKit Configuration 환경 감지, 원격 검증 건너뜀', {
+        baseTransactionId,
+        simulatedTransactionId,
+        productId: simulatedProductId,
+      });
+      return {
+        transactionId: simulatedTransactionId,
+        productId: simulatedProductId,
+        purchaseDate: payload.purchaseDate || payload.originalPurchaseDate || Date.now(),
+        isValid: true,
+      };
+    }
+
+    // JWT 토큰 생성
+    const jwtToken = await generateAppleJWT();
+
+    const transactionId = payload.transactionId || payload.originalTransactionId;
+    if (!transactionId) {
+      throw new Error('Transaction ID not found in JWS');
+    }
+
+    // App Store Server API 호출하여 transaction 정보 조회
+    const apiUrl = `https://api.storekit.itunes.apple.com/inApps/v1/transactions/${transactionId}`;
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${jwtToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      log('error', 'Apple API 호출 실패', { status: response.status, error: errorText });
+      throw new Error(`Apple API 호출 실패: ${response.status}`);
+    }
+
+    const apiData = await response.json();
     
-    // Google API 호출 (실제로는 OAuth 토큰 필요)
-    // const googleApiUrl = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${packageName}/purchases/products/${productId}/tokens/${purchaseToken}`;
-    // const response = await fetch(googleApiUrl, {
-    //   headers: {
-    //     'Authorization': `Bearer ${googleAccessToken}`,
-    //   },
-    // });
-    
-    // 임시로 성공 반환 (실제 구현 필요)
+    // Transaction 정보에서 상태 확인
+    const signedTransactionInfo = apiData.signedTransactionInfo;
+    if (!signedTransactionInfo) {
+      throw new Error('Transaction info not found in API response');
+    }
+
+    // JWS 디코딩하여 transaction 정보 확인
+    const transactionParts = signedTransactionInfo.split('.');
+    if (transactionParts.length !== 3) {
+      throw new Error('Invalid transaction info JWS format');
+    }
+
+    const transactionPayload = JSON.parse(
+      new TextDecoder().decode(
+        base64UrlDecode(transactionParts[1])
+      )
+    );
+
+    // Transaction 상태 확인
+    const productId = transactionPayload.productId || payload.productId;
+    const purchaseDate = transactionPayload.purchaseDate || transactionPayload.originalPurchaseDate || Date.now();
+    const revocationDate = transactionPayload.revocationDate;
+    const expiresDate = transactionPayload.expiresDate;
+
+    // 취소되었거나 만료된 경우
+    if (revocationDate) {
+      return {
+        transactionId,
+        productId,
+        purchaseDate,
+        isValid: false,
+      };
+    }
+
+    // 구독 상품인 경우 만료 확인 (소모품은 expiresDate 없음)
+    if (expiresDate && expiresDate < Date.now()) {
+      return {
+        transactionId,
+        productId,
+        purchaseDate,
+        isValid: false,
+      };
+    }
+
     return {
-      purchaseId: purchaseToken.substring(0, 20), // 임시 ID
-      purchaseTime: Date.now(),
+      transactionId,
+      productId,
+      purchaseDate,
       isValid: true,
     };
   } catch (error) {
-    log('error', 'Google Purchase Token 검증 실패', error);
-    throw new Error('Google 영수증 검증 실패');
+    log('error', 'Apple JWS 검증 실패', error);
+    throw new Error(`Apple 영수증 검증 실패: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
+
 
 /**
  * Base64 URL 디코딩
@@ -300,7 +430,15 @@ Deno.serve(async (req) => {
 
   try {
     // 환경 변수 검증
-    validateEnvVars(['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY']);
+    const requiredVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
+    
+    // Apple 검증을 위한 환경 변수 (provider가 apple인 경우에만 필수)
+    const body = await req.json().catch(() => null);
+    if (body?.provider === 'apple') {
+      requiredVars.push('APPLE_KEY_ID', 'APPLE_ISSUER_ID', 'APPLE_PRIVATE_KEY');
+    }
+    
+    validateEnvVars(requiredVars);
 
     // 인증 확인
     const authHeader = req.headers.get('Authorization');
@@ -320,19 +458,31 @@ Deno.serve(async (req) => {
       return createErrorResponse(new Error('Unauthorized'), 401);
     }
 
-    // 요청 본문 파싱
-    const body: VerifyIapRequest = await req.json();
-    validateRequest(body, ['provider', 'receiptOrToken', 'productId']);
+    // 요청 본문 파싱 (이미 위에서 파싱됨)
+    const requestBody: VerifyIapRequest = body || await req.json();
+    validateRequest(requestBody, ['provider', 'receiptOrToken', 'productId']);
 
-    const { provider, receiptOrToken, productId } = body;
+    const { provider, receiptOrToken, productId } = requestBody;
 
-    log('info', 'IAP 검증 시작', { userId: user.id, provider, productId });
+    log('info', 'IAP 검증 요청 수신', {
+      userId: user.id,
+      provider,
+      productId,
+      receiptPreview: maskToken(receiptOrToken || ''),
+    });
 
     // 1. 영수증 검증
     let purchaseId: string;
 
     if (provider === 'apple') {
-      const verifyResult = verifyAppleReceipt(receiptOrToken);
+      const verifyResult = await verifyAppleReceipt(receiptOrToken);
+      log('info', 'Apple 영수증 검증 결과', {
+        userId: user.id,
+        transactionId: verifyResult.transactionId,
+        productId: verifyResult.productId,
+        isValid: verifyResult.isValid,
+        purchaseDate: verifyResult.purchaseDate,
+      });
       if (!verifyResult.isValid) {
         return new Response(
           JSON.stringify({
@@ -347,20 +497,18 @@ Deno.serve(async (req) => {
         );
       }
       purchaseId = verifyResult.transactionId;
-    } else {
-      // Google
-      const packageName = 'com.saha'; // Android 패키지명
-      const verifyResult = verifyGooglePurchase(
-        packageName,
-        productId,
-        receiptOrToken
-      );
-      if (!verifyResult.isValid) {
+      
+      // productId 일치 확인
+      if (verifyResult.productId !== productId) {
+        log('warn', 'Product ID 불일치', {
+          expected: productId,
+          actual: verifyResult.productId,
+        });
         return new Response(
           JSON.stringify({
             status: 'failed',
             currentBalance: 0,
-            message: 'Google 영수증 검증 실패',
+            message: '상품 ID가 일치하지 않습니다',
           }),
           {
             status: 400,
@@ -368,7 +516,20 @@ Deno.serve(async (req) => {
           }
         );
       }
-      purchaseId = verifyResult.purchaseId;
+    } else {
+      // Google은 현재 미지원
+      log('warn', '지원하지 않는 결제 제공자 요청', { userId: user.id, provider });
+      return new Response(
+        JSON.stringify({
+          status: 'failed',
+          currentBalance: 0,
+          message: 'Google 결제는 현재 지원하지 않습니다',
+        }),
+        {
+          status: 400,
+          headers: getJsonHeaders(),
+        }
+      );
     }
 
     // 2. 중복 체크
@@ -391,10 +552,17 @@ Deno.serve(async (req) => {
     // 3. 상품 정보 확인
     const productInfo = PRODUCT_INFO_MAP[productId];
     if (!productInfo) {
+      log('error', '알 수 없는 상품 요청', { userId: user.id, productId });
       return createErrorResponse(new Error(`알 수 없는 상품 ID: ${productId}`), 400);
     }
 
     // 4. 잔액 업데이트
+    log('info', '잔액 업데이트 시작', {
+      userId: user.id,
+      purchaseId,
+      productId,
+      totalSaha: productInfo.totalSaha,
+    });
     const newBalance = await updateUserBalance(
       supabase,
       user.id,
@@ -428,3 +596,4 @@ Deno.serve(async (req) => {
     return createErrorResponse(error);
   }
 });
+

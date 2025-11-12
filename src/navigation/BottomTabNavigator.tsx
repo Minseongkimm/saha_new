@@ -6,6 +6,9 @@ import HomeScreen from '../screens/saju/HomeScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
 import MyInfoScreen from '../screens/user/MyInfoScreen';
 
+const TAB_BAR_HEIGHT: number = 82;
+const TAB_BAR_PADDING_TOP: number = 5;
+
 const Tab = createBottomTabNavigator();
 
 const BottomTabNavigator: React.FC = () => {
@@ -17,9 +20,8 @@ const BottomTabNavigator: React.FC = () => {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
           borderTopColor: '#E0E0E0',
-          paddingBottom: 20, 
-          paddingTop: 10,   
-          height: 80,        
+          paddingTop: TAB_BAR_PADDING_TOP,
+          height: TAB_BAR_HEIGHT,
         },
         tabBarActiveTintColor: Colors.primaryColor, 
         tabBarInactiveTintColor: '#757575', 
