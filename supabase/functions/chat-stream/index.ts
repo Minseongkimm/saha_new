@@ -164,6 +164,27 @@ function buildSajuSummary(data: Record<string, unknown>): string {
   if (daewoon) {
     lines.push(`Daewoon: ${daewoon}`);
   }
+  // 새로 추가: 궁합 파생 플래그 요약(있을 때만)
+  const flags = (data as any)?.partnerCompatibilityFlags as Record<string, unknown> | undefined;
+  if (flags && typeof flags === 'object') {
+    const score = flags.score !== undefined && flags.score !== null ? String(flags.score) : '';
+    const overall = typeof flags.overall === 'string' ? flags.overall : '';
+    const hasStem = flags.hasHeavenlyStemCombo ? 'Y' : 'N';
+    const hasYukhap = flags.hasDayBranchYukhap ? 'Y' : 'N';
+    const hasChung = flags.hasDayBranchChung ? 'Y' : 'N';
+    const fiveFull = flags.fiveElementsComplete ? 'Y' : 'N';
+    lines.push(`CompatScore: ${score} (${overall})`);
+    lines.push(`CompatFlags: StemCombo=${hasStem}, DayYukhap=${hasYukhap}, DayChung=${hasChung}, FiveFull=${fiveFull}`);
+    const counts = flags.counts as Record<string, unknown> | undefined;
+    if (counts && typeof counts === 'object') {
+      const y = counts.yukhap ?? 0;
+      const c = counts.chung ?? 0;
+      const h = counts.hyeong ?? 0;
+      const p = counts.pa ?? 0;
+      const e = counts.hae ?? 0;
+      lines.push(`CompatCounts: yuk=${y}, chung=${c}, hyeong=${h}, pa=${p}, hae=${e}`);
+    }
+  }
   return lines.join('\n');
 }
 
@@ -662,7 +683,7 @@ Deno.serve(async (req: Request) => {
     if (expertCategory === 'love' && partnerSajuId) {
       const { data: partnerRecord, error: partnerError } = await supabase
         .from('partner_saju')
-        .select('partner_name, relationship_status, birth_info, saju_data, compatibility_result')
+        .select('partner_name, relationship_status, birth_info, saju_data, compatibility_result, compat_score, compat_overall, compat_has_heavenly_stem_combo, compat_has_day_branch_yukhap, compat_has_day_branch_chung, compat_five_elements_complete, compat_counts')
         .eq('id', partnerSajuId)
         .single();
 
@@ -686,6 +707,16 @@ Deno.serve(async (req: Request) => {
         if (compatibilityResult) {
           (actualSajuData as Record<string, unknown>).compatibilityResult = compatibilityResult;
         }
+        // 새 컬럼(비정규화)도 프롬프트 컨텍스트에 제공
+        (actualSajuData as Record<string, unknown>).partnerCompatibilityFlags = {
+          score: partnerRecord.compat_score ?? null,
+          overall: partnerRecord.compat_overall ?? null,
+          hasHeavenlyStemCombo: partnerRecord.compat_has_heavenly_stem_combo ?? false,
+          hasDayBranchYukhap: partnerRecord.compat_has_day_branch_yukhap ?? false,
+          hasDayBranchChung: partnerRecord.compat_has_day_branch_chung ?? false,
+          fiveElementsComplete: partnerRecord.compat_five_elements_complete ?? false,
+          counts: partnerRecord.compat_counts ?? null
+        };
 
         log('debug', '[partner_saju] Partner data attached', {
           partnerSajuId,

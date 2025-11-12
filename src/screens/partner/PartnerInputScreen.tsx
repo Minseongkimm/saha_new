@@ -119,12 +119,6 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
       
       // 채팅 시작 후 스택을 리셋하여 뒤로가기 시 상대방 입력 화면으로 돌아가지 않도록 함
       await startChatWithExpert(navigation, expertId, partnerData);
-      
-      // 채팅 시작 후 스택 리셋 (뒤로가기 시 홈으로 이동)
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'MainTabs' }],
-      });
     } catch (error) {
       console.error('상대방 정보 저장 오류:', error);
       Alert.alert('오류', '상대방 정보 저장에 실패했습니다.');

@@ -10,6 +10,39 @@ import {
   removePartnerFromCache
 } from './partnerListCache';
 
+type DerivedCompatColumns = {
+  compat_score: number | null;
+  compat_overall: string | null;
+  compat_has_heavenly_stem_combo: boolean;
+  compat_has_day_branch_yukhap: boolean;
+  compat_has_day_branch_chung: boolean;
+  compat_five_elements_complete: boolean;
+  compat_counts: any;
+};
+
+const deriveCompatColumns = (compatibilityResult?: any): DerivedCompatColumns => {
+  const compatScore: number | null = compatibilityResult?.score ?? null;
+  const compatOverall: string | null = compatibilityResult?.overall ?? null;
+  const dayPillarDesc: string = compatibilityResult?.categories?.dayPillar?.description ?? '';
+  const jijiDesc: string = compatibilityResult?.categories?.jijiRelation?.description ?? '';
+  const fiveDesc: string = compatibilityResult?.categories?.fiveElements?.description ?? '';
+  const crossSummary: string = compatibilityResult?.extras?.cross?.summary ?? '';
+  const compatHasHeavenlyStemCombo: boolean = dayPillarDesc.includes('천간합');
+  const compatHasDayBranchYukhap: boolean = crossSummary.includes('일지 육합') || jijiDesc.includes('육합');
+  const compatHasDayBranchChung: boolean = crossSummary.includes('일지 충') || jijiDesc.includes('충');
+  const compatFiveElementsComplete: boolean = fiveDesc.includes('완비');
+  const compatCounts: any = compatibilityResult?.extras?.cross?.counts ?? null;
+  return {
+    compat_score: compatScore,
+    compat_overall: compatOverall,
+    compat_has_heavenly_stem_combo: compatHasHeavenlyStemCombo,
+    compat_has_day_branch_yukhap: compatHasDayBranchYukhap,
+    compat_has_day_branch_chung: compatHasDayBranchChung,
+    compat_five_elements_complete: compatFiveElementsComplete,
+    compat_counts: compatCounts
+  };
+};
+
 /**
  * 상대방 사주 정보를 DB에 저장
  */
@@ -24,6 +57,9 @@ export const savePartnerToDatabase = async (
     if (userError || !user) {
       throw new Error('사용자 인증이 필요합니다.');
     }
+
+    // 호환 컬럼 파생 값 계산
+    const derived = deriveCompatColumns(compatibilityResult);
 
     const { data, error } = await supabase
       .from('partner_saju')
@@ -45,6 +81,8 @@ export const savePartnerToDatabase = async (
         },
         saju_data: sajuData,
         compatibility_result: compatibilityResult, // 궁합 결과 저장
+        // 비정규화 컬럼 저장(정렬/필터 성능)
+        ...derived
       })
       .select('id')
       .single();
@@ -87,6 +125,36 @@ export const savePartnerToDatabase = async (
 };
 
 /**
+ * 궁합 결과 업데이트(compatibility_result + 파생 컬럼 동시 갱신)
+ */
+export const updatePartnerCompatibility = async (
+  partnerId: string,
+  compatibilityResult: any
+): Promise<void> => {
+  try {
+    const derived = deriveCompatColumns(compatibilityResult);
+    const { data, error } = await supabase
+      .from('partner_saju')
+      .update({
+        compatibility_result: compatibilityResult,
+        ...derived,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', partnerId)
+      .select('*')
+      .single();
+    if (error) {
+      console.error('궁합 업데이트 오류:', error);
+      throw new Error('궁합 결과 업데이트에 실패했습니다.');
+    }
+    updatePartnerInCache(partnerId, data);
+  } catch (error) {
+    console.error('궁합 업데이트 오류:', error);
+    throw error;
+  }
+};
+
+/**
  * 사용자의 모든 상대방 정보 조회 (캐시 활용)
  */
 export const getPartnerList = async (): Promise<any[]> => {
@@ -110,6 +178,69 @@ export const getPartnerList = async (): Promise<any[]> => {
     return partners;
   } catch (error) {
     console.error('❌ 상대방 목록 조회 오류:', error);
+    throw error;
+  }
+};
+
+/**
+ * 점수 순 정렬된 상대방 목록 조회
+ * @param ascending 오름차순 여부 (기본: 점수 높은 순)
+ */
+export const getPartnerListSortedByScore = async (ascending: boolean = false): Promise<any[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('partner_saju')
+      .select('*')
+      .order('compat_score', { ascending, nullsFirst: ascending });
+    if (error) {
+      console.error('❌ 점수 정렬 목록 조회 오류:', error);
+      throw new Error('점수 정렬 목록을 불러오는데 실패했습니다.');
+    }
+    return data || [];
+  } catch (error) {
+    console.error('❌ 점수 정렬 목록 조회 오류:', error);
+    throw error;
+  }
+};
+
+/**
+ * 일지 육합 커플만 조회
+ */
+export const getPartnersWithDayBranchYukhap = async (): Promise<any[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('partner_saju')
+      .select('*')
+      .eq('compat_has_day_branch_yukhap', true)
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('❌ 육합 필터 목록 조회 오류:', error);
+      throw new Error('육합 필터 목록을 불러오는데 실패했습니다.');
+    }
+    return data || [];
+  } catch (error) {
+    console.error('❌ 육합 필터 목록 조회 오류:', error);
+    throw error;
+  }
+};
+
+/**
+ * 일지 충 커플만 조회
+ */
+export const getPartnersWithDayBranchChung = async (): Promise<any[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('partner_saju')
+      .select('*')
+      .eq('compat_has_day_branch_chung', true)
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('❌ 충 필터 목록 조회 오류:', error);
+      throw new Error('충 필터 목록을 불러오는데 실패했습니다.');
+    }
+    return data || [];
+  } catch (error) {
+    console.error('❌ 충 필터 목록 조회 오류:', error);
     throw error;
   }
 };
