@@ -48,6 +48,32 @@ export interface TodayFortuneData {
   };
   doList: string[];
   dontList: string[];
+  interactions?: {
+    tenGod?: {
+      label: string;
+      score: number;
+      description: string;
+    };
+    jiDetails?: {
+      hasHyeong: boolean;
+      hasPa: boolean;
+      hasHae: boolean;
+      summary: string;
+      score: number;
+    };
+    fiveElementBalance?: {
+      counts: Record<'WOOD' | 'FIRE' | 'EARTH' | 'METAL' | 'WATER', number>;
+      todayElement: 'WOOD' | 'FIRE' | 'EARTH' | 'METAL' | 'WATER';
+      weakest?: 'WOOD' | 'FIRE' | 'EARTH' | 'METAL' | 'WATER';
+      strongest?: 'WOOD' | 'FIRE' | 'EARTH' | 'METAL' | 'WATER';
+      score: number;
+      explanation: string;
+    };
+  };
+  context?: {
+    todayGanji?: string;
+    personalDayGanji?: string;
+  };
   generatedAt: string;
   llmModel: string;
 }

@@ -170,6 +170,34 @@ export const useTodayFortune = () => {
             description: llmData.categories?.relationship || '' 
           }
         },
+        interactions: {
+          tenGod: {
+            label: calculatedFortune.interactions.tenGodInteraction.label,
+            score: calculatedFortune.interactions.tenGodInteraction.score,
+            description: calculatedFortune.interactions.tenGodInteraction.description
+          },
+          jiDetails: {
+            hasHyeong: calculatedFortune.interactions.detailedJiRelations.hasHyeong,
+            hasPa: calculatedFortune.interactions.detailedJiRelations.hasPa,
+            hasHae: calculatedFortune.interactions.detailedJiRelations.hasHae,
+            summary: calculatedFortune.interactions.detailedJiRelations.summary,
+            score: calculatedFortune.interactions.detailedJiRelations.score
+          },
+          fiveElementBalance: calculatedFortune.interactions.fiveElementBalance
+            ? {
+                counts: calculatedFortune.interactions.fiveElementBalance.counts,
+                todayElement: calculatedFortune.interactions.fiveElementBalance.todayElement,
+                weakest: calculatedFortune.interactions.fiveElementBalance.weakest,
+                strongest: calculatedFortune.interactions.fiveElementBalance.strongest,
+                score: calculatedFortune.interactions.fiveElementBalance.score,
+                explanation: calculatedFortune.interactions.fiveElementBalance.explanation
+              }
+            : undefined
+        },
+        context: {
+          todayGanji: calculatedFortune.todayGanji.dayGanji,
+          personalDayGanji: calculatedFortune.personalSaju.dayGanji
+        },
         generatedAt: new Date().toISOString(),
         date: today,
         llmModel: 'gpt-4o-mini'

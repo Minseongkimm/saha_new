@@ -165,7 +165,7 @@ function buildSajuSummary(data: Record<string, unknown>): string {
     lines.push(`Daewoon: ${daewoon}`);
   }
   // 새로 추가: 궁합 파생 플래그 요약(있을 때만)
-  const flags = (data as any)?.partnerCompatibilityFlags as Record<string, unknown> | undefined;
+  const flags = (data as Record<string, unknown>)?.partnerCompatibilityFlags as Record<string, unknown> | undefined;
   if (flags && typeof flags === 'object') {
     const score = flags.score !== undefined && flags.score !== null ? String(flags.score) : '';
     const overall = typeof flags.overall === 'string' ? flags.overall : '';
@@ -252,6 +252,59 @@ function buildUserPrompt(params: BuildUserPromptParams): string {
   }
   sections.push(`### Current Question\n${params.currentQuestion}`);
   return sections.join('\n\n');
+}
+
+/**
+ * Build a compact Today Fortune summary block for prompt context.
+ */
+function buildTodayFortuneSummary(fortune: Record<string, unknown> | null): string {
+  if (!fortune || typeof fortune !== 'object') {
+    return '';
+  }
+  try {
+    const get = (k: string) => (fortune as Record<string, unknown>)[k];
+    const score = typeof get('score') === 'number' ? String(get('score')) : '';
+    const date = typeof get('date') === 'string' ? get('date') as string : '';
+    const categories = (get('categories') || {}) as Record<string, { score?: number; description?: string }>;
+    const interactions = (get('interactions') || {}) as Record<string, unknown>;
+    const tenGod = interactions?.['tenGod'] as { label?: string; score?: number } | undefined;
+    const jiDetails = interactions?.['jiDetails'] as { summary?: string; score?: number } | undefined;
+    const feb = interactions?.['fiveElementBalance'] as { todayElement?: string; weakest?: string; strongest?: string } | undefined;
+    const ctx = (get('context') || {}) as Record<string, unknown>;
+    const todayGanji = typeof ctx['todayGanji'] === 'string' ? ctx['todayGanji'] as string : '';
+    const personalDayGanji = typeof ctx['personalDayGanji'] === 'string' ? ctx['personalDayGanji'] as string : '';
+    const lines: string[] = [];
+    if (date) lines.push(`Date: ${date}`);
+    if (todayGanji || personalDayGanji) lines.push(`Ganji: today=${todayGanji} / day=${personalDayGanji}`);
+    if (score) lines.push(`Score: ${score}`);
+    if (tenGod?.label !== undefined) {
+      const tgScore = typeof tenGod.score === 'number' ? `${tenGod.score}` : '0';
+      lines.push(`TenGod: ${tenGod.label} (${tgScore})`);
+    }
+    if (jiDetails?.summary) {
+      const jScore = typeof jiDetails.score === 'number' ? `${jiDetails.score}` : '0';
+      lines.push(`JiDetails: ${jiDetails.summary} (${jScore})`);
+    }
+    if (feb?.todayElement) {
+      const weakest = feb.weakest ?? '';
+      const strongest = feb.strongest ?? '';
+      lines.push(`FiveBalance: today=${feb.todayElement} weak=${weakest} strong=${strongest}`);
+    }
+    const cat = categories || {};
+    const c = (k: string) => {
+      const v = cat[k] as { score?: number } | undefined;
+      return typeof v?.score === 'number' ? String(v.score) : '';
+    };
+    const catLine = ['career', 'love', 'wealth', 'relationship']
+      .map(k => `${k}:${c(k)}`)
+      .join(', ');
+    if (catLine.replace(/[^0-9]/g, '').length > 0) {
+      lines.push(`Categories: ${catLine}`);
+    }
+    return lines.join('\n');
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -748,6 +801,21 @@ Deno.serve(async (req: Request) => {
     log('debug', '[createHistoryLines] History lines preview', historyLines);
     const expertSummary = createExpertSummary((expertInfo ?? null) as ExpertInfoRecord | null);
     log('debug', '[createExpertSummary] Expert summary preview', { length: expertSummary.length, preview: expertSummary.slice(0, 200) });
+    // Load latest daily fortune for user to enrich conversation context
+    let todayFortuneSummary = '';
+    try {
+      const { data: fortuneRow } = await supabase
+        .from('saju_analyses')
+        .select('daily_fortune')
+        .eq('user_id', userId)
+        .single();
+      const dailyFortune = fortuneRow?.daily_fortune ? parseJsonField<Record<string, unknown>>(fortuneRow.daily_fortune) : null;
+      if (dailyFortune) {
+        todayFortuneSummary = buildTodayFortuneSummary(dailyFortune);
+      }
+    } catch (e) {
+      log('warn', '오늘의 운세 컨텍스트 조회 실패(무시 가능)', e);
+    }
     const userPrompt = buildUserPrompt({
       expertSummary,
       sajuSummary,
@@ -755,9 +823,12 @@ Deno.serve(async (req: Request) => {
       historyLines,
       currentQuestion: lastQuestion,
     });
+    const fullUserPrompt = todayFortuneSummary && todayFortuneSummary.length > 0
+      ? `${userPrompt}\n\n### Today Fortune\n${todayFortuneSummary}`
+      : userPrompt;
     log('debug', '[buildUserPrompt] User prompt assembled', {
-      length: userPrompt.length,
-      preview: userPrompt.slice(0, 200),
+      length: (fullUserPrompt).length,
+      preview: (fullUserPrompt).slice(0, 200),
     });
 
     const openaiMessages: OpenAIMessage[] = [
@@ -767,7 +838,7 @@ Deno.serve(async (req: Request) => {
       },
       {
         role: 'user',
-        content: userPrompt,
+        content: fullUserPrompt,
       },
     ];
 

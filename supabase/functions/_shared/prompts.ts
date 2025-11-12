@@ -202,8 +202,8 @@ export function getNewYearFortunePrompt(
  */
 export function getTodayFortunePrompt(
   calculatedFortune: Record<string, unknown>,
-  sajuData: Record<string, unknown>,
-  todayDate: string
+  _sajuData: Record<string, unknown>,
+  _todayDate: string
 ): string {
   const fortune = calculatedFortune as {
     totalScore?: number;
@@ -226,6 +226,15 @@ export function getTodayFortunePrompt(
       ganInteraction?: { type?: string; score?: number };
       jiInteraction?: { type?: string; score?: number };
       sinsalInteraction?: { activated?: boolean; score?: number };
+      tenGodInteraction?: { label?: string; score?: number };
+      detailedJiRelations?: { summary?: string; score?: number };
+      fiveElementBalance?: {
+        counts?: Record<string, number>;
+        todayElement?: string;
+        weakest?: string;
+        strongest?: string;
+        score?: number;
+      };
     };
   };
 
@@ -259,6 +268,9 @@ export function getTodayFortunePrompt(
 - 천간 상호작용: ${fortune.interactions?.ganInteraction?.type || ''} (${fortune.interactions?.ganInteraction?.score || 0}점)
 - 지지 상호작용: ${fortune.interactions?.jiInteraction?.type || ''} (${fortune.interactions?.jiInteraction?.score || 0}점)
 - 신살 상호작용: ${fortune.interactions?.sinsalInteraction?.activated ? '발동' : '미발동'} (${fortune.interactions?.sinsalInteraction?.score || 0}점)
+- 십신 관계: ${fortune.interactions?.tenGodInteraction?.label || ''} (${fortune.interactions?.tenGodInteraction?.score || 0}점)
+- 지지 상세: ${fortune.interactions?.detailedJiRelations?.summary || ''} (${fortune.interactions?.detailedJiRelations?.score || 0}점)
+- 오행 균형: 오늘 ${fortune.interactions?.fiveElementBalance?.todayElement || ''} / 약점 ${fortune.interactions?.fiveElementBalance?.weakest || ''} / 강점 ${fortune.interactions?.fiveElementBalance?.strongest || ''} (${fortune.interactions?.fiveElementBalance?.score || 0}점)
 
 ## 활성화된 요소들
 - 신살: ${fortune.personalSaju?.sinsal?.join(', ') || ''}

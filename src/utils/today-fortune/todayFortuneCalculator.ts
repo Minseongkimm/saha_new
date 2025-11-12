@@ -5,6 +5,7 @@
 
 import { SajuUtils } from '../saju-calculator/utils/SajuUtils';
 import { FiveElement } from '../saju-calculator/types';
+import { isHyeong, isPa, isHae } from '../saju-calculator/constants/branch_relations';
 
 export interface UserSajuData {
   yearGanji: string;
@@ -60,6 +61,26 @@ export interface TodayFortuneResult {
     ganInteraction: InteractionResult;
     jiInteraction: InteractionResult;
     sinsalInteraction: SinsalResult;
+    tenGodInteraction: {
+      label: string;
+      score: number;
+      description: string;
+    };
+    detailedJiRelations: {
+      hasHyeong: boolean;
+      hasPa: boolean;
+      hasHae: boolean;
+      summary: string;
+      score: number;
+    };
+    fiveElementBalance?: {
+      counts: Record<'WOOD' | 'FIRE' | 'EARTH' | 'METAL' | 'WATER', number>;
+      todayElement: 'WOOD' | 'FIRE' | 'EARTH' | 'METAL' | 'WATER';
+      weakest?: 'WOOD' | 'FIRE' | 'EARTH' | 'METAL' | 'WATER';
+      strongest?: 'WOOD' | 'FIRE' | 'EARTH' | 'METAL' | 'WATER';
+      score: number;
+      explanation: string;
+    };
   };
   todayGanji: {
     yearGanji: string;
@@ -108,6 +129,9 @@ export class TodayFortuneCalculator {
     const ganInteraction = this.analyzeGanInteraction(todayGanji.dayGanji[0], userSajuData.dayGanji[0]);
     const jiInteraction = this.analyzeJiInteraction(todayGanji.dayGanji[1], userSajuData.jijiRelations);
     const sinsalInteraction = this.analyzeSinsalInteraction(todayGanji.dayGanji, userSajuData.sinsal);
+    const tenGodInteraction = this.analyzeTenGod(todayGanji.dayGanji[0], userSajuData.dayGanji[0]);
+    const detailedJiRelations = this.analyzeJiDetails(todayGanji.dayGanji[1], userSajuData);
+    const fiveElementBalance = this.analyzeFiveElementBalance(todayGanji.dayGanji[0], userSajuData);
     
     // 3. 비중 기반 점수 계산 (스케일링 적용) - 모두 정수로 반올림
     const baseScore = 50;
@@ -115,9 +139,12 @@ export class TodayFortuneCalculator {
     const sinsalScore = Math.round(Math.min(sinsalInteraction.score * 0.25, 13)); // 25% 비중, 최대 13점
     const guinScore = Math.round(Math.min(this.calculateGuinScore(todayGanji.dayGanji, userSajuData.guin) * 0.15, 8)); // 15% 비중, 최대 8점
     const randomScore = Math.round(Math.min(this.calculateRandomScore(todayDate) * 0.1, 5)); // 10% 비중, 최대 5점
+    const tenGodScore = Math.round(Math.min(tenGodInteraction.score * 0.2, 6)); // 경미 반영
+    const balanceScore = Math.round(Math.min(Math.max(fiveElementBalance?.score ?? 0, -10) * 0.2, 2)); // -2~+2
+    const jiDetailScore = Math.round(Math.max(Math.min(detailedJiRelations.score, 5), -10)); // 안전 제한
     
     const totalScore = Math.round(Math.max(1, Math.min(100, 
-      baseScore + ganjiScore + sinsalScore + guinScore + randomScore
+      baseScore + ganjiScore + sinsalScore + guinScore + randomScore + tenGodScore + balanceScore + jiDetailScore
     )));
     
     // 4. 카테고리별 점수 계산
@@ -137,7 +164,10 @@ export class TodayFortuneCalculator {
       interactions: {
         ganInteraction,
         jiInteraction,
-        sinsalInteraction
+        sinsalInteraction,
+        tenGodInteraction,
+        detailedJiRelations,
+        fiveElementBalance
       },
       todayGanji: {
         yearGanji: todayGanji.yearGanji,
@@ -189,6 +219,43 @@ export class TodayFortuneCalculator {
   }
 
   /**
+   * 십신(천간) 관계 분석
+   */
+  private analyzeTenGod(todayGan: string, myDayGan: string): { label: string; score: number; description: string } {
+    const todayElement = SajuUtils.getProperty(todayGan);
+    const myElement = SajuUtils.getProperty(myDayGan);
+    const todaySign = SajuUtils.getSign(todayGan);
+    const mySign = SajuUtils.getSign(myDayGan);
+    const sameSign = todaySign === mySign;
+    let label = '중립';
+    let score = 0;
+    if (todayGan === myDayGan) {
+      label = '비견';
+      score = 10;
+    } else if (todayElement === myElement) {
+      label = sameSign ? '비견' : '겁재';
+      score = sameSign ? 8 : 5;
+    } else if (SajuUtils.isSangsaeng(myElement, todayElement)) {
+      label = sameSign ? '식신' : '상관';
+      score = sameSign ? 10 : 6;
+    } else if (SajuUtils.isSanggeuk(myElement, todayElement)) {
+      label = sameSign ? '정재' : '편재';
+      score = sameSign ? 9 : 7;
+    } else if (SajuUtils.isSanggeuk(todayElement, myElement)) {
+      label = sameSign ? '정관' : '편관';
+      score = sameSign ? -6 : -8;
+    } else if (SajuUtils.isSangsaeng(todayElement, myElement)) {
+      label = sameSign ? '정인' : '편인';
+      score = sameSign ? 6 : 4;
+    } else {
+      label = '중립';
+      score = 0;
+    }
+    const description = `오늘 천간 ${todayGan}은(는) 일간 ${myDayGan} 기준 ${label} 관계입니다.`;
+    return { label, score, description };
+  }
+
+  /**
    * 지지 상호작용 분석
    */
   private analyzeJiInteraction(todayJi: string, jijiRelations: any): InteractionResult {
@@ -220,6 +287,44 @@ export class TodayFortuneCalculator {
     }
     
     return { type, score, description };
+  }
+
+  /**
+   * 지지 상세 관계(형/파/해) 분석
+   */
+  private analyzeJiDetails(todayJi: string, userSaju: UserSajuData): {
+    hasHyeong: boolean; hasPa: boolean; hasHae: boolean; summary: string; score: number;
+  } {
+    const branches = [
+      userSaju.timeGanji[1],
+      userSaju.dayGanji[1],
+      userSaju.monthGanji[1],
+      userSaju.yearGanji[1]
+    ];
+    let hasHyeong = false;
+    let hasPa = false;
+    let hasHae = false;
+    let score = 0;
+    for (const ji of branches) {
+      if (isHyeong(todayJi, ji) || isHyeong(ji, todayJi)) {
+        hasHyeong = true;
+        score -= 8;
+      }
+      if (isPa(todayJi, ji) || isPa(ji, todayJi)) {
+        hasPa = true;
+        score -= 6;
+      }
+      if (isHae(todayJi, ji) || isHae(ji, todayJi)) {
+        hasHae = true;
+        score -= 5;
+      }
+    }
+    const parts: string[] = [];
+    if (hasHyeong) parts.push('형');
+    if (hasPa) parts.push('파');
+    if (hasHae) parts.push('해');
+    const summary = parts.length > 0 ? `${parts.join('·')} 관계 유의` : '특이 관계 없음';
+    return { hasHyeong, hasPa, hasHae, summary, score };
   }
 
   /**
@@ -260,6 +365,44 @@ export class TodayFortuneCalculator {
       : "특별한 신살 발동이 없습니다.";
     
     return { activated, score, description };
+  }
+
+  /**
+   * 오행 균형 분석 (소규모 보정)
+   */
+  private analyzeFiveElementBalance(todayGan: string, userSaju: UserSajuData): TodayFortuneResult['interactions']['fiveElementBalance'] {
+    const toKey = (e: FiveElement): 'WOOD' | 'FIRE' | 'EARTH' | 'METAL' | 'WATER' => {
+      switch (e) {
+        case FiveElement.WOOD: return 'WOOD';
+        case FiveElement.FIRE: return 'FIRE';
+        case FiveElement.EARTH: return 'EARTH';
+        case FiveElement.METAL: return 'METAL';
+        case FiveElement.WATER: return 'WATER';
+        default: return 'EARTH';
+      }
+    };
+    const counts: Record<'WOOD' | 'FIRE' | 'EARTH' | 'METAL' | 'WATER', number> = {
+      WOOD: 0, FIRE: 0, EARTH: 0, METAL: 0, WATER: 0
+    };
+    const props = userSaju.fiveProperties;
+    const vals = [props.yearProperty, props.monthProperty, props.dayProperty, props.timeProperty];
+    vals.forEach((p) => {
+      const map: Record<string, 'WOOD'|'FIRE'|'EARTH'|'METAL'|'WATER'> = {
+        '목': 'WOOD', '화': 'FIRE', '토': 'EARTH', '금': 'METAL', '수': 'WATER'
+      };
+      const key = map[p] || 'EARTH';
+      counts[key] += 1;
+    });
+    const weakest = (Object.entries(counts).sort((a, b) => a[1] - b[1])[0]?.[0] ?? undefined) as
+      'WOOD' | 'FIRE' | 'EARTH' | 'METAL' | 'WATER' | undefined;
+    const strongest = (Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? undefined) as
+      'WOOD' | 'FIRE' | 'EARTH' | 'METAL' | 'WATER' | undefined;
+    const todayElement = toKey(SajuUtils.getProperty(todayGan));
+    let score = 0;
+    if (weakest && todayElement === weakest) score += 8;
+    if (strongest && todayElement === strongest) score -= 6;
+    const explanation = `오행 분포 ${JSON.stringify(counts)} 기준 오늘의 천간이 ${todayElement}를 보강/억제합니다.`;
+    return { counts, todayElement, weakest, strongest, score, explanation };
   }
 
   /**
