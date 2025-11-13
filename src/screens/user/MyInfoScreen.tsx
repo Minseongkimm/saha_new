@@ -32,9 +32,10 @@ interface MyInfoScreenProps {
 
 const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
   const [userName, setUserName] = useState('사용자');
-  const [userEmail, setUserEmail] = useState('');
+  const [birthDate, setBirthDate] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [dayGan, setDayGan] = useState('水'); // 일간 오행
+  const [dayGan, setDayGan] = useState('?'); // 일간 오행 (기본값: 없을 무)
+  const [hasBirthInfo, setHasBirthInfo] = useState(false); // 생년월일 정보 존재 여부
   const [showChargeModal, setShowChargeModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
@@ -44,12 +45,14 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
   useEffect(() => {
     loadUserInfo();
     
-    // 화면 포커스 시 잔액 갱신
+    // 화면 포커스 시 프로필 정보 및 잔액 갱신
     const unsubscribe = navigation.addListener('focus', async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const balance = await fetchUserBalanceUtil(user.id);
-        setCurrentBalance(balance);
+        await Promise.all([
+          fetchUserProfile(user.id),
+          fetchUserBalance(user.id),
+        ]);
       }
     });
     
@@ -57,29 +60,48 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
   }, [navigation]);
 
   const fetchUserProfile = async (userId: string) => {
-    // 프로필: 이름/이메일/사주 정보
+    // 프로필: 이름/생년월일/사주 정보
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const name = user.user_metadata?.full_name ||
-                 user.user_metadata?.name ||
-                 user.user_metadata?.preferred_username ||
-                 user.user_metadata?.user_name ||
-                 user.email?.split('@')[0] ||
-                 '사용자';
-    setUserName(name);
-    setUserEmail(user.email || '');
 
-    // 사주 정보(비차단)
+    // 생년월일 정보 (이름도 함께 조회)
     const { data: birthData } = await supabase
       .from('birth_infos')
-      .select('saju_data')
+      .select('name, year, month, day, saju_data')
       .eq('user_id', userId)
       .single();
+    
+    // 이름: birth_info.name 우선, 없으면 user_metadata, 없으면 "여행객"
+    const name = birthData?.name ||
+                 user.user_metadata?.name ||
+                 user.user_metadata?.full_name ||
+                 user.user_metadata?.preferred_username ||
+                 user.user_metadata?.user_name ||
+                 '사용자';
+    setUserName(name);
+    
+    if (birthData?.year && birthData?.month && birthData?.day) {
+      // 생년월일이 있으면 "92/02/06" 형식으로 표시
+      const year = birthData.year.toString().slice(-2); // 뒤 2자리만
+      const month = birthData.month.toString().padStart(2, '0');
+      const day = birthData.day.toString().padStart(2, '0');
+      setBirthDate(`${year}/${month}/${day}`);
+      setHasBirthInfo(true);
+    } else {
+      // 생년월일이 없으면 빈 문자열
+      setBirthDate('');
+      setHasBirthInfo(false);
+    }
+
+    // 사주 정보(비차단)
     if (birthData?.saju_data?.dayHangulGanji) {
       const dayGanChar = birthData.saju_data.dayHangulGanji[0];
       const dayGanHanja = koreanToHanja[dayGanChar as keyof typeof koreanToHanja] || '壬';
       const element = getElementFromDayGan(dayGanHanja);
       setDayGan(element);
+    } else {
+      // 생년월일이 없으면 기본값 유지 (이미 '?'로 초기화됨)
+      setDayGan('?');
     }
   };
 
@@ -239,16 +261,18 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
         <View style={styles.profileHeader}>
           <View style={[
             styles.profileImage, 
-            { backgroundColor: getElementBackgroundColor(dayGan) }
+            { backgroundColor: hasBirthInfo && dayGan !== '?' ? getElementBackgroundColor(dayGan) : '#f0f0f0' }
           ]}>
             <Text style={{
               fontSize: 36,
               fontWeight: 'bold',
-              color: getElementColor(dayGan)
+              color: hasBirthInfo && dayGan !== '?' ? getElementColor(dayGan) : '#999'
             }}>{dayGan}</Text>
           </View>
           <Text style={styles.userName}>{userName}</Text>
-          <Text style={styles.userEmail}>{userEmail}</Text>
+          <Text style={styles.birthDate}>
+            {birthDate || '생년월일 입력이 필요합니다'}
+          </Text>
         </View>
 
         {/* 결제 기능 임시 비활성화 */}
@@ -289,7 +313,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
             style={styles.menuItem}
             onPress={() => navigation.navigate('SajuInfo')}
           >
-            <Text style={styles.menuText}>사주 정보 관리</Text>
+            <Text style={styles.menuText}>사주 정보 / 생년월일 관리</Text>
             <Text style={styles.arrowIcon}>›</Text>
           </TouchableOpacity>
         </View>
@@ -381,7 +405,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Platform.OS === 'android' ? 20 : 28,
     backgroundColor: 'white',
-    marginBottom: 0,
+    marginBottom: -3,
   },
   profileImage: {
     width: 80,
@@ -389,7 +413,7 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 18,
   },
   buttonGroup: {
     flexDirection: 'row',
@@ -464,9 +488,10 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 8,
   },
-  userEmail: {
-    fontSize: 16,
-    color: '#666',
+  birthDate: {
+    fontSize: 14,
+    color: '#999',
+    fontWeight: '600',
   },
   section: {
     backgroundColor: 'white',
@@ -477,7 +502,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#333',
-    paddingTop: 22,
+    paddingTop: 20,
     borderBottomColor: 'transparent',
   },
   menuItem: {
