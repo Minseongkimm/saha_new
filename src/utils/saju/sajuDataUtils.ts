@@ -4,21 +4,36 @@ import { SajuData } from '../../types/streaming';
  * DB에서 가져온 birth_infos 데이터를 SajuData 형태로 변환
  */
 export const formatSajuData = (birthData: any): SajuData => {
+  // saju_data가 JSON 문자열이면 파싱
+  let parsedSajuData: any = {};
+  if (birthData.saju_data) {
+    if (typeof birthData.saju_data === 'string') {
+      try {
+        parsedSajuData = JSON.parse(birthData.saju_data);
+      } catch (e) {
+        console.error('saju_data 파싱 실패:', e);
+        parsedSajuData = {};
+      }
+    } else {
+      parsedSajuData = birthData.saju_data;
+    }
+  }
+
   return {
     name: birthData.name || '사용자',
-    birthYear: birthData.year,
-    birthMonth: birthData.month,
-    birthDay: birthData.day,
-    birthHour: birthData.hour || 0,
-    birthMinute: birthData.minute || 0,
-    gender: birthData.gender,
-    calendarType: birthData.calendar_type,
-    leapMonth: birthData.is_leap_month,
-    timeUnknown: birthData.is_time_unknown,
-    calculatedSaju: birthData.saju_data || {},
-    pillars: birthData.saju_data?.pillars || {},
-    tenGods: birthData.saju_data?.ten_gods || {},
-    lifeStages: birthData.saju_data?.life_stages || {},
+    birthYear: birthData.year ?? null,
+    birthMonth: birthData.month ?? null,
+    birthDay: birthData.day ?? null,
+    birthHour: birthData.hour ?? null,
+    birthMinute: birthData.minute ?? null,
+    gender: birthData.gender ?? null,
+    calendarType: birthData.calendar_type ?? null,
+    leapMonth: birthData.is_leap_month ?? false,
+    timeUnknown: birthData.is_time_unknown ?? false,
+    calculatedSaju: parsedSajuData,
+    pillars: parsedSajuData?.pillars || {},
+    tenGods: parsedSajuData?.ten_gods || {},
+    lifeStages: parsedSajuData?.life_stages || {},
   };
 };
 

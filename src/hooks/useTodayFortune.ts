@@ -109,21 +109,33 @@ export const useTodayFortune = () => {
       const today = new Date().toISOString().split('T')[0];
 
       // 1. 클라이언트에서 운세 계산 (점수만)
+      const fiveProperties = calculatedSaju?.fiveProperties || {};
       const transformedSajuData = {
-        yearGanji: calculatedSaju.yearHangulGanji,
-        monthGanji: calculatedSaju.monthHangulGanji,
-        dayGanji: calculatedSaju.dayHangulGanji,
-        timeGanji: calculatedSaju.timeHangulGanji,
-        sinsal: calculatedSaju.sinsal,
-        guin: calculatedSaju.guin,
-        jijiRelations: calculatedSaju.jijiRelations,
-        fiveProperties: {
-          yearProperty: calculatedSaju.fiveProperties.yearProperty,
-          monthProperty: calculatedSaju.fiveProperties.monthProperty,
-          dayProperty: calculatedSaju.fiveProperties.dayProperty,
-          timeProperty: calculatedSaju.fiveProperties.timeProperty
+        yearGanji: calculatedSaju?.yearHangulGanji || '',
+        monthGanji: calculatedSaju?.monthHangulGanji || '',
+        dayGanji: calculatedSaju?.dayHangulGanji || '',
+        timeGanji: calculatedSaju?.timeHangulGanji || '',
+        sinsal: calculatedSaju?.sinsal || {
+          yearSinsal: [],
+          monthSinsal: [],
+          daySinsal: [],
+          timeSinsal: []
         },
-        gongmang: calculatedSaju.gongmang
+        guin: calculatedSaju?.guin || {},
+        jijiRelations: calculatedSaju?.jijiRelations || {
+          삼합: [],
+          육합: [],
+          삼형: [],
+          육충: [],
+          방합: []
+        },
+        fiveProperties: {
+          yearProperty: fiveProperties?.yearProperty || '',
+          monthProperty: fiveProperties?.monthProperty || '',
+          dayProperty: fiveProperties?.dayProperty || '',
+          timeProperty: fiveProperties?.timeProperty || ''
+        },
+        gongmang: calculatedSaju?.gongmang || ''
       };
 
       const calculatedFortune = todayFortuneCalculator.calculateTodayFortune(transformedSajuData, today);
@@ -222,7 +234,8 @@ export const useTodayFortune = () => {
         await saveToDatabase(user.id, birthData.id, finalFortuneData);
       }
     } catch (error) {
-      console.error('❌ 오늘의 운세 생성 실패:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error || '알 수 없는 오류');
+      console.error('❌ 오늘의 운세 생성 실패:', errorMessage);
       setIsStreaming(false);
       setStreamingJsonText('');
       Alert.alert('오류', '오늘의 운세를 생성할 수 없습니다.');

@@ -81,13 +81,13 @@ export interface TodayFortuneData {
 // 사주 데이터 타입
 export interface SajuData {
   name: string;
-  birthYear: number;
-  birthMonth: number;
-  birthDay: number;
-  birthHour: number;
-  birthMinute: number;
-  gender: string;
-  calendarType: string;
+  birthYear: number | null;
+  birthMonth: number | null;
+  birthDay: number | null;
+  birthHour: number | null;
+  birthMinute: number | null;
+  gender: string | null;
+  calendarType: string | null;
   leapMonth: boolean;
   timeUnknown: boolean;
   calculatedSaju: any;

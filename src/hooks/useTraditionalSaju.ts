@@ -103,9 +103,16 @@ export const useTraditionalSaju = () => {
       setStreamingText('');
 
       // 분석 입력 데이터 구성
+      const birthYear = sajuData.birthYear?.toString() ?? '??';
+      const birthMonth = sajuData.birthMonth?.toString() ?? '??';
+      const birthDay = sajuData.birthDay?.toString() ?? '??';
+      const birthHour = sajuData.birthHour?.toString() ?? '??';
+      const birthMinute = sajuData.birthMinute?.toString() ?? '??';
+      const gender = sajuData.gender === 'male' ? '남성' : sajuData.gender === 'female' ? '여성' : '??';
+      
       const analysisInput = {
         name: sajuData.name,
-        birthInfo: `${sajuData.birthYear}년 ${sajuData.birthMonth}월 ${sajuData.birthDay}일 ${sajuData.birthHour}:${sajuData.birthMinute} (${sajuData.gender === 'male' ? '남성' : '여성'})`,
+        birthInfo: `${birthYear}년 ${birthMonth}월 ${birthDay}일 ${birthHour}:${birthMinute} (${gender})`,
         yearGanji: sajuData.calculatedSaju.yearHangulGanji,
         monthGanji: sajuData.calculatedSaju.monthHangulGanji,
         dayGanji: sajuData.calculatedSaju.dayHangulGanji,
