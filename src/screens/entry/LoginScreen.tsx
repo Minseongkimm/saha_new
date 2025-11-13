@@ -9,9 +9,16 @@ import {
   Image,
   Pressable,
   GestureResponderEvent,
+  Platform,
 } from 'react-native';
-import { login } from '@react-native-seoul/kakao-login';
-import { supabase } from '../../utils/database/supabaseClient';
+import Icon from 'react-native-vector-icons/FontAwesome';
+import {
+  AppleLoginError,
+  AppleLoginErrorCode,
+  isAppleSignInSupported,
+  performAppleLogin,
+} from '../../utils/auth/apple_login';
+import { KakaoLoginError, performKakaoLogin } from '../../utils/auth/kakao_login';
 
 interface LoginScreenProps {
   navigation: {
@@ -25,6 +32,32 @@ function LoginScreen({ navigation }: LoginScreenProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
+  const handleAppleLogin = async (): Promise<void> => {
+    if (!agreedToTerms) {
+      Alert.alert('약관 동의 필요', '서비스 이용을 위해 이용약관 및 개인정보처리방침에 동의해주세요.');
+      return;
+    }
+    if (!isAppleSignInSupported()) {
+      Alert.alert('로그인 불가', '이 기기에서는 Apple 로그인을 지원하지 않습니다.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await performAppleLogin();
+    } catch (error) {
+      if (error instanceof AppleLoginError) {
+        if (error.code === AppleLoginErrorCode.Cancelled) {
+          return;
+        }
+        Alert.alert('로그인 실패', error.message);
+        return;
+      }
+      Alert.alert('로그인 실패', 'Apple 로그인에 실패했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const toggleTermsAgreement = (): void => {
     setAgreedToTerms(prev => !prev);
   };
@@ -34,7 +67,7 @@ function LoginScreen({ navigation }: LoginScreenProps) {
   };
 
   // 카카오 로그인 (Native SDK 방식)
-  const handleKakaoLogin = async () => {
+  const handleKakaoLogin = async (): Promise<void> => {
     if (!agreedToTerms) {
       Alert.alert('약관 동의 필요', '서비스 이용을 위해 이용약관 및 개인정보처리방침에 동의해주세요.');
       return;
@@ -42,73 +75,14 @@ function LoginScreen({ navigation }: LoginScreenProps) {
     setIsLoading(true);
 
     try {
-      // 네이티브 카카오 SDK로 로그인
-      const result = await login();
-      if (!result.idToken) {
-        Alert.alert('로그인 실패', 'ID 토큰을 가져올 수 없습니다.');
-        setIsLoading(false);
-        return;
-      }
-      // Supabase Auth에 ID Token으로 로그인
-      const { data, error } = await supabase.auth.signInWithIdToken({
-        provider: 'kakao',
-        token: result.idToken,
-      });
-      
-      if (error) {
-        console.error('❌ === Supabase 로그인 에러 ===', error);
-        Alert.alert('로그인 실패', `Supabase 로그인에 실패했습니다: ${error.message}`);
-        setIsLoading(false);
-        return;
-      }
-      if (data?.user) {
-        // 약관 동의 정보를 user_metadata에 저장
-        const { error: updateError } = await supabase.auth.updateUser({
-          data: {
-            ...data.user.user_metadata,
-            agreed_to_terms: true,
-            terms_agreed_at: new Date().toISOString(),
-          },
-        });
-
-        if (updateError) {
-          console.error('약관 동의 정보 저장 오류:', updateError);
-          // 계속 진행 (약관 동의는 필수이지만 저장 실패해도 로그인은 진행)
-        }
-
-        // 사용자의 birth_infos 데이터 확인
-        const { data: birthInfo, error: birthInfoError } = await supabase
-          .from('birth_infos')
-          .select('*')
-          .eq('user_id', data.user.id)
-          .single();
-
-        if (birthInfoError && birthInfoError.code !== 'PGRST116') { // PGRST116는 데이터가 없는 경우
-          throw birthInfoError;
-        }
-
-        // 세션 상태 업데이트를 위해 세션을 충분히 기다린 뒤 네비게이션
-        const checkSessionAndNavigate = async () => {
-          // 세션이 설정될 때까지 폴링
-          let retries = 0;
-          const maxRetries = 20;
-          while (retries < maxRetries) {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) break;
-            await new Promise(resolve => setTimeout(resolve, 100));
-            retries++;
-          }
-
-          // 로그인 후 라우팅은 App에서 처리됨(여기서 네비게이션하지 않음)
-        };
-        
-        checkSessionAndNavigate();
-      } else {
-        Alert.alert('로그인 실패', '사용자 정보를 가져올 수 없습니다.');
-      }
-      setIsLoading(false);
+      await performKakaoLogin();
     } catch (error) {
+      if (error instanceof KakaoLoginError) {
+        Alert.alert('로그인 실패', error.message);
+        return;
+      }
       Alert.alert('로그인 실패', '카카오 로그인에 실패했습니다.');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -151,6 +125,20 @@ function LoginScreen({ navigation }: LoginScreenProps) {
               </Text>
             </View>
           </TouchableOpacity>
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity
+              style={[styles.loginButton, styles.appleButton]}
+              onPress={handleAppleLogin}
+              disabled={isLoading}
+            >
+              <View style={styles.buttonContent}>
+                <Icon name="apple" size={20} color="#000000" style={styles.appleIcon} />
+                <Text style={styles.appleButtonText}>
+                  {isLoading ? '로그인 중' : 'Apple로 로그인'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* 약관 동의 */}
           <View style={styles.termsContainer}>
@@ -258,6 +246,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+  appleButton: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#BBBBBB',
+    borderWidth: 0.2,
+  },
+  appleButtonText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  appleIcon: {
+    marginRight: 8,
+  },
   termsContainer: {
     alignItems: 'center',
   },
@@ -287,11 +288,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkboxChecked: {
-    backgroundColor: '#FEE500',
-    borderColor: '#FEE500',
+    backgroundColor: '#000000',
+    borderColor: '#000000',
   },
   checkmark: {
-    color: '#000000',
+    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: 'bold',
   },

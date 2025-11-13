@@ -38,6 +38,14 @@
 				<string>kakao8664599143dee6919c04f7b00e0a495d</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>SupabaseAuth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>io.supabase.auth</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
