@@ -12,7 +12,7 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { Colors } from '../../constants/colors';
 import SabaLoader from '../../components/common/SabaLoader';
 import CustomHeader from '../../components/common/CustomHeader';
-import BirthInputForm from '../../components/forms/BirthInputForm';
+import PartnerInputForm from '../../components/forms/PartnerInputForm';
 import { PartnerBirthInfo } from '../../types/partner';
 import { startChatWithExpert } from '../../utils/chat/chatUtils';
 import { RootStackParamList } from '../../types/navigation';
@@ -135,7 +135,7 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
       />
       
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <BirthInputForm
+        <PartnerInputForm
           birthInfo={partnerInfo as any}
           setBirthInfo={setPartnerInfo as any}
           title=""

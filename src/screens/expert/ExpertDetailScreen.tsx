@@ -20,8 +20,8 @@ import { getExpertImage } from '../../utils/expert/getExpertImage';
 import { getExpertListCache } from '../../utils/expert/expertListCache';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { startChatWithExpert } from '../../utils/chat/chatUtils';
-import BirthInputForm, { PartnerBirthInfo } from '../../components/forms/BirthInputForm';
-import { RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from '../../types/partner';
+import PartnerInputForm from '../../components/forms/PartnerInputForm';
+import { PartnerBirthInfo, RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from '../../types/partner';
 import { getPartnerList, deletePartnerFromDatabase } from '../../utils/partner/partnerDatabase';
 import { getPartnerListCache, isPartnerListFresh } from '../../utils/partner/partnerListCache';
 import SabaLoader from '../../components/common/SabaLoader';
@@ -479,7 +479,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
       >
         <View style={styles.modalContainer}>
           <ScrollView style={styles.modalScrollView} showsVerticalScrollIndicator={false}>
-            <BirthInputForm
+            <PartnerInputForm
               birthInfo={partnerInfo}
               setBirthInfo={setPartnerInfo}
               title="상대방 정보 입력"

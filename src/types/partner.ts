@@ -4,7 +4,7 @@
 
 import { BirthInfo } from '../services/ai/types';
 
-// 상대방 생년월일 정보 (BirthInputForm에서 사용하는 구조)
+// 상대방 생년월일 정보 (PartnerInputForm에서 사용하는 구조)
 export interface PartnerBirthInfo {
   name: string;
   birthYear: string;
