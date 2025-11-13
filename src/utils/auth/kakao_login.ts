@@ -1,7 +1,7 @@
 import { login as kakaoLogin } from '@react-native-seoul/kakao-login';
 
 import { supabase } from '../database/supabaseClient';
-import { executePostLogin } from './login_finalizer';
+import { executePostLogin, LoginMetadata } from './login_finalizer';
 
 export enum KakaoLoginErrorCode {
   IdTokenMissing = 'id_token_missing',
@@ -18,6 +18,36 @@ export class KakaoLoginError extends Error {
     this.code = code;
   }
 }
+
+// 카카오 로그인 결과에서 사용자 메타데이터 생성
+const buildKakaoMetadata = (user: { user_metadata?: Record<string, unknown>; email?: string | null }): LoginMetadata => {
+  const payload: LoginMetadata = {
+    login_provider: 'kakao',
+  };
+
+  // Supabase가 카카오 ID 토큰에서 자동으로 파싱한 정보 확인
+  const metadata = user.user_metadata || {};
+  
+  // 이름 정보 확인 및 저장
+  const fullName = metadata.name || 
+                   metadata.full_name || 
+                   metadata.nickname || 
+                   metadata.preferred_username ||
+                   '';
+  
+  if (fullName && typeof fullName === 'string' && fullName.length > 0) {
+    payload.name = fullName;
+  }
+
+  // 이메일 정보 확인 및 저장
+  if (user.email) {
+    payload.kakao_email = user.email;
+  } else if (metadata.email && typeof metadata.email === 'string') {
+    payload.kakao_email = metadata.email;
+  }
+
+  return payload;
+};
 
 // 카카오 로그인 요청을 수행하고 Supabase 인증까지 완료
 export const performKakaoLogin = async (): Promise<void> => {
@@ -50,7 +80,7 @@ export const performKakaoLogin = async (): Promise<void> => {
       );
     }
 
-    await executePostLogin(data.user, { login_provider: 'kakao' });
+    await executePostLogin(data.user, buildKakaoMetadata(data.user));
   } catch (error) {
     if (error instanceof KakaoLoginError) {
       throw error;

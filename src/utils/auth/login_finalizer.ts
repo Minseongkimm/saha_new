@@ -9,17 +9,33 @@ const delay = (duration: number): Promise<void> =>
     setTimeout(resolve, duration);
   });
 
-// 사용자의 생년월일 정보 존재 여부 확인
-const ensureBirthInfoExists = async (userId: string): Promise<void> => {
-  const { error } = await supabase
+// 사용자의 생년월일 정보 존재 여부 확인 및 초기 레코드 생성
+const ensureBirthInfoExists = async (userId: string, userName: string): Promise<void> => {
+  const { data: existingData, error: selectError } = await supabase
     .from('birth_infos')
-    .select('*')
+    .select('id')
     .eq('user_id', userId)
     .single();
 
-  if (error && error.code !== 'PGRST116') {
-    throw error;
+  // 레코드가 없으면 생성 (user_id, name만 저장, 나머지는 null)
+  if (selectError && selectError.code === 'PGRST116') {
+    const { error: insertError } = await supabase
+      .from('birth_infos')
+      .insert({
+        user_id: userId,
+        name: userName,
+        // 나머지 필드는 null로 저장 (사주 입력 시 업데이트됨)
+      });
+
+    if (insertError) {
+      console.error('birth_info 초기 레코드 생성 오류:', insertError);
+      // 에러를 throw하지 않고 로그만 남김 (사주 입력 화면에서 처리 가능)
+    }
+  } else if (selectError) {
+    // 다른 종류의 에러는 throw
+    throw selectError;
   }
+  // 레코드가 이미 있으면 아무것도 하지 않음
 };
 
 // 세션이 활성화될 때까지 대기
@@ -52,7 +68,17 @@ export const executePostLogin = async (user: User, extras: LoginMetadata): Promi
     console.error('약관 동의 정보 저장 오류:', error);
   }
 
-  await ensureBirthInfoExists(user.id);
+  // 사용자 이름 가져오기 (user_metadata와 extras에서 확인)
+  const userMetadata = user.user_metadata || {};
+  const userName = (extras.name as string | undefined) ||
+                   (userMetadata.name as string | undefined) ||
+                   (userMetadata.full_name as string | undefined) ||
+                   (userMetadata.preferred_username as string | undefined) ||
+                   (userMetadata.user_name as string | undefined) ||
+                   user.email?.split('@')[0] ||
+                   '사용자';
+
+  await ensureBirthInfoExists(user.id, userName);
   await waitForSession();
 };
 

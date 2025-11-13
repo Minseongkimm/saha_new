@@ -38,7 +38,7 @@ const buildAppleMetadata = (response: AppleRequestResponse): LoginMetadata => {
   const fullName = [familyName, givenName].filter(value => value.length > 0).join(' ').trim();
 
   if (fullName.length > 0) {
-    payload.apple_full_name = fullName;
+    payload.name = fullName;
   }
 
   return payload;
@@ -136,7 +136,13 @@ export const performAppleLogin = async (): Promise<void> => {
       );
     }
 
-    await executePostLogin(data.user, buildAppleMetadata(response));
+    // Apple 로그인 메타데이터 생성
+    const appleMetadata = buildAppleMetadata(response);
+    
+    // Apple은 첫 로그인 시에만 이름을 제공하고, 두 번째 로그인부터는 제공하지 않음
+    // 이름은 birth_info.name에서 관리하고, 없을 때만 fallback으로 "여행객" 표시
+
+    await executePostLogin(data.user, appleMetadata);
   } catch (error) {
     if (error instanceof AppleLoginError) {
       throw error;
