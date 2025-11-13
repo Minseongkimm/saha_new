@@ -7,36 +7,18 @@ import {
   TextInput,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
-import { RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from '../../types/partner';
+import { PartnerBirthInfo, RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from '../../types/partner';
 
-export interface BirthInfo {
-  name: string;
-  birthYear: string;
-  birthMonth: string;
-  birthDay: string;
-  birthHour: string;
-  birthMinute: string;
-  gender: string; // 'male' 또는 'female'
-  calendarType: string; // 'solar' 또는 'lunar'
-  isLeapMonth: boolean;
-  isTimeUnknown: boolean;
-}
-
-// 상대방 정보용 확장 인터페이스
-export interface PartnerBirthInfo extends BirthInfo {
-  relationshipStatus?: RelationshipStatus;
-}
-
-interface BirthInputFormProps {
-  birthInfo: BirthInfo | PartnerBirthInfo;
-  setBirthInfo: (info: BirthInfo | PartnerBirthInfo) => void;
+interface PartnerInputFormProps {
+  birthInfo: PartnerBirthInfo;
+  setBirthInfo: (info: PartnerBirthInfo) => void;
   title: string;
   showName?: boolean;
   showRelationship?: boolean; // 상대방 정보 입력 시 관계 상태 표시
   isModal?: boolean; // 모달에서 사용할 때 카드 스타일 제거
 }
 
-const BirthInputForm: React.FC<BirthInputFormProps> = ({
+const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
   birthInfo,
   setBirthInfo,
   title,
@@ -522,4 +504,5 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BirthInputForm;
+export default PartnerInputForm;
+
