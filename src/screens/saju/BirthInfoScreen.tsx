@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
-  TextInput,
   Alert,
 } from 'react-native';
 import { supabase } from '../../utils/database/supabaseClient';
@@ -14,6 +13,10 @@ import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../types/navigation';
 import { Colors } from '../../constants/colors';
 import SabaLoader from '../../components/common/SabaLoader';
+import BirthInfoForm, { BirthInfoFormData } from '../../components/forms/BirthInfoForm';
+import { SajuCache } from '../../utils/saju/sajuCache';
+import { TodayFortuneCache } from '../../utils/today-fortune/todayFortuneCache';
+import { clearAllNewYearFortuneCache } from '../../utils/new-year-fortune/newYearFortuneCache';
 
 interface BirthInfoScreenProps {
   navigation: {
@@ -41,46 +44,52 @@ function BirthInfoScreen({ navigation, route }: BirthInfoScreenProps) {
     };
     getUserId();
   }, []);
-  const [birthYear, setBirthYear] = useState('');
-  const [birthMonth, setBirthMonth] = useState('');
-  const [birthDay, setBirthDay] = useState('');
-  const [birthHour, setBirthHour] = useState('');
-  const [birthMinute, setBirthMinute] = useState('');
-  const [calendarType, setCalendarType] = useState('solar'); // 'solar' 또는 'lunar'
-  const [isLeapMonth, setIsLeapMonth] = useState(false);
+  const [formData, setFormData] = useState<BirthInfoFormData>({
+    birthYear: '',
+    birthMonth: '',
+    birthDay: '',
+    birthHour: '',
+    birthMinute: '',
+    gender: '',
+    calendarType: '',
+    isLeapMonth: false,
+    isTimeUnknown: false,
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
   // 음력 선택 시 평달을 기본값으로 설정
   useEffect(() => {
-    if (calendarType === 'lunar') {
-      setIsLeapMonth(false);
+    if (formData.calendarType === '음력') {
+      setFormData(prev => ({ ...prev, isLeapMonth: false }));
     }
-  }, [calendarType]);
-  const [isTimeUnknown, setIsTimeUnknown] = useState(false); // 시간 모름 옵션
-  const [gender, setGender] = useState(''); // 'male' 또는 'female'
-  const [isLoading, setIsLoading] = useState(false);
+  }, [formData.calendarType]);
+
+  const handleFormChange = (field: keyof BirthInfoFormData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
   
 
   const handleSaveBirthInfo = async () => {
     // 입력값 검증
-    if (!birthYear || !birthMonth || !birthDay) {
+    if (!formData.birthYear || !formData.birthMonth || !formData.birthDay) {
       Alert.alert('오류', '생년월일을 모두 입력해주세요.');
       return;
     }
-    if (!gender) {
+    if (!formData.gender) {
       Alert.alert('오류', '성별을 선택해주세요.');
       return;
     }
-    if (!isTimeUnknown && (!birthHour || !birthMinute)) {
+    if (!formData.isTimeUnknown && (!formData.birthHour || !formData.birthMinute)) {
       Alert.alert('오류', '시간을 입력해주세요.');
       return;
     }
 
     // 값 변환 및 유효성 검사
-    const year = parseInt(birthYear);
-    const month = parseInt(birthMonth);
-    const day = parseInt(birthDay);
-    const hour = isTimeUnknown ? null : parseInt(birthHour);
-    const minute = isTimeUnknown ? null : parseInt(birthMinute);
+    const year = parseInt(formData.birthYear);
+    const month = parseInt(formData.birthMonth);
+    const day = parseInt(formData.birthDay);
+    const hour = formData.isTimeUnknown ? null : parseInt(formData.birthHour);
+    const minute = formData.isTimeUnknown ? null : parseInt(formData.birthMinute);
 
     if (year < 1900 || year > new Date().getFullYear()) {
       Alert.alert('오류', '올바른 년도를 입력해주세요.');
@@ -94,7 +103,7 @@ function BirthInfoScreen({ navigation, route }: BirthInfoScreenProps) {
       Alert.alert('오류', '올바른 일을 입력해주세요.');
       return;
     }
-    if (!isTimeUnknown && hour !== null && minute !== null) {
+    if (!formData.isTimeUnknown && hour !== null && minute !== null) {
       if (hour < 0 || hour > 23) {
         Alert.alert('오류', '올바른 시간을 입력해주세요.');
         return;
@@ -114,8 +123,8 @@ function BirthInfoScreen({ navigation, route }: BirthInfoScreenProps) {
         day,
         hour,
         minute,
-        isLunar: calendarType === 'lunar',
-        isLeapMonth
+        isLunar: formData.calendarType === '음력',
+        isLeapMonth: formData.isLeapMonth
       });
     } catch (error) {
       let errorMessage = '알 수 없는 오류가 발생했습니다.';
@@ -156,39 +165,83 @@ interface SajuResult {
     setIsLoading(true);
 
     try {
-      // 사용자 이름 가져오기 (카카오 데이터 우선순위)
-      const { data: { user } } = await supabase.auth.getUser();
-      const userName = user?.user_metadata?.full_name || 
-                      user?.user_metadata?.name || 
-                      user?.user_metadata?.preferred_username || 
-                      user?.user_metadata?.user_name || 
-                      user?.email?.split('@')[0] || 
-                      '사용자';
+      if (!userId) {
+        Alert.alert('오류', '사용자 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      // 기존 birth_info 레코드 확인
+      const { data: existingData, error: checkError } = await supabase
+        .from('birth_infos')
+        .select('id, name')
+        .eq('user_id', userId)
+        .single();
+
+      // 사용자 이름 가져오기 (기존 레코드의 이름 우선, 없으면 user_metadata에서)
+      let userName = existingData?.name;
+      if (!userName) {
+        const { data: { user } } = await supabase.auth.getUser();
+        userName = user?.user_metadata?.name || 
+                   user?.user_metadata?.full_name || 
+                   user?.user_metadata?.preferred_username || 
+                   user?.user_metadata?.user_name || 
+                   user?.email?.split('@')[0] || 
+                   '사용자';
+      }
 
       const birthData = {
-        user_id: userId,
         name: userName,
-        year: parseInt(birthYear),
-        month: parseInt(birthMonth),
-        day: parseInt(birthDay),
-        hour: isTimeUnknown ? null : parseInt(birthHour),
-        minute: isTimeUnknown ? null : parseInt(birthMinute),
-        calendar_type: calendarType,
-        is_leap_month: isLeapMonth,
-        is_time_unknown: isTimeUnknown,
-        gender: gender,
+        year: parseInt(formData.birthYear),
+        month: parseInt(formData.birthMonth),
+        day: parseInt(formData.birthDay),
+        hour: formData.isTimeUnknown ? null : parseInt(formData.birthHour),
+        minute: formData.isTimeUnknown ? null : parseInt(formData.birthMinute),
+        calendar_type: formData.calendarType === '음력' ? 'lunar' : 'solar',
+        is_leap_month: formData.isLeapMonth,
+        is_time_unknown: formData.isTimeUnknown,
+        gender: formData.gender === '남성' ? 'male' : 'female',
         saju_data: sajuResult
       };
 
-      const { error } = await supabase
-        .from('birth_infos')
-        .insert(birthData)
-        .select();
+      let error;
+      if (existingData) {
+        // 기존 레코드가 있으면 업데이트
+        const { error: updateError } = await supabase
+          .from('birth_infos')
+          .update(birthData)
+          .eq('user_id', userId);
+        error = updateError;
+      } else {
+        // 기존 레코드가 없으면 생성 (방어 코드)
+        const { error: insertError } = await supabase
+          .from('birth_infos')
+          .insert({
+            user_id: userId,
+            ...birthData,
+          });
+        error = insertError;
+      }
 
       if (error) {
         Alert.alert('오류', '생년월일 정보 저장에 실패했습니다.');
         return;
       }
+
+      // 생년월일이 변경되었으므로 해당 사용자의 모든 사주 분석 데이터 삭제
+      const { error: deleteAnalysisError } = await supabase
+        .from('saju_analyses')
+        .delete()
+        .eq('user_id', userId);
+
+      if (deleteAnalysisError) {
+        console.error('saju_analyses 삭제 오류:', deleteAnalysisError);
+        // 분석 데이터 삭제 실패는 치명적이지 않으므로 계속 진행
+      }
+
+      // 생년월일이 변경되었으므로 모든 사주 관련 캐시 삭제
+      await SajuCache.clearUserCache(userId);
+      await TodayFortuneCache.clearTodayFortuneCache(userId);
+      await clearAllNewYearFortuneCache(userId);
 
       // 저장 성공 시 redirectTo가 있으면 해당 화면으로, 없으면 MainTabs로 이동
       setTimeout(() => {
@@ -214,208 +267,13 @@ interface SajuResult {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Text style={styles.title}>사주 정보 입력</Text>
-        <Text style={styles.subtitle}>사주 분석을 위해서만 활용됩니다.</Text>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>생년월일</Text>
-          <View style={styles.dateInputContainer}>
-            <TextInput
-              style={styles.dateInput}
-              placeholder="1992.02.06"
-              value={birthYear || birthMonth || birthDay ? 
-                `${birthYear || ''}${birthMonth ? `.${birthMonth}` : ''}${birthDay ? `.${birthDay}` : ''}` 
-                : ''
-              }
-              onChangeText={(text) => {
-                // 숫자만 허용
-                const cleaned = text.replace(/[^0-9]/g, '');
-                
-                // 자동으로 점 추가
-                let formatted = '';
-                if (cleaned.length > 0) formatted += cleaned.slice(0, 4);
-                if (cleaned.length > 4) formatted += '.' + cleaned.slice(4, 6);
-                if (cleaned.length > 6) formatted += '.' + cleaned.slice(6, 8);
-                
-                // 각 부분 업데이트
-                const parts = formatted.split('.');
-                setBirthYear(parts[0] || '');
-                setBirthMonth(parts[1] || '');
-                setBirthDay(parts[2] || '');
-              }}
-              keyboardType="number-pad"
-              maxLength={10} // YYYY.MM.DD
-            />
-            {(birthYear || birthMonth || birthDay) && (
-              <TouchableOpacity
-                style={styles.clearButton}
-                onPress={() => {
-                  setBirthYear('');
-                  setBirthMonth('');
-                  setBirthDay('');
-                }}
-              >
-                <Text style={styles.clearButtonText}>✕</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          <View>
-            <Text style={styles.label}>달력</Text>
-            <View style={styles.calendarTypeContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.calendarTypeButton,
-                  calendarType === 'solar' && styles.calendarTypeButtonSelected
-                ]}
-                onPress={() => setCalendarType('solar')}
-              >
-                <Text style={[
-                  styles.calendarTypeText,
-                  calendarType === 'solar' && styles.calendarTypeTextSelected
-                ]}>양력</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.calendarTypeButton,
-                  calendarType === 'lunar' && styles.calendarTypeButtonSelected
-                ]}
-                onPress={() => setCalendarType('lunar')}
-              >
-                <Text style={[
-                  styles.calendarTypeText,
-                  calendarType === 'lunar' && styles.calendarTypeTextSelected
-                ]}>음력</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={[styles.label, { marginTop: 22 }]}>윤달 여부(음력 시 선택)</Text>
-            <View style={styles.calendarTypeContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.calendarTypeButton,
-                  !isLeapMonth && styles.calendarTypeButtonSelected,
-                  calendarType === 'solar' && styles.disabledButton
-                ]}
-                onPress={() => calendarType === 'lunar' && setIsLeapMonth(false)}
-                disabled={calendarType === 'solar'}
-              >
-                <Text style={[
-                  styles.calendarTypeText,
-                  !isLeapMonth && styles.calendarTypeTextSelected,
-                  calendarType === 'solar' && styles.disabledText
-                ]}>평달</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.calendarTypeButton,
-                  isLeapMonth && styles.calendarTypeButtonSelected,
-                  calendarType === 'solar' && styles.disabledButton
-                ]}
-                onPress={() => calendarType === 'lunar' && setIsLeapMonth(true)}
-                disabled={calendarType === 'solar'}
-              >
-                <Text style={[
-                  styles.calendarTypeText,
-                  isLeapMonth && styles.calendarTypeTextSelected,
-                  calendarType === 'solar' && styles.disabledText
-                ]}>윤달</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>성별</Text>
-          <View style={styles.radioContainer}>
-            <TouchableOpacity 
-              style={[styles.radioButton, gender === 'male' && styles.radioButtonSelected]}
-              onPress={() => setGender('male')}
-            >
-              <Text style={[styles.radioText, gender === 'male' && styles.radioTextSelected]}>
-                남성
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.radioButton, gender === 'female' && styles.radioButtonSelected]}
-              onPress={() => setGender('female')}
-            >
-              <Text style={[styles.radioText, gender === 'female' && styles.radioTextSelected]}>
-                여성
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>태어난 시간</Text>
-          <View style={styles.timeInputContainer}>
-            <TextInput
-              style={[styles.timeInput, isTimeUnknown && styles.disabledInput]}
-              placeholder="07:40"
-              value={birthHour || birthMinute ? 
-                `${birthHour || ''}${birthMinute ? `:${birthMinute}` : ''}` 
-                : ''
-              }
-              onChangeText={(text) => {
-                if (!isTimeUnknown) {
-                  // 숫자만 허용
-                  const cleaned = text.replace(/[^0-9]/g, '');
-                  
-                  // 시간 제한 (0-23)
-                  let hour = cleaned.slice(0, 2);
-                  if (hour.length === 2) {
-                    const hourNum = parseInt(hour);
-                    if (hourNum > 23) hour = '23';
-                  }
-
-                  // 분 제한 (0-59)
-                  let minute = cleaned.slice(2, 4);
-                  if (minute.length === 2) {
-                    const minuteNum = parseInt(minute);
-                    if (minuteNum > 59) minute = '59';
-                  }
-
-                  // 자동으로 콜론 추가
-                  let formatted = '';
-                  if (hour) formatted += hour;
-                  if (minute) formatted += ':' + minute;
-                  
-                  // 각 부분 업데이트
-                  setBirthHour(hour || '');
-                  setBirthMinute(minute || '');
-                }
-              }}
-              keyboardType="number-pad"
-              maxLength={5} // HH:mm
-              editable={!isTimeUnknown}
-            />
-            {!isTimeUnknown && (birthHour || birthMinute) && (
-              <TouchableOpacity
-                style={styles.clearButton}
-                onPress={() => {
-                  setBirthHour('');
-                  setBirthMinute('');
-                }}
-              >
-                <Text style={styles.clearButtonText}>✕</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.inputContainer}>
-          <TouchableOpacity 
-            style={styles.checkboxContainer}
-            onPress={() => setIsTimeUnknown(!isTimeUnknown)}
-          >
-            <View style={[styles.checkbox, isTimeUnknown && styles.checkboxSelected]}>
-              {isTimeUnknown && <Text style={styles.checkmark}>✓</Text>}
-            </View>
-            <Text style={styles.checkboxLabel}>시간 몰라요 </Text>
-          </TouchableOpacity>
-        </View>
-
+        <BirthInfoForm
+          data={formData}
+          onChange={handleFormChange}
+          showTitle={true}
+          title="사주 정보 입력"
+          subtitle="사주 분석을 위해서만 활용됩니다."
+        />
 
         <TouchableOpacity 
           style={styles.saveButton}
@@ -468,152 +326,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 8,
-    color: '#333',
-  },
-  subtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 32,
-    color: '#666',
-  },
-  inputContainer: {
-    marginBottom: 30,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 6,
-    color: '#333',
-  },
-  dateInputContainer: {
-    position: 'relative',
-    marginBottom: 20,
-  },
-  timeInputContainer: {
-    position: 'relative',
-    marginBottom: 0,
-  },
-  dateInput: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    paddingVertical: 6,
-    paddingRight: 30,
-    fontSize: 20,
-    color: '#333',
-  },
-  timeInput: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    paddingVertical: 5,
-    paddingRight: 30,
-    fontSize: 20,
-    color: '#333',
-  },
-  clearButton: {
-    position: 'absolute',
-    right: 0,
-    top: '50%',
-    transform: [{ translateY: -12 }],
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#E8E8E8',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  clearButtonText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  calendarTypeContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop:10,
-  },
-  calendarTypeButton: {
-    padding: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: 'white',
-    minWidth: 150,
-    minHeight: 45,
-    alignItems: 'center',
-  },
-  calendarTypeButtonSelected: {
-    backgroundColor: Colors.primaryColor,
-    borderColor: Colors.primaryColor,
-  },
-  calendarTypeText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  calendarTypeTextSelected: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  disabledInput: {
-    backgroundColor: '#f5f5f5',
-    borderColor: '#e0e0e0',
-    color: '#999',
-  },
-  disabledText: {
-    color: '#999',
-  },
-  radioContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 10,
-  },
-  radioButton: {
-    padding: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: 'white',
-    minWidth: 150,
-    minHeight: 45,
-    alignItems: 'center',
-  },
-  radioButtonSelected: {
-    backgroundColor: Colors.primaryColor,
-    borderColor: Colors.primaryColor,
-  },
-  radioText: {
-    fontSize: 16,
-    color: '#333',
-  },
-  radioTextSelected: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: -18,
-  },
-    checkbox: {
-      width: 16,
-      height: 16,
-      borderWidth: 1.5,
-      borderColor: '#ddd',
-      borderRadius: 3,
-      marginRight: 6,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'white',
-    },
-    checkboxSelected: {
-      backgroundColor: Colors.primaryColor,
-      borderColor: Colors.primaryColor,
-    },
-    checkmark: {
-      color: 'white',
-      fontSize: 12,
-      fontWeight: 'bold',
-    },
-  checkboxLabel: {
-    fontSize: 14,
     color: '#333',
   },
   saveButton: {

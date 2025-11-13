@@ -17,14 +17,17 @@ export const ensureBirthInfoOrNavigate = async (
   try {
     const { data } = await supabase
       .from('birth_infos')
-      .select('id')
+      .select('id, year, month, day')
       .eq('user_id', user.id)
       .single();
-    if (data) {
-      return true;
+    
+    // 레코드가 없거나 생년월일 정보가 없으면 입력 화면으로 이동
+    if (!data || !data.year || !data.month || !data.day) {
+      navigation.navigate('BirthInfo', redirectTo ? { redirectTo } : undefined);
+      return false;
     }
-    navigation.navigate('BirthInfo', redirectTo ? { redirectTo } : undefined);
-    return false;
+    
+    return true;
   } catch (_e) {
     // 조회 실패 시에는 일단 진행을 막지 않음 (서비스 가용성 우선)
     return true;

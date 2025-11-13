@@ -17,6 +17,11 @@ import { supabase } from '../../utils/database/supabaseClient';
 import { calculateSaju } from '../../utils/saju/ganji_local';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SabaLoader from '../../components/common/SabaLoader';
+import Icon from 'react-native-vector-icons/Ionicons';
+import BirthInfoForm, { BirthInfoFormData } from '../../components/forms/BirthInfoForm';
+import { SajuCache } from '../../utils/saju/sajuCache';
+import { TodayFortuneCache } from '../../utils/today-fortune/todayFortuneCache';
+import { clearAllNewYearFortuneCache } from '../../utils/new-year-fortune/newYearFortuneCache';
 
 interface SajuInfoScreenProps {
   navigation: any;
@@ -24,6 +29,19 @@ interface SajuInfoScreenProps {
 
 const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
   const [sajuInfo, setSajuInfo] = useState({
+    name: '',
+    birthYear: '',
+    birthMonth: '',
+    birthDay: '',
+    birthHour: '',
+    birthMinute: '',
+    gender: '',
+    calendarType: '',
+    isLeapMonth: false,
+    timeUnknown: false,
+  });
+
+  const [originalSajuInfo, setOriginalSajuInfo] = useState({
     name: '',
     birthYear: '',
     birthMonth: '',
@@ -67,9 +85,9 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
 
       setUserId(user.id);
 
-      // 사용자 이름은 Auth 메타데이터에서 가져오기 (카카오 데이터 우선순위)
-      const userName = user.user_metadata?.full_name || 
-                      user.user_metadata?.name || 
+      // 사용자 이름은 Auth 메타데이터에서 가져오기
+      const userName = user.user_metadata?.name || 
+                      user.user_metadata?.full_name || 
                       user.user_metadata?.preferred_username || 
                       user.user_metadata?.user_name || 
                       user.email?.split('@')[0] || 
@@ -81,18 +99,38 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
       
       if (cachedData) {
         const parsedCache = JSON.parse(cachedData);
-        setSajuInfo({
-          name: parsedCache.name || userName,
-          birthYear: parsedCache.year?.toString() || '',
-          birthMonth: parsedCache.month?.toString() || '',
-          birthDay: parsedCache.day?.toString() || '',
-          birthHour: parsedCache.hour?.toString() || '0',
-          birthMinute: parsedCache.minute?.toString() || '0',
-          gender: parsedCache.gender === 'male' ? '남성' : '여성',
-          calendarType: parsedCache.calendar_type === 'lunar' ? '음력' : '양력',
-          isLeapMonth: parsedCache.is_leap_month || false,
-          timeUnknown: parsedCache.is_time_unknown || false,
-        });
+        const cachedName = parsedCache.name || userName;
+        // 이름이 "여행객"일 경우 모든 값을 빈 값으로 초기화
+        let initialData;
+        if (cachedName === '여행객') {
+          initialData = {
+            name: '',
+            birthYear: '',
+            birthMonth: '',
+            birthDay: '',
+            birthHour: '',
+            birthMinute: '',
+            gender: '',
+            calendarType: '',
+            isLeapMonth: false,
+            timeUnknown: false,
+          };
+        } else {
+          initialData = {
+            name: cachedName,
+            birthYear: parsedCache.year?.toString() || '',
+            birthMonth: parsedCache.month?.toString() || '',
+            birthDay: parsedCache.day?.toString() || '',
+            birthHour: parsedCache.hour?.toString() || '0',
+            birthMinute: parsedCache.minute?.toString() || '0',
+            gender: parsedCache.gender === 'male' ? '남성' : '여성',
+            calendarType: parsedCache.calendar_type === 'lunar' ? '음력' : '양력',
+            isLeapMonth: parsedCache.is_leap_month || false,
+            timeUnknown: parsedCache.is_time_unknown || false,
+          };
+        }
+        setSajuInfo(initialData);
+        setOriginalSajuInfo(initialData);
         setLoading(false);
       }
 
@@ -111,34 +149,73 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
         // 캐시 업데이트
         await AsyncStorage.setItem(cacheKey, JSON.stringify(birthData));
         
-        // 데이터베이스에서 가져온 정보로 상태 업데이트
-        setSajuInfo({
-          name: birthData.name || userName,
-          birthYear: birthData.year?.toString() || '',
-          birthMonth: birthData.month?.toString() || '',
-          birthDay: birthData.day?.toString() || '',
-          birthHour: birthData.hour?.toString() || '0',
-          birthMinute: birthData.minute?.toString() || '0',
-          gender: birthData.gender === 'male' ? '남성' : '여성',
-          calendarType: birthData.calendar_type === 'lunar' ? '음력' : '양력',
-          isLeapMonth: birthData.is_leap_month || false,
-          timeUnknown: birthData.is_time_unknown || false,
-        });
+        const finalName = birthData.name || userName;
+        // 이름이 "여행객"일 경우 모든 값을 빈 값으로 초기화
+        let finalData;
+        if (finalName === '여행객') {
+          finalData = {
+            name: '',
+            birthYear: '',
+            birthMonth: '',
+            birthDay: '',
+            birthHour: '',
+            birthMinute: '',
+            gender: '',
+            calendarType: '',
+            isLeapMonth: false,
+            timeUnknown: false,
+          };
+        } else {
+          // 데이터베이스에서 가져온 정보로 상태 업데이트
+          finalData = {
+            name: finalName,
+            birthYear: birthData.year?.toString() || '',
+            birthMonth: birthData.month?.toString() || '',
+            birthDay: birthData.day?.toString() || '',
+            birthHour: birthData.hour?.toString() || '0',
+            birthMinute: birthData.minute?.toString() || '0',
+            gender: birthData.gender === 'male' ? '남성' : '여성',
+            calendarType: birthData.calendar_type === 'lunar' ? '음력' : '양력',
+            isLeapMonth: birthData.is_leap_month || false,
+            timeUnknown: birthData.is_time_unknown || false,
+          };
+        }
+        setSajuInfo(finalData);
+        setOriginalSajuInfo(finalData);
       } else {
-        // 데이터가 없으면 기본값 설정
-        const defaultData = {
-          name: userName,
-          birthYear: '1990',
-          birthMonth: '1',
-          birthDay: '1',
-          birthHour: '0',
-          birthMinute: '0',
-          gender: '남성',
-          calendarType: '양력',
-          isLeapMonth: false,
-          timeUnknown: true,
-        };
+        // 데이터가 없으면 이름 확인 후 설정
+        let defaultData;
+        if (userName === '여행객') {
+          // 이름이 "여행객"이면 모든 값을 빈 값으로 초기화
+          defaultData = {
+            name: '',
+            birthYear: '',
+            birthMonth: '',
+            birthDay: '',
+            birthHour: '',
+            birthMinute: '',
+            gender: '',
+            calendarType: '',
+            isLeapMonth: false,
+            timeUnknown: false,
+          };
+        } else {
+          // 기본값 설정
+          defaultData = {
+            name: userName,
+            birthYear: '',
+            birthMonth: '',
+            birthDay: '',
+            birthHour: '0',
+            birthMinute: '0',
+            gender: '',
+            calendarType: '',
+            isLeapMonth: false,
+            timeUnknown: true,
+          };
+        }
         setSajuInfo(defaultData);
+        setOriginalSajuInfo(defaultData);
       }
     } catch (error) {
       console.error('Error loading user birth info:', error);
@@ -181,11 +258,15 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
 
     if (!sajuInfo.name.trim()) {
       Alert.alert('오류', '이름을 입력해주세요.');
+      setSajuInfo(originalSajuInfo);
+      setIsEditing(false);
       return;
     }
 
     if (!sajuInfo.birthYear || !sajuInfo.birthMonth || !sajuInfo.birthDay) {
       Alert.alert('오류', '생년월일을 입력해주세요.');
+      setSajuInfo(originalSajuInfo);
+      setIsEditing(false);
       return;
     }
 
@@ -243,7 +324,23 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
 
       if (error) throw error;
 
-      // 캐시 업데이트
+      // 생년월일이 변경되었으므로 해당 사용자의 모든 사주 분석 데이터 삭제
+      const { error: deleteAnalysisError } = await supabase
+        .from('saju_analyses')
+        .delete()
+        .eq('user_id', userId);
+
+      if (deleteAnalysisError) {
+        console.error('saju_analyses 삭제 오류:', deleteAnalysisError);
+        // 분석 데이터 삭제 실패는 치명적이지 않으므로 계속 진행
+      }
+
+      // 생년월일이 변경되었으므로 모든 사주 관련 캐시 삭제
+      await SajuCache.clearUserCache(userId);
+      await TodayFortuneCache.clearTodayFortuneCache(userId);
+      await clearAllNewYearFortuneCache(userId);
+
+      // 로컬 birth_info 캐시 업데이트
       const cacheKey = `birth_info_${userId}`;
       await AsyncStorage.setItem(cacheKey, JSON.stringify(birthInfoData));
 
@@ -258,6 +355,7 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
   };
 
   const handleCancel = () => {
+    setSajuInfo(originalSajuInfo);
     setIsEditing(false);
   };
 
@@ -303,7 +401,7 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
       <SafeAreaView style={styles.container}>
         <View style={[styles.header, { paddingTop: statusBarHeight }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>‹</Text>
+            <Icon name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>사주 정보 관리</Text>
           <View style={styles.headerRight} />
@@ -320,218 +418,115 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={[styles.header, { paddingTop: statusBarHeight }]}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>‹</Text>
+            <Icon name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>사주 정보 관리</Text>
+          <Text style={styles.headerTitle}>정보 관리</Text>
           <View style={styles.headerRight} />
         </View>
 
         <View style={styles.infoCard}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.cardTitle}>정보</Text>
-            {!isEditing && (
-              <TouchableOpacity onPress={() => setIsEditing(true)} style={styles.editButton}>
+          {!isEditing && (
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>유저 정보</Text>
+              <TouchableOpacity onPress={() => {
+                setOriginalSajuInfo(sajuInfo);
+                setIsEditing(true);
+              }} style={styles.editButton}>
                 <Text style={styles.editButtonText}>수정</Text>
               </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>이름</Text>
-            {isEditing ? (
-              <TextInput
-                style={styles.input}
-                value={sajuInfo.name}
-                onChangeText={(text) => {
-                  // 한글, 영문만 허용 (숫자, 특수문자 제거) - 한글 조합 문자도 포함
-                  const filteredText = text.replace(/[^ㄱ-ㅎㅏ-ㅣ가-힣a-zA-Z\s]/g, '');
-                  setSajuInfo({...sajuInfo, name: filteredText});
-                }}
-                placeholder="이름을 입력하세요"
-                maxLength={10}
-              />
-            ) : (
-              <Text style={styles.infoValue}>{sajuInfo.name}</Text>
-            )}
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>생년월일</Text>
-            {isEditing ? (
-              <TouchableOpacity 
-                style={styles.dateSelector}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Text style={styles.dateSelectorText}>
-                  {sajuInfo.birthYear}년 {sajuInfo.birthMonth}월 {sajuInfo.birthDay}일
-                </Text>
-                <Text style={styles.arrowIcon}>›</Text>
-              </TouchableOpacity>
-            ) : (
-              <Text style={styles.infoValue}>
-                {sajuInfo.birthYear}년 {sajuInfo.birthMonth}월 {sajuInfo.birthDay}일
-              </Text>
-            )}
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>성별</Text>
-            {isEditing ? (
-              <View style={styles.genderContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.genderButton,
-                    sajuInfo.gender === '남성' && styles.genderButtonActive
-                  ]}
-                  onPress={() => setSajuInfo({...sajuInfo, gender: '남성'})}
-                >
-                  <Text style={[
-                    styles.genderButtonText,
-                    sajuInfo.gender === '남성' && styles.genderButtonTextActive
-                  ]}>남성</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.genderButton,
-                    sajuInfo.gender === '여성' && styles.genderButtonActive
-                  ]}
-                  onPress={() => setSajuInfo({...sajuInfo, gender: '여성'})}
-                >
-                  <Text style={[
-                    styles.genderButtonText,
-                    sajuInfo.gender === '여성' && styles.genderButtonTextActive
-                  ]}>여성</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <Text style={styles.infoValue}>{sajuInfo.gender}</Text>
-            )}
-          </View>
-
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>음/양력</Text>
-            {isEditing ? (
-              <View style={styles.calendarContainer}>
-                <TouchableOpacity
-                  style={[
-                    styles.calendarButton,
-                    sajuInfo.calendarType === '양력' && styles.calendarButtonActive
-                  ]}
-                  onPress={() => setSajuInfo({...sajuInfo, calendarType: '양력'})}
-                >
-                  <Text style={[
-                    styles.calendarButtonText,
-                    sajuInfo.calendarType === '양력' && styles.calendarButtonTextActive
-                  ]}>양력</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.calendarButton,
-                    sajuInfo.calendarType === '음력' && styles.calendarButtonActive
-                  ]}
-                  onPress={() => setSajuInfo({...sajuInfo, calendarType: '음력'})}
-                >
-                  <Text style={[
-                    styles.calendarButtonText,
-                    sajuInfo.calendarType === '음력' && styles.calendarButtonTextActive
-                  ]}>음력</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <Text style={styles.infoValue}>{sajuInfo.calendarType}</Text>
-            )}
-          </View>
-
-          {sajuInfo.calendarType === '음력' && (
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>윤달</Text>
-              {isEditing ? (
-                <View style={styles.leapMonthContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.leapMonthButton,
-                      !sajuInfo.isLeapMonth && styles.leapMonthButtonActive
-                    ]}
-                    onPress={() => setSajuInfo({...sajuInfo, isLeapMonth: false})}
-                  >
-                    <Text style={[
-                      styles.leapMonthButtonText,
-                      !sajuInfo.isLeapMonth && styles.leapMonthButtonTextActive
-                    ]}>아니오</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[
-                      styles.leapMonthButton,
-                      sajuInfo.isLeapMonth && styles.leapMonthButtonActive
-                    ]}
-                    onPress={() => setSajuInfo({...sajuInfo, isLeapMonth: true})}
-                  >
-                    <Text style={[
-                      styles.leapMonthButtonText,
-                      sajuInfo.isLeapMonth && styles.leapMonthButtonTextActive
-                    ]}>네</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <Text style={styles.infoValue}>
-                  {sajuInfo.isLeapMonth ? '네' : '아니오'}
-                </Text>
-              )}
             </View>
           )}
 
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>태어난 시간</Text>
-            {isEditing ? (
-              <View style={styles.timeSection}>
-                <TouchableOpacity
-                  style={styles.timeUnknownContainer}
-                  onPress={handleTimeUnknownToggle}
-                >
-                  <View style={[
-                    styles.checkbox,
-                    sajuInfo.timeUnknown && styles.checkboxActive
-                  ]}>
-                    {sajuInfo.timeUnknown && <Text style={styles.checkmark}>✓</Text>}
-                  </View>
-                  <Text style={styles.timeUnknownText}>시간을 모릅니다</Text>
+          {isEditing ? (
+            <View style={styles.editContainer}>
+              <BirthInfoForm
+                data={{
+                  name: sajuInfo.name,
+                  birthYear: sajuInfo.birthYear,
+                  birthMonth: sajuInfo.birthMonth,
+                  birthDay: sajuInfo.birthDay,
+                  birthHour: sajuInfo.birthHour,
+                  birthMinute: sajuInfo.birthMinute,
+                  gender: sajuInfo.gender as '남성' | '여성' | '',
+                  calendarType: sajuInfo.calendarType as '양력' | '음력' | '',
+                  isLeapMonth: sajuInfo.isLeapMonth,
+                  isTimeUnknown: sajuInfo.timeUnknown,
+                }}
+                onChange={(field, value) => {
+                  setSajuInfo(prev => ({ ...prev, [field]: value }));
+                }}
+                showName={true}
+              />
+              <View style={styles.buttonContainer}>
+                <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
+                  <Text style={styles.cancelButtonText}>취소</Text>
                 </TouchableOpacity>
-                
-                {!sajuInfo.timeUnknown && (
-                  <View style={styles.timeContainer}>
-                    <TouchableOpacity 
-                      style={styles.timeSelector}
-                      onPress={() => setShowTimePicker(true)}
-                    >
-                      <Text style={styles.timeSelectorText}>
-                        {sajuInfo.birthHour}시 {sajuInfo.birthMinute}분
-                      </Text>
-                      <Text style={styles.arrowIcon}>›</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {sajuInfo.timeUnknown && (
-                  <View style={styles.timeContainer}>
-                    <Text style={styles.timeDisabledText}>0시 0분</Text>
-                  </View>
-                )}
+                <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
+                  <Text style={styles.saveButtonText}>저장</Text>
+                </TouchableOpacity>
               </View>
-            ) : (
-              <Text style={styles.infoValue}>
-                {sajuInfo.timeUnknown ? '시간 모름' : `${sajuInfo.birthHour}시 ${sajuInfo.birthMinute}분`}
-              </Text>
-            )}
-          </View>
+            </View>
+          ) : (
+            <View style={styles.infoListContainer}>
+              <View style={styles.infoCardItem}>
+                <Text style={styles.infoLabel}>이름</Text>
+                <Text style={styles.infoValue}>
+                  {sajuInfo.name || '여행객'}
+                </Text>
+              </View>
 
-          {isEditing && (
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
-                <Text style={styles.cancelButtonText}>취소</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSave} style={styles.saveButton}>
-                <Text style={styles.saveButtonText}>저장</Text>
-              </TouchableOpacity>
+              <View style={styles.infoCardItem}>
+                <Text style={styles.infoLabel}>생년월일</Text>
+                <Text style={[
+                  styles.infoValue,
+                  (!sajuInfo.birthYear || !sajuInfo.birthMonth || !sajuInfo.birthDay) && styles.infoValueEmpty
+                ]}>
+                  {sajuInfo.birthYear && sajuInfo.birthMonth && sajuInfo.birthDay
+                    ? `${sajuInfo.birthYear}년 ${sajuInfo.birthMonth}월 ${sajuInfo.birthDay}일`
+                    : '입력 필요'}
+                </Text>
+              </View>
+
+              <View style={styles.infoCardItem}>
+                <Text style={styles.infoLabel}>성별</Text>
+                <Text style={[
+                  styles.infoValue,
+                  !sajuInfo.gender && styles.infoValueEmpty
+                ]}>
+                  {sajuInfo.gender || '입력 필요'}
+                </Text>
+              </View>
+
+              <View style={styles.infoCardItem}>
+                <Text style={styles.infoLabel}>음/양력</Text>
+                <Text style={[
+                  styles.infoValue,
+                  !sajuInfo.calendarType && styles.infoValueEmpty
+                ]}>
+                  {sajuInfo.calendarType || '입력 필요'}
+                </Text>
+              </View>
+
+              {sajuInfo.calendarType === '음력' && (
+                <View style={styles.infoCardItem}>
+                  <Text style={styles.infoLabel}>윤달</Text>
+                  <Text style={styles.infoValue}>
+                    {sajuInfo.isLeapMonth ? '네' : '아니오'}
+                  </Text>
+                </View>
+              )}
+
+              <View style={styles.infoCardItem}>
+                <Text style={styles.infoLabel}>태어난 시간</Text>
+                <Text style={[
+                  styles.infoValue,
+                  (sajuInfo.timeUnknown || !sajuInfo.birthHour || !sajuInfo.birthMinute) && styles.infoValueEmpty
+                ]}>
+                  {sajuInfo.timeUnknown || !sajuInfo.birthHour || !sajuInfo.birthMinute
+                    ? '입력 필요'
+                    : `${sajuInfo.birthHour}시 ${sajuInfo.birthMinute}분`}
+                </Text>
+              </View>
             </View>
           )}
         </View>
@@ -754,11 +749,6 @@ const styles = StyleSheet.create({
   backButton: {
     padding: 8,
   },
-  backButtonText: {
-    fontSize: 24,
-    color: Colors.primaryColor,
-    fontWeight: 'bold',
-  },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
@@ -768,12 +758,11 @@ const styles = StyleSheet.create({
     width: 40,
   },
   infoCard: {
-    backgroundColor: 'white',
-    margin: 20,
-    borderRadius: 12,
     padding: 20,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    paddingHorizontal: 25,
+  },
+  editContainer: {
+    paddingTop: 10,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -797,6 +786,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  infoListContainer: {
+    gap: 10,
+  },
+  infoCardItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -805,15 +816,21 @@ const styles = StyleSheet.create({
     borderBottomColor: '#f0f0f0',
   },
   infoLabel: {
-    width: 80,
-    fontSize: 16,
-    color: '#666',
+    fontSize: 14,
+    color: '#8e8e93',
+    fontWeight: '500',
+    letterSpacing: -0.2,
   },
   infoValue: {
-    flex: 1,
     fontSize: 16,
-    color: '#333',
-    fontWeight: '500',
+    color: '#1d1d1f',
+    fontWeight: '400',
+    letterSpacing: -0.3,
+  },
+  infoValueEmpty: {
+    color: '#c7c7cc',
+    fontStyle: 'normal',
+    fontWeight: '400',
   },
   input: {
     flex: 1,
