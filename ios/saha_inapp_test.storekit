@@ -1,0 +1,140 @@
+{
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "221E1AAA",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "0.99",
+      "familyShareable" : false,
+      "internalID" : "6754924848",
+      "localizations" : [
+        {
+          "description" : "10 coin of saha",
+          "displayName" : "Saha 10",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.saha.ai.coin_10",
+      "referenceName" : "10 사바코인",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "7.99",
+      "familyShareable" : false,
+      "internalID" : "6754925431",
+      "localizations" : [
+        {
+          "description" : "100 coin of saha",
+          "displayName" : "Saha 100",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.saha.ai.coin_100",
+      "referenceName" : "100 사바코인",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "1.99",
+      "familyShareable" : false,
+      "internalID" : "6754925171",
+      "localizations" : [
+        {
+          "description" : "30 coin of saha",
+          "displayName" : "Saha 30",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.saha.ai.coin_30",
+      "referenceName" : "30 사바코인",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "3.99",
+      "familyShareable" : false,
+      "internalID" : "6754925177",
+      "localizations" : [
+        {
+          "description" : "50 coin of saha",
+          "displayName" : "Saha 50",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.saha.ai.coin_50",
+      "referenceName" : "50 사바코인",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6754904566",
+    "_developerTeamID" : "T3U8HF62FX",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 784602415.30781603,
+    "_locale" : "ko",
+    "_storefront" : "KOR",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}
