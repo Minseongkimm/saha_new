@@ -727,11 +727,57 @@ Deno.serve(async (req: Request) => {
       .eq('category', expertCategory)
       .single();
 
-    // 사주 정보가 saju_data 안에 중첩되어 있는 경우 처리
-    const nestedSajuData = (sajuData as { saju_data?: Record<string, unknown> }).saju_data;
-    const actualSajuData: Record<string, unknown> = nestedSajuData && typeof nestedSajuData === 'object'
-      ? nestedSajuData
-      : sajuData;
+    // calculated_saju 테이블에서 사주 데이터 조회
+    let actualSajuData: Record<string, unknown> = {};
+    try {
+      // birth_info 조회
+      const { data: birthInfo } = await supabase
+        .from('birth_info')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      if (birthInfo) {
+        // calculated_saju 조회
+        const { data: calculatedSaju } = await supabase
+          .from('calculated_saju')
+          .select('*')
+          .eq('birth_info_id', birthInfo.id)
+          .single();
+
+        if (calculatedSaju) {
+          // DB 형식을 SajuResult 형식으로 변환
+          actualSajuData = {
+            yearHangulGanji: calculatedSaju.year_hangul_ganji || '',
+            monthHangulGanji: calculatedSaju.month_hangul_ganji || '',
+            dayHangulGanji: calculatedSaju.day_hangul_ganji || '',
+            timeHangulGanji: calculatedSaju.time_hangul_ganji || '',
+            stemSasin: calculatedSaju.stem_sasin || [],
+            branchSasin: calculatedSaju.branch_sasin || [],
+            sibun: calculatedSaju.sibun || [],
+            gongmang: calculatedSaju.gongmang || '',
+            fiveProperties: calculatedSaju.five_properties || {},
+            sinsal: calculatedSaju.sinsal || {},
+            guin: calculatedSaju.guin || {},
+            jijiAmjangan: calculatedSaju.jiji_amjangan || {},
+            jijiRelations: calculatedSaju.jiji_relations || {},
+            sal: calculatedSaju.sal || {},
+            daewoon: calculatedSaju.daewoon || [],
+          };
+        } else {
+          log('warn', 'calculated_saju 데이터를 찾을 수 없습니다', { userId, birthInfoId: birthInfo.id });
+        }
+      } else {
+        log('warn', 'birth_info 데이터를 찾을 수 없습니다', { userId });
+      }
+    } catch (e) {
+      log('error', 'calculated_saju 조회 실패', e);
+      // 클라이언트에서 전달받은 sajuData를 fallback으로 사용 (하위 호환성)
+      const nestedSajuData = (sajuData as { saju_data?: Record<string, unknown> }).saju_data;
+      actualSajuData = nestedSajuData && typeof nestedSajuData === 'object'
+        ? nestedSajuData
+        : sajuData;
+    }
 
     if (expertCategory === 'love' && partnerSajuId) {
       const { data: partnerRecord, error: partnerError } = await supabase

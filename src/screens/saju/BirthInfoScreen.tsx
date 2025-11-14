@@ -17,6 +17,7 @@ import BirthInfoForm, { BirthInfoFormData } from '../../components/forms/BirthIn
 import { SajuCache } from '../../utils/saju/sajuCache';
 import { TodayFortuneCache } from '../../utils/today-fortune/todayFortuneCache';
 import { clearAllNewYearFortuneCache } from '../../utils/new-year-fortune/newYearFortuneCache';
+import { convertSajuResultToDbFormat } from '../../utils/saju/calculatedSajuUtils';
 
 interface BirthInfoScreenProps {
   navigation: {
@@ -172,7 +173,7 @@ interface SajuResult {
 
       // 기존 birth_info 레코드 확인
       const { data: existingData, error: checkError } = await supabase
-        .from('birth_infos')
+        .from('birth_info')
         .select('id, name')
         .eq('user_id', userId)
         .single();
@@ -200,30 +201,52 @@ interface SajuResult {
         is_leap_month: formData.isLeapMonth,
         is_time_unknown: formData.isTimeUnknown,
         gender: formData.gender === '남성' ? 'male' : 'female',
-        saju_data: sajuResult
       };
 
+      let birthInfoId: string;
       let error;
       if (existingData) {
         // 기존 레코드가 있으면 업데이트
+        birthInfoId = existingData.id;
         const { error: updateError } = await supabase
-          .from('birth_infos')
+          .from('birth_info')
           .update(birthData)
           .eq('user_id', userId);
         error = updateError;
       } else {
-        // 기존 레코드가 없으면 생성 (방어 코드)
-        const { error: insertError } = await supabase
-          .from('birth_infos')
+        // 기존 레코드가 없으면 생성
+        const { data: insertedData, error: insertError } = await supabase
+          .from('birth_info')
           .insert({
             user_id: userId,
             ...birthData,
-          });
+          })
+          .select('id')
+          .single();
         error = insertError;
+        birthInfoId = insertedData?.id;
       }
 
-      if (error) {
+      if (error || !birthInfoId) {
         Alert.alert('오류', '생년월일 정보 저장에 실패했습니다.');
+        return;
+      }
+
+      // calculated_saju 테이블에 사주 데이터 저장
+      const calculatedSajuData = {
+        birth_info_id: birthInfoId,
+        ...convertSajuResultToDbFormat(sajuResult),
+      };
+
+      const { error: calculatedSajuError } = await supabase
+        .from('calculated_saju')
+        .upsert(calculatedSajuData, {
+          onConflict: 'birth_info_id',
+        });
+
+      if (calculatedSajuError) {
+        console.error('calculated_saju 저장 오류:', calculatedSajuError);
+        Alert.alert('오류', '사주 데이터 저장에 실패했습니다.');
         return;
       }
 

@@ -1,22 +1,28 @@
 import { SajuData } from '../../types/streaming';
+import { supabase } from '../database/supabaseClient';
+import { convertDbFormatToSajuResult } from './calculatedSajuUtils';
 
 /**
- * DB에서 가져온 birth_infos 데이터를 SajuData 형태로 변환
+ * DB에서 가져온 birth_info 데이터를 SajuData 형태로 변환
+ * calculated_saju 테이블에서 사주 데이터 조회
  */
-export const formatSajuData = (birthData: any): SajuData => {
-  // saju_data가 JSON 문자열이면 파싱
+export const formatSajuData = async (birthData: any): Promise<SajuData> => {
   let parsedSajuData: any = {};
-  if (birthData.saju_data) {
-    if (typeof birthData.saju_data === 'string') {
-      try {
-        parsedSajuData = JSON.parse(birthData.saju_data);
-      } catch (e) {
-        console.error('saju_data 파싱 실패:', e);
-        parsedSajuData = {};
-      }
-    } else {
-      parsedSajuData = birthData.saju_data;
-    }
+
+  // calculated_saju 테이블에서 사주 데이터 조회
+  const { data: calculatedSaju, error: calculatedSajuError } = await supabase
+    .from('calculated_saju')
+    .select('*')
+    .eq('birth_info_id', birthData.id)
+    .single();
+
+  if (calculatedSaju && !calculatedSajuError) {
+    // 새 테이블 데이터를 SajuResult 형식으로 변환
+    parsedSajuData = convertDbFormatToSajuResult(calculatedSaju);
+  } else {
+    // calculated_saju가 없으면 빈 객체 (마이그레이션 전 데이터는 없을 수 있음)
+    console.warn('calculated_saju 데이터를 찾을 수 없습니다:', birthData.id);
+    parsedSajuData = {};
   }
 
   return {

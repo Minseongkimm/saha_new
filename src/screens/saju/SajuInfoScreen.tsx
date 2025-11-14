@@ -22,6 +22,7 @@ import BirthInfoForm, { BirthInfoFormData } from '../../components/forms/BirthIn
 import { SajuCache } from '../../utils/saju/sajuCache';
 import { TodayFortuneCache } from '../../utils/today-fortune/todayFortuneCache';
 import { clearAllNewYearFortuneCache } from '../../utils/new-year-fortune/newYearFortuneCache';
+import { convertSajuResultToDbFormat } from '../../utils/saju/calculatedSajuUtils';
 
 interface SajuInfoScreenProps {
   navigation: any;
@@ -136,7 +137,7 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
 
       // 백그라운드에서 최신 데이터 가져오기
       const { data: birthData, error: birthError } = await supabase
-        .from('birth_infos')
+        .from('birth_info')
         .select('*')
         .eq('user_id', user.id)
         .single();
@@ -296,33 +297,54 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
         calendar_type: sajuInfo.calendarType === '음력' ? 'lunar' : 'solar',
         is_leap_month: sajuInfo.isLeapMonth,
         gender: sajuInfo.gender === '남성' ? 'male' : 'female',
-        saju_data: sajuResult,  // 재계산된 사주 데이터 저장
       };
 
       // 기존 데이터 확인 후 업데이트 또는 삽입
       const { data: existingData, error: checkError } = await supabase
-        .from('birth_infos')
+        .from('birth_info')
         .select('id')
         .eq('user_id', userId)
         .single();
 
+      let birthInfoId: string;
       let error;
       if (existingData) {
         // 기존 데이터가 있으면 업데이트
+        birthInfoId = existingData.id;
         const { error: updateError } = await supabase
-          .from('birth_infos')
+          .from('birth_info')
           .update(birthInfoData)
           .eq('user_id', userId);
         error = updateError;
       } else {
         // 기존 데이터가 없으면 삽입
-        const { error: insertError } = await supabase
-          .from('birth_infos')
-          .insert(birthInfoData);
+        const { data: insertedData, error: insertError } = await supabase
+          .from('birth_info')
+          .insert(birthInfoData)
+          .select('id')
+          .single();
         error = insertError;
+        birthInfoId = insertedData?.id;
       }
 
-      if (error) throw error;
+      if (error || !birthInfoId) throw error;
+
+      // calculated_saju 테이블에 사주 데이터 저장
+      const calculatedSajuData = {
+        birth_info_id: birthInfoId,
+        ...convertSajuResultToDbFormat(sajuResult),
+      };
+
+      const { error: calculatedSajuError } = await supabase
+        .from('calculated_saju')
+        .upsert(calculatedSajuData, {
+          onConflict: 'birth_info_id',
+        });
+
+      if (calculatedSajuError) {
+        console.error('calculated_saju 저장 오류:', calculatedSajuError);
+        throw new Error('사주 데이터 저장에 실패했습니다.');
+      }
 
       // 생년월일이 변경되었으므로 해당 사용자의 모든 사주 분석 데이터 삭제
       const { error: deleteAnalysisError } = await supabase
