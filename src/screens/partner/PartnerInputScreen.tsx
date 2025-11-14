@@ -72,7 +72,7 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { data } = await supabase
-            .from('birth_infos')
+            .from('birth_info')
             .select('*')
             .eq('user_id', user.id)
             .single();

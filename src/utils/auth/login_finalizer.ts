@@ -12,7 +12,7 @@ const delay = (duration: number): Promise<void> =>
 // 사용자의 생년월일 정보 존재 여부 확인 및 초기 레코드 생성
 const ensureBirthInfoExists = async (userId: string, userName: string): Promise<void> => {
   const { data: existingData, error: selectError } = await supabase
-    .from('birth_infos')
+    .from('birth_info')
     .select('id')
     .eq('user_id', userId)
     .single();
@@ -20,7 +20,7 @@ const ensureBirthInfoExists = async (userId: string, userName: string): Promise<
   // 레코드가 없으면 생성 (user_id, name만 저장, 나머지는 null)
   if (selectError && selectError.code === 'PGRST116') {
     const { error: insertError } = await supabase
-      .from('birth_infos')
+      .from('birth_info')
       .insert({
         user_id: userId,
         name: userName,

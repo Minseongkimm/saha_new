@@ -41,14 +41,14 @@ export const useSajuData = () => {
 
       // 3. DB에서 조회
       const { data: birthData, error: birthError } = await supabase
-        .from('birth_infos')
+        .from('birth_info')
         .select('*')
         .eq('user_id', user.id)
         .single();
 
       if (birthData && !birthError) {
-        // 데이터 변환
-        const formattedData = formatSajuData(birthData);
+        // 데이터 변환 (async 함수)
+        const formattedData = await formatSajuData(birthData);
         
         // 캐시에 저장
         await SajuCache.setCachedCalculatedSaju(user.id, formattedData);

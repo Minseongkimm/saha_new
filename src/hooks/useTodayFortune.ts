@@ -224,7 +224,7 @@ export const useTodayFortune = () => {
       if (!user) return;
 
       const { data: birthData } = await supabase
-        .from('birth_infos')
+        .from('birth_info')
         .select('id')
         .eq('user_id', user.id)
         .single();

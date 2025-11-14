@@ -189,7 +189,7 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
       if (!user) return;
 
       const { data, error } = await supabase
-        .from('birth_infos')
+        .from('birth_info')
         .select('*')
         .eq('user_id', user.id)
         .single();

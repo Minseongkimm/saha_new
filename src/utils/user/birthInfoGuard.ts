@@ -16,7 +16,7 @@ export const ensureBirthInfoOrNavigate = async (
   }
   try {
     const { data } = await supabase
-      .from('birth_infos')
+      .from('birth_info')
       .select('id, year, month, day')
       .eq('user_id', user.id)
       .single();

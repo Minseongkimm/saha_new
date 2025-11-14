@@ -48,7 +48,7 @@ function App() {
         setInitialAuthRouteName('Loading');
         try {
           const { data } = await supabase
-            .from('birth_infos')
+            .from('birth_info')
             .select('id')
             .eq('user_id', currentSession.user.id)
             .single();

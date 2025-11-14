@@ -67,7 +67,7 @@ export const useTraditionalSaju = () => {
 
       // 2. DB 확인
       const { data: birthData } = await supabase
-        .from('birth_infos')
+        .from('birth_info')
         .select('id')
         .eq('user_id', user.id)
         .single();
@@ -143,7 +143,7 @@ export const useTraditionalSaju = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: birthData } = await supabase
-          .from('birth_infos')
+          .from('birth_info')
           .select('id')
           .eq('user_id', user.id)
           .single();

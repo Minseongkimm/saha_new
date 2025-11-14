@@ -66,8 +66,8 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
 
     // 생년월일 정보 (이름도 함께 조회)
     const { data: birthData } = await supabase
-      .from('birth_infos')
-      .select('name, year, month, day, saju_data')
+      .from('birth_info')
+      .select('id, name, year, month, day')
       .eq('user_id', userId)
       .single();
     
@@ -93,14 +93,23 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
       setHasBirthInfo(false);
     }
 
-    // 사주 정보(비차단)
-    if (birthData?.saju_data?.dayHangulGanji) {
-      const dayGanChar = birthData.saju_data.dayHangulGanji[0];
-      const dayGanHanja = koreanToHanja[dayGanChar as keyof typeof koreanToHanja] || '壬';
-      const element = getElementFromDayGan(dayGanHanja);
-      setDayGan(element);
+    // 사주 정보 조회 (calculated_saju 테이블에서)
+    if (birthData?.id) {
+      const { data: calculatedSaju } = await supabase
+        .from('calculated_saju')
+        .select('day_hangul_ganji')
+        .eq('birth_info_id', birthData.id)
+        .single();
+
+      if (calculatedSaju?.day_hangul_ganji) {
+        const dayGanChar = calculatedSaju.day_hangul_ganji[0];
+        const dayGanHanja = koreanToHanja[dayGanChar as keyof typeof koreanToHanja] || '壬';
+        const element = getElementFromDayGan(dayGanHanja);
+        setDayGan(element);
+      } else {
+        setDayGan('?');
+      }
     } else {
-      // 생년월일이 없으면 기본값 유지 (이미 '?'로 초기화됨)
       setDayGan('?');
     }
   };

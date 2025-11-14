@@ -129,7 +129,7 @@ Deno.serve(async (req: Request) => {
     const tablesToDelete: string[] = [
       'partner_saju',
       'saju_analyses',
-      'birth_infos',
+      'birth_info',
     ];
     for (const table of tablesToDelete) {
       await deleteRowsByUserId(supabase, table, userId, requestId);
