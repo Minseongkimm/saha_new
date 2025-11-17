@@ -88,7 +88,7 @@ function formatKeyedRecord(value: unknown, maxEntries: number = 5, maxNested: nu
 }
 
 /**
- * Summarize daewoon list entries into age:ganji pairs.
+ * Summarize daewoon list entries into ganji only (age removed to avoid calculation errors).
  */
 function formatDaewoon(value: unknown, maxEntries: number = 6): string {
   if (!Array.isArray(value)) {
@@ -101,15 +101,9 @@ function formatDaewoon(value: unknown, maxEntries: number = 6): string {
         return String(item);
       }
       const record = item as Record<string, unknown>;
-      const age = record.age !== undefined ? String(record.age) : '';
+      // age는 제거하고 ganji만 사용
       const ganji = record.ganji ? String(record.ganji) : record.year ? String(record.year) : '';
-      if (age && ganji) {
-        return `${age}:${ganji}`;
-      }
-      if (ganji) {
-        return ganji;
-      }
-      return age;
+      return ganji;
     })
     .filter(entry => entry.length > 0);
   return entries.join(', ');
@@ -164,27 +158,267 @@ function buildSajuSummary(data: Record<string, unknown>): string {
   if (daewoon) {
     lines.push(`Daewoon: ${daewoon}`);
   }
-  // 새로 추가: 궁합 파생 플래그 요약(있을 때만)
-  const flags = (data as Record<string, unknown>)?.partnerCompatibilityFlags as Record<string, unknown> | undefined;
-  if (flags && typeof flags === 'object') {
-    const score = flags.score !== undefined && flags.score !== null ? String(flags.score) : '';
-    const overall = typeof flags.overall === 'string' ? flags.overall : '';
-    const hasStem = flags.hasHeavenlyStemCombo ? 'Y' : 'N';
-    const hasYukhap = flags.hasDayBranchYukhap ? 'Y' : 'N';
-    const hasChung = flags.hasDayBranchChung ? 'Y' : 'N';
-    const fiveFull = flags.fiveElementsComplete ? 'Y' : 'N';
-    lines.push(`CompatScore: ${score} (${overall})`);
-    lines.push(`CompatFlags: StemCombo=${hasStem}, DayYukhap=${hasYukhap}, DayChung=${hasChung}, FiveFull=${fiveFull}`);
-    const counts = flags.counts as Record<string, unknown> | undefined;
-    if (counts && typeof counts === 'object') {
-      const y = counts.yukhap ?? 0;
-      const c = counts.chung ?? 0;
-      const h = counts.hyeong ?? 0;
-      const p = counts.pa ?? 0;
-      const e = counts.hae ?? 0;
-      lines.push(`CompatCounts: yuk=${y}, chung=${c}, hyeong=${h}, pa=${p}, hae=${e}`);
+  // 궁합 상담인 경우 상대방 사주 데이터 추가
+  const partnerSajuData = (data as Record<string, unknown>)?.partnerSajuData as Record<string, unknown> | undefined;
+  if (partnerSajuData && typeof partnerSajuData === 'object') {
+    const partnerInfo = (data as Record<string, unknown>)?.partnerInfo as { name?: string } | undefined;
+    const partnerName = partnerInfo?.name || '상대방';
+    lines.push(`\n### Partner Saju (${partnerName})`);
+    const partnerSummary = buildPartnerSajuSummary(partnerSajuData);
+    if (partnerSummary && partnerSummary.length > 0) {
+      lines.push(partnerSummary);
     }
   }
+  
+  // 기존 궁합 계산 결과 방식 (주석처리)
+  // const flags = (data as Record<string, unknown>)?.partnerCompatibilityFlags as Record<string, unknown> | undefined;
+  // if (flags && typeof flags === 'object') {
+  //   const hasStem = flags.hasHeavenlyStemCombo ? 'Y' : 'N';
+  //   const hasYukhap = flags.hasDayBranchYukhap ? 'Y' : 'N';
+  //   const hasChung = flags.hasDayBranchChung ? 'Y' : 'N';
+  //   const fiveFull = flags.fiveElementsComplete ? 'Y' : 'N';
+  //   lines.push(`CompatFlags: StemCombo=${hasStem}, DayYukhap=${hasYukhap}, DayChung=${hasChung}, FiveFull=${fiveFull}`);
+  //   const counts = flags.counts as Record<string, unknown> | undefined;
+  //   if (counts && typeof counts === 'object') {
+  //     const y = counts.yukhap ?? 0;
+  //     const c = counts.chung ?? 0;
+  //     const h = counts.hyeong ?? 0;
+  //     const p = counts.pa ?? 0;
+  //     const e = counts.hae ?? 0;
+  //     lines.push(`CompatCounts: yuk=${y}, chung=${c}, hyeong=${h}, pa=${p}, hae=${e}`);
+  //   }
+  // }
+  // const compatResult = (data as Record<string, unknown>)?.compatibilityResult as Record<string, unknown> | undefined;
+  // if (compatResult && typeof compatResult === 'object') {
+  //   const compatSummary = _buildCompatibilitySummary(compatResult);
+  //   if (compatSummary && compatSummary.length > 0) {
+  //     lines.push(`\n### Compatibility Analysis\n${compatSummary}`);
+  //   }
+  // }
+  
+  return lines.join('\n');
+}
+
+/**
+ * Build partner saju summary (핵심 정보만 추출)
+ */
+function buildPartnerSajuSummary(partnerData: Record<string, unknown>): string {
+  if (!partnerData || typeof partnerData !== 'object') {
+    return '';
+  }
+  const lines: string[] = [];
+  
+  // 1. Pillars (필수)
+  const year = typeof partnerData.yearHangulGanji === 'string' ? partnerData.yearHangulGanji : '';
+  const month = typeof partnerData.monthHangulGanji === 'string' ? partnerData.monthHangulGanji : '';
+  const day = typeof partnerData.dayHangulGanji === 'string' ? partnerData.dayHangulGanji : '';
+  const time = typeof partnerData.timeHangulGanji === 'string' ? partnerData.timeHangulGanji : '';
+  const pillars = [year, month, day, time].filter(Boolean).join(' ');
+  if (pillars) {
+    lines.push(`Pillars: ${pillars}`);
+  }
+  
+  // 2. StemSasin, BranchSasin (필수)
+  const stemSasin = Array.isArray(partnerData.stemSasin) ? (partnerData.stemSasin as string[]).filter(Boolean).join(', ') : '';
+  if (stemSasin) {
+    lines.push(`StemSasin: ${stemSasin}`);
+  }
+  const branchSasin = Array.isArray(partnerData.branchSasin) ? (partnerData.branchSasin as string[]).filter(Boolean).join(', ') : '';
+  if (branchSasin) {
+    lines.push(`BranchSasin: ${branchSasin}`);
+  }
+  
+  // 3. FiveProperties (필수 - 간소화)
+  const fiveProps = partnerData.fiveProperties as Record<string, unknown> | undefined;
+  if (fiveProps && typeof fiveProps === 'object') {
+    const dayProp = typeof fiveProps.dayProperty === 'string' ? fiveProps.dayProperty : '';
+    const monthProp = typeof fiveProps.monthProperty === 'string' ? fiveProps.monthProperty : '';
+    const yearProp = typeof fiveProps.yearProperty === 'string' ? fiveProps.yearProperty : '';
+    const timeProp = typeof fiveProps.timeProperty === 'string' ? fiveProps.timeProperty : '';
+    const props = [yearProp, monthProp, dayProp, timeProp].filter(Boolean).join(', ');
+    if (props) {
+      lines.push(`FiveProperties: ${props}`);
+    }
+  }
+  
+  // 4. JijiRelations (필수 - 합/충/형/파/해만)
+  const relations = partnerData.jijiRelations as Record<string, unknown[]> | undefined;
+  if (relations && typeof relations === 'object') {
+    const relationParts: string[] = [];
+    if (Array.isArray(relations.육합) && relations.육합.length > 0) {
+      relationParts.push(`육합:${relations.육합.join(',')}`);
+    }
+    if (Array.isArray(relations.삼합) && relations.삼합.length > 0) {
+      relationParts.push(`삼합:${relations.삼합.join(',')}`);
+    }
+    if (Array.isArray(relations.육충) && relations.육충.length > 0) {
+      relationParts.push(`육충:${relations.육충.join(',')}`);
+    }
+    if (Array.isArray(relations.삼형) && relations.삼형.length > 0) {
+      relationParts.push(`삼형:${relations.삼형.join(',')}`);
+    }
+    if (Array.isArray(relations.방합) && relations.방합.length > 0) {
+      relationParts.push(`방합:${relations.방합.join(',')}`);
+    }
+    if (relationParts.length > 0) {
+      lines.push(`JijiRelations: ${relationParts.join(', ')}`);
+    }
+  }
+  
+  // 5. Sinsal (선택 - 간소화)
+  const sinsal = partnerData.sinsal as Record<string, string[]> | undefined;
+  if (sinsal && typeof sinsal === 'object') {
+    const sinsalList: string[] = [];
+    if (Array.isArray(sinsal.yearSinsal)) sinsalList.push(...sinsal.yearSinsal);
+    if (Array.isArray(sinsal.monthSinsal)) sinsalList.push(...sinsal.monthSinsal);
+    if (Array.isArray(sinsal.daySinsal)) sinsalList.push(...sinsal.daySinsal);
+    if (Array.isArray(sinsal.timeSinsal)) sinsalList.push(...sinsal.timeSinsal);
+    if (sinsalList.length > 0) {
+      lines.push(`Sinsal: ${[...new Set(sinsalList)].join(', ')}`);
+    }
+  }
+  
+  // 6. Daewoon (선택 - 최근 3개만)
+  const daewoon = formatDaewoon(partnerData.daewoon, 3);
+  if (daewoon) {
+    lines.push(`Daewoon: ${daewoon}`);
+  }
+  
+  return lines.join('\n');
+}
+
+/**
+ * Build optimized compatibility analysis summary from compatibility_result JSON.
+ * (주석처리 - 더 이상 사용하지 않음, 필요시 주석 해제)
+ */
+function _buildCompatibilitySummary(compatResult: Record<string, unknown>): string {
+  if (!compatResult || typeof compatResult !== 'object') {
+    return '';
+  }
+  const lines: string[] = [];
+  
+  // 1. Overall
+  const overall = typeof compatResult.overall === 'string' ? compatResult.overall : '';
+  if (overall) {
+    lines.push(`Overall: ${overall}`);
+  }
+  
+  // 2. Categories (description만)
+  const categories = compatResult.categories as Record<string, { description?: string }> | undefined;
+  if (categories && typeof categories === 'object') {
+    const categoryMap: Record<string, string> = {
+      dayPillar: 'DayPillar',
+      fiveElements: 'FiveElements',
+      jijiRelation: 'JijiRelation',
+      sinsal: 'Sinsal',
+    };
+    Object.entries(categories).forEach(([key, value]) => {
+      const label = categoryMap[key] || key;
+      const desc = value?.description;
+      if (desc && typeof desc === 'string') {
+        lines.push(`${label}: ${desc}`);
+      }
+    });
+  }
+  
+  // 3. Insights (dating, marriage, personality만)
+  const insights = compatResult.insights as Record<string, string[]> | undefined;
+  if (insights && typeof insights === 'object') {
+    const insightKeys = ['dating', 'marriage', 'personality'];
+    insightKeys.forEach(key => {
+      const items = insights[key];
+      if (Array.isArray(items) && items.length > 0) {
+        const capitalized = key.charAt(0).toUpperCase() + key.slice(1);
+        const summary = items.slice(0, 2).join(' / '); // 최대 2개만
+        lines.push(`${capitalized}: ${summary}`);
+      }
+    });
+  }
+  
+  // 4. Cross Summary
+  const extras = compatResult.extras as Record<string, unknown> | undefined;
+  if (extras && typeof extras === 'object') {
+    const cross = extras.cross as Record<string, unknown> | undefined;
+    if (cross && typeof cross === 'object') {
+      const summary = cross.summary;
+      if (summary && typeof summary === 'string') {
+        lines.push(`CrossSummary: ${summary}`);
+      }
+    }
+  }
+  
+  // 5. Timeline (간소화: 최근 2개씩만)
+  if (extras && typeof extras === 'object') {
+    const timeline = extras.timeline as Record<string, {
+      cautions?: Array<{ age?: number; year?: number; ganji?: string; tags?: string[] }>;
+      positives?: Array<{ age?: number; year?: number; ganji?: string; tags?: string[] }>;
+    }> | undefined;
+    if (timeline && typeof timeline === 'object') {
+      ['person1', 'person2'].forEach((personKey, idx) => {
+        const person = timeline[personKey];
+        if (person && typeof person === 'object') {
+          const personLabel = `Person${idx + 1}`;
+          
+          // Cautions (최근 2개, age 기준 정렬)
+          if (Array.isArray(person.cautions) && person.cautions.length > 0) {
+            const sorted = [...person.cautions]
+              .filter(c => c.age !== undefined)
+              .sort((a, b) => (a.age || 0) - (b.age || 0))
+              .slice(0, 2);
+            if (sorted.length > 0) {
+              const cautionsStr = sorted.map(c => {
+                const age = c.age ?? '';
+                const year = c.year ?? '';
+                const ganji = c.ganji ?? '';
+                const tags = Array.isArray(c.tags) ? c.tags.join(',') : '';
+                return `${age}세(${year}년, ${ganji}, ${tags})`;
+              }).join(', ');
+              lines.push(`Timeline: ${personLabel} Cautions: ${cautionsStr}`);
+            }
+          }
+          
+          // Positives (최근 2개, age 기준 정렬)
+          if (Array.isArray(person.positives) && person.positives.length > 0) {
+            const sorted = [...person.positives]
+              .filter(c => c.age !== undefined)
+              .sort((a, b) => (a.age || 0) - (b.age || 0))
+              .slice(0, 2);
+            if (sorted.length > 0) {
+              const positivesStr = sorted.map(c => {
+                const age = c.age ?? '';
+                const year = c.year ?? '';
+                const ganji = c.ganji ?? '';
+                const tags = Array.isArray(c.tags) ? c.tags.join(',') : '';
+                return `${age}세(${year}년, ${ganji}, ${tags})`;
+              }).join(', ');
+              lines.push(`Timeline: ${personLabel} Positives: ${positivesStr}`);
+            }
+          }
+        }
+      });
+    }
+  }
+  
+  // 6. Strengths (1-2개만)
+  const strengths = compatResult.strengths as string[] | undefined;
+  if (Array.isArray(strengths) && strengths.length > 0) {
+    const summary = strengths.slice(0, 2).join(' / ');
+    lines.push(`Strengths: ${summary}`);
+  }
+  
+  // 7. Weaknesses (1-2개만)
+  const weaknesses = compatResult.weaknesses as string[] | undefined;
+  if (Array.isArray(weaknesses) && weaknesses.length > 0) {
+    const summary = weaknesses.slice(0, 2).join(' / ');
+    lines.push(`Weaknesses: ${summary}`);
+  }
+  
+  // 8. Recommendations (1개만)
+  const recommendations = compatResult.recommendations as string[] | undefined;
+  if (Array.isArray(recommendations) && recommendations.length > 0) {
+    lines.push(`Recommendations: ${recommendations[0]}`);
+  }
+  
   return lines.join('\n');
 }
 
@@ -308,6 +542,19 @@ function buildTodayFortuneSummary(fortune: Record<string, unknown> | null): stri
 }
 
 /**
+ * Get current date in Korean timezone (Asia/Seoul)
+ */
+function getCurrentKoreanDate(): string {
+  const now = new Date();
+  // 한국 시간대 (UTC+9)
+  const koreanTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+  const year = koreanTime.getUTCFullYear();
+  const month = String(koreanTime.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(koreanTime.getUTCDate()).padStart(2, '0');
+  return `${year}년 ${month}월 ${day}일`;
+}
+
+/**
  * Load base and category-specific system prompts from the config storage.
  */
 async function fetchSystemPrompt(
@@ -342,7 +589,9 @@ async function fetchSystemPrompt(
   if (promptSections.length === 0) {
     return FALLBACK_SYSTEM_PROMPT;
   }
-  return promptSections.join('\n');
+  const currentDate = getCurrentKoreanDate();
+  const dateContext = `\n\n### 현재 날짜\n현재 날짜는 ${currentDate}입니다. 모든 날짜 관련 답변은 이 날짜를 기준으로 해주세요.`;
+  return promptSections.join('\n') + dateContext;
 }
 
 interface ChatStreamRequest {
@@ -713,7 +962,7 @@ Deno.serve(async (req: Request) => {
     // 1. 채팅방 정보 및 요약 조회
     const { data: chatRoom } = await supabase
       .from('chat_rooms')
-      .select('conversation_summary, last_summary_message_count, total_message_count')
+      .select('conversation_summary, last_summary_message_count, total_message_count, expert_id')
       .eq('id', roomId)
       .single();
 
@@ -721,11 +970,29 @@ Deno.serve(async (req: Request) => {
     const currentMessageCount = (chatRoom?.total_message_count || 0) + 1; // 지금 보내는 메시지 포함
 
     // 전문가 정보 조회 (role, tone 등을 위해)
-    const { data: expertInfo } = await supabase
+    let expertInfo: ExpertInfoRecord | null = null;
+    try {
+      // 1순위: 채팅방에 저장된 expert_id로 조회 (개인/궁합 등 세부 전문가 구분용)
+      if (chatRoom && (chatRoom as { expert_id?: string }).expert_id) {
+        const { data } = await supabase
+          .from('experts')
+          .select('id, name, expert_quote, signature_phrase, category')
+          .eq('id', (chatRoom as { expert_id: string }).expert_id)
+          .maybeSingle();
+        expertInfo = (data as ExpertInfoRecord) ?? null;
+      }
+      // fallback: 카테고리로만 조회 (옛 채팅방 등)
+      if (!expertInfo) {
+        const { data } = await supabase
       .from('experts')
       .select('id, name, expert_quote, signature_phrase, category')
       .eq('category', expertCategory)
-      .single();
+          .maybeSingle();
+        expertInfo = (data as ExpertInfoRecord) ?? null;
+      }
+    } catch {
+      expertInfo = null;
+    }
 
     // calculated_saju 테이블에서 사주 데이터 조회
     let actualSajuData: Record<string, unknown> = {};
@@ -735,7 +1002,7 @@ Deno.serve(async (req: Request) => {
         .from('birth_info')
         .select('id')
         .eq('user_id', userId)
-        .single();
+      .single();
 
       if (birthInfo) {
         // calculated_saju 조회
@@ -773,10 +1040,10 @@ Deno.serve(async (req: Request) => {
     } catch (e) {
       log('error', 'calculated_saju 조회 실패', e);
       // 클라이언트에서 전달받은 sajuData를 fallback으로 사용 (하위 호환성)
-      const nestedSajuData = (sajuData as { saju_data?: Record<string, unknown> }).saju_data;
+    const nestedSajuData = (sajuData as { saju_data?: Record<string, unknown> }).saju_data;
       actualSajuData = nestedSajuData && typeof nestedSajuData === 'object'
-        ? nestedSajuData
-        : sajuData;
+      ? nestedSajuData
+      : sajuData;
     }
 
     if (expertCategory === 'love' && partnerSajuId) {

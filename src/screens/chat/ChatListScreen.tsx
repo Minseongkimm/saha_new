@@ -125,11 +125,37 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
           let displayName: string = baseName;
           if (room.chat_context === 'love_compatibility') {
             const partnerLabel: string | undefined = room.partner_saju_id ? partnerNameMap[room.partner_saju_id] : undefined;
-            displayName = partnerLabel ? `${baseName} · 궁합 (${partnerLabel})` : `${baseName} · 궁합`;
+            displayName = partnerLabel ? `${baseName} · ${partnerLabel}` : `${baseName} · 궁합`;
           } else if (room.chat_context === 'love_personal') {
             displayName = `${baseName} · 연애상담`;
           }
-          const profile: ImageSourcePropType = expert ? getExpertImage(expert.image_name) : require('../../../assets/people/hoosi_guy.jpg');
+          // 궁합 전용 전문가의 경우 원본 전문가 이미지 사용
+          let imageName: string | undefined = expert?.image_name;
+          if (!imageName && expert?.name) {
+            // "(궁합 전용)" 제거하고 원본 이름으로 이미지 찾기
+            const baseExpertName = expert.name.replace(/\s*\(궁합\s*전용\)\s*$/, '');
+            // 원본 전문가 찾기 (같은 이름, 같은 카테고리)
+            const originalExpert = (experts || []).find((e: any) => 
+              e.name === baseExpertName && 
+              e.category === expert.category &&
+              e.image_name
+            );
+            if (originalExpert) {
+              imageName = originalExpert.image_name;
+            } else {
+              // 원본 전문가를 찾지 못한 경우, 이름 기반으로 이미지 파일명 추정
+              // 예: "연화낭자" -> "yeonhwa.jpg"
+              const nameToImageMap: Record<string, string> = {
+                '연화낭자': 'yeonhwa.jpg',
+                '호시': 'hoshi.jpg',
+              };
+              const mappedImage = nameToImageMap[baseExpertName];
+              if (mappedImage) {
+                imageName = mappedImage;
+              }
+            }
+          }
+          const profile: ImageSourcePropType = expert && imageName ? getExpertImage(imageName) : require('../../../assets/people/hoosi_guy.jpg');
           const fallbackMsg = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.message ?? '' : '';
           const lastText: string = room.last_message || fallbackMsg || '';
           const fallbackTs = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.created_at ?? null : null;

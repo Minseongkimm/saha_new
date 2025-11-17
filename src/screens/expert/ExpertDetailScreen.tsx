@@ -59,6 +59,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
   const { expertId } = route.params;
   const [loading, setLoading] = useState(true);
   const [expert, setExpert] = useState<ExpertWithDetails | null>(null);
+  const [compatExpertId, setCompatExpertId] = useState<string | null>(null);
   const [showChatBottomSheet, setShowChatBottomSheet] = useState(false);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [showPartnerSelection, setShowPartnerSelection] = useState(false);
@@ -114,6 +115,33 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
     })();
   }, []);
 
+  // 연애 도사인 경우 궁합 전용 도사 ID를 동적으로 조회
+  useEffect(() => {
+    const loadCompatExpertId = async (): Promise<void> => {
+      if (!expert || expert.category !== 'love') {
+        setCompatExpertId(null);
+        return;
+      }
+      try {
+        const compatName: string = `${expert.name} (궁합 전용)`;
+        const { data } = await supabase
+          .from('experts')
+          .select('id')
+          .eq('name', compatName)
+          .eq('category', expert.category)
+          .maybeSingle();
+        if (data && typeof (data as { id?: string }).id === 'string') {
+          setCompatExpertId((data as { id: string }).id);
+        } else {
+          setCompatExpertId(expert.id);
+        }
+      } catch {
+        setCompatExpertId(expert.id);
+      }
+    };
+    void loadCompatExpertId();
+  }, [expert]);
+
   const handleStartChat = () => {
     if (!expert) return;
     setShowChatBottomSheet(true);
@@ -130,7 +158,8 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
       if (partners.length > 0) {
         setShowPartnerSelection(true);
       } else {
-        navigation.navigate('PartnerInput', { expertId: expert.id });
+        const targetExpertId: string = compatExpertId ?? expert.id;
+        navigation.navigate('PartnerInput', { expertId: targetExpertId });
       }
     } else {
       await startChatWithExpert(navigation, expert.id);
@@ -171,14 +200,16 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
       compatibilityResult: partner.compatibility_result
     };
     if (expert?.id) {
-      await startChatWithExpert(navigation, expert.id, partnerData);
+      const targetExpertId: string = compatExpertId ?? expert.id;
+      await startChatWithExpert(navigation, targetExpertId, partnerData);
     }
   };
 
   const handleAddNewPartner = () => {
     setShowPartnerSelection(false);
     if (expert?.id) {
-      navigation.navigate('PartnerInput', { expertId: expert.id });
+      const targetExpertId: string = compatExpertId ?? expert.id;
+      navigation.navigate('PartnerInput', { expertId: targetExpertId });
     }
   };
 
@@ -278,7 +309,8 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
     setShowPartnerModal(false);
     // 저장 후 채팅 시작
     if (expert?.id) {
-      await startChatWithExpert(navigation, expert.id);
+      const targetExpertId: string = compatExpertId ?? expert.id;
+      await startChatWithExpert(navigation, targetExpertId);
     }
   };
 
@@ -459,7 +491,8 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
             setShowPartnerSelection(true);
           } else {
             if (expert?.id) {
-              navigation.navigate('PartnerInput', { expertId: expert.id });
+              const targetExpertId: string = compatExpertId ?? expert.id;
+              navigation.navigate('PartnerInput', { expertId: targetExpertId });
             }
           }
         }}
