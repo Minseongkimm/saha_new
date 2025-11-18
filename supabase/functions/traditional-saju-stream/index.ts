@@ -44,7 +44,7 @@ serve(async (req: Request) => {
         },
       ],
       temperature: AI_CONFIG.TEMPERATURE,
-      maxTokens: AI_CONFIG.MAX_TOKENS,
+      maxTokens: AI_CONFIG.TRADITIONAL_SAJU_MAX_TOKENS, // 정통사주 전용 토큰 제한 사용
       topP: AI_CONFIG.TOP_P,
       frequencyPenalty: AI_CONFIG.FREQUENCY_PENALTY,
       presencePenalty: AI_CONFIG.PRESENCE_PENALTY,

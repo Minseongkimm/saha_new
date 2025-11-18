@@ -6,17 +6,18 @@
 
 // AI 모델 설정
 export const AI_CONFIG = {
-  DEFAULT_MODEL: 'gpt-4o',
   TRADITIONAL_SAJU_MODEL: 'gpt-4o',
   NEW_YEAR_FORTUNE_MODEL: 'gpt-4o',
-  TODAY_FORTUNE_MODEL: 'gpt-4o',
-  CHAT_MODEL: 'gpt-4o',
+  TODAY_FORTUNE_MODEL: 'gpt-4o-mini',
+  CHAT_MODEL: 'gpt-4o-mini',
   
   TEMPERATURE: 0.7,
   TOP_P: 1.0,
   FREQUENCY_PENALTY: 0.0,
   PRESENCE_PENALTY: 0.0,
   MAX_TOKENS: 500,
+  TRADITIONAL_SAJU_MAX_TOKENS: 2500, // 정통사주는 상세 해석이 필요하므로 더 높은 토큰 제한
+  NEW_YEAR_FORTUNE_MAX_TOKENS: 2500, // 신년운세는 JSON 형식의 긴 응답이 필요하므로 더 높은 토큰 제한
 
   // 요약 관련 AI 설정
   SUMMARY_MODEL: 'gpt-4o-mini',
