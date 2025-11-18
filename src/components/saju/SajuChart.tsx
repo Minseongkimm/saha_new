@@ -14,13 +14,13 @@ import PillarCell from './PillarCell';
 
 interface SajuData {
   name: string;
-  birthYear: number;
-  birthMonth: number;
-  birthDay: number;
-  birthHour: number;
-  birthMinute: number;
-  gender: string;
-  calendarType: string;
+  birthYear: number | null;
+  birthMonth: number | null;
+  birthDay: number | null;
+  birthHour: number | null;
+  birthMinute: number | null;
+  gender: string | null;
+  calendarType: string | null;
   leapMonth?: boolean;
   timeUnknown?: boolean;
   calculatedSaju?: any;
@@ -35,11 +35,11 @@ interface SajuChartProps {
 
 const SajuChart: React.FC<SajuChartProps> = ({ sajuData }) => {
   const formatBirthInfo = (data: SajuData) => {
-    const year = data.birthYear;
-    const month = data.birthMonth.toString().padStart(2, '0');
-    const day = data.birthDay.toString().padStart(2, '0');
-    const hour = data.birthHour.toString().padStart(2, '0');
-    const minute = data.birthMinute.toString().padStart(2, '0');
+    const year = data.birthYear ?? 0;
+    const month = (data.birthMonth ?? 0).toString().padStart(2, '0');
+    const day = (data.birthDay ?? 0).toString().padStart(2, '0');
+    const hour = (data.birthHour ?? 0).toString().padStart(2, '0');
+    const minute = (data.birthMinute ?? 0).toString().padStart(2, '0');
     
     return `${year}년 ${month}월 ${day}일 ${hour}:${minute} (${data.gender === 'male' ? '남성' : '여성'})`;
   };

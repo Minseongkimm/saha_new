@@ -141,6 +141,20 @@ export const useNewYearFortune = (targetYear?: number): UseNewYearFortuneResult 
     // JSON 블록 제거 및 정리
     let cleanedText = jsonText.replace(/```json|```/g, '').trim();
     
+    // 불완전한 JSON 처리: 닫히지 않은 문자열이나 객체를 처리
+    // 마지막 불완전한 문자열이나 객체를 제거
+    if (!cleanedText.endsWith('}')) {
+      // 가장 마지막 완전한 JSON 객체를 찾기
+      const lastBraceIndex = cleanedText.lastIndexOf('}');
+      if (lastBraceIndex > 0) {
+        cleanedText = cleanedText.substring(0, lastBraceIndex + 1);
+      } else {
+        // 완전한 JSON이 없으면 기본값 반환
+        console.warn('불완전한 JSON 응답:', cleanedText);
+        throw new Error('JSON 응답이 불완전합니다. 다시 시도해주세요.');
+      }
+    }
+    
     // JSON 문자열 내부의 제어 문자 처리
     // 먼저 JSON 파싱을 시도하고, 실패하면 제어 문자 제거 후 재시도
     let parsed: any;
@@ -149,7 +163,12 @@ export const useNewYearFortune = (targetYear?: number): UseNewYearFortuneResult 
     } catch (e) {
       // 제어 문자 제거 (줄바꿈, 탭 등)
       cleanedText = cleanedText.replace(/[\u0000-\u001F]/g, ' ');
-      parsed = JSON.parse(cleanedText);
+      try {
+        parsed = JSON.parse(cleanedText);
+      } catch (parseError) {
+        console.error('JSON 파싱 실패:', parseError, '원본 텍스트:', jsonText.substring(0, 200));
+        throw new Error('JSON 응답을 파싱할 수 없습니다. 다시 시도해주세요.');
+      }
     }
 
     return {
