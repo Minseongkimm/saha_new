@@ -477,7 +477,8 @@ function buildUserPrompt(params: BuildUserPromptParams): string {
   if (params.expertSummary && params.expertSummary.length > 0) {
     sections.push(`### Expert\n${params.expertSummary}`);
   }
-  sections.push(`### Saju Snapshot\n${params.sajuSummary}`);
+  // Saju Snapshot은 System Prompt로 이동했으므로 제거
+  // sections.push(`### Saju Snapshot\n${params.sajuSummary}`);
   if (params.conversationSummary) {
     sections.push(`### Conversation Summary\n${params.conversationSummary}`);
   }
@@ -535,6 +536,58 @@ function buildTodayFortuneSummary(fortune: Record<string, unknown> | null): stri
     if (catLine.replace(/[^0-9]/g, '').length > 0) {
       lines.push(`Categories: ${catLine}`);
     }
+    return lines.join('\n');
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Build a compact New Year Fortune summary block for prompt context.
+ */
+function buildNewYearFortuneSummary(fortune: Record<string, unknown> | null): string {
+  if (!fortune || typeof fortune !== 'object') {
+    return '';
+  }
+  try {
+    const get = (k: string) => (fortune as Record<string, unknown>)[k];
+    const year = typeof get('year') === 'number' ? String(get('year')) : '';
+    const yearGanji = get('yearGanji') as { yearGanji?: string; animal?: string; element?: string } | undefined;
+    const categories = (get('categories') || {}) as Record<string, string>;
+    const luckyMonths = (get('luckyMonths') || []) as Array<{ month: number; advice: string }>;
+    const cautiousMonths = (get('cautiousMonths') || []) as Array<{ month: number; advice: string }>;
+    
+    const lines: string[] = [];
+    if (year) lines.push(`Year: ${year}`);
+    if (yearGanji?.yearGanji) {
+      const ganjiInfo = [yearGanji.yearGanji];
+      if (yearGanji.animal) ganjiInfo.push(yearGanji.animal);
+      if (yearGanji.element) ganjiInfo.push(yearGanji.element);
+      lines.push(`YearGanji: ${ganjiInfo.join(' ')}`);
+    }
+    
+    // Categories (해석 텍스트 제외하고 간단히)
+    const catParts: string[] = [];
+    if (categories.love) catParts.push(`love:${categories.love.slice(0, 50)}`); // 처음 50자만
+    if (categories.career) catParts.push(`career:${categories.career.slice(0, 50)}`);
+    if (categories.health) catParts.push(`health:${categories.health.slice(0, 50)}`);
+    if (categories.wealth) catParts.push(`wealth:${categories.wealth.slice(0, 50)}`);
+    if (catParts.length > 0) {
+      lines.push(`Categories: ${catParts.join(', ')}`);
+    }
+    
+    // Lucky Months (최대 2개)
+    if (luckyMonths.length > 0) {
+      const luckyStr = luckyMonths.slice(0, 2).map(m => `${m.month}월:${m.advice.slice(0, 80)}`).join(', ');
+      lines.push(`LuckyMonths: ${luckyStr}`);
+    }
+    
+    // Cautious Months (최대 2개)
+    if (cautiousMonths.length > 0) {
+      const cautiousStr = cautiousMonths.slice(0, 2).map(m => `${m.month}월:${m.advice.slice(0, 80)}`).join(', ');
+      lines.push(`CautiousMonths: ${cautiousStr}`);
+    }
+    
     return lines.join('\n');
   } catch {
     return '';
@@ -1092,18 +1145,26 @@ Deno.serve(async (req: Request) => {
     }
 
     // 새로운 프롬프트 시스템으로 시스템 프롬프트 생성
-    const systemPrompt = await fetchSystemPrompt(
+    const baseSystemPrompt = await fetchSystemPrompt(
       supabase,
       expertCategory,
       typeof expertInfo?.id === 'string' ? expertInfo?.id : undefined
     );
+    
+    // 사주 데이터 요약 생성 및 System Prompt에 추가
+    const sajuSummary = buildSajuSummary(actualSajuData);
+    const systemPrompt = baseSystemPrompt + (sajuSummary && sajuSummary.length > 0
+      ? `\n\n### Saju Snapshot\n${sajuSummary}`
+      : '');
+    
     log('debug', '[fetchSystemPrompt] System prompt resolved', {
       expertCategory,
       expertId: expertInfo?.id ?? null,
-      length: systemPrompt.length,
+      baseLength: baseSystemPrompt.length,
+      sajuLength: sajuSummary.length,
+      totalLength: systemPrompt.length,
     });
     const lastQuestion = messages.length > 0 ? messages[messages.length - 1].content : '질문 없음';
-    const sajuSummary = buildSajuSummary(actualSajuData);
     log('debug', 'Request payload received', {
       roomId,
       expertCategory,
@@ -1114,31 +1175,58 @@ Deno.serve(async (req: Request) => {
     log('debug', '[createHistoryLines] History lines preview', historyLines);
     const expertSummary = createExpertSummary((expertInfo ?? null) as ExpertInfoRecord | null);
     log('debug', '[createExpertSummary] Expert summary preview', { length: expertSummary.length, preview: expertSummary.slice(0, 200) });
-    // Load latest daily fortune for user to enrich conversation context
+    
+    // 오늘의 운세 카테고리일 때만 daily_fortune 조회
     let todayFortuneSummary = '';
-    try {
-      const { data: fortuneRow } = await supabase
-        .from('saju_analyses')
-        .select('daily_fortune')
-        .eq('user_id', userId)
-        .single();
-      const dailyFortune = fortuneRow?.daily_fortune ? parseJsonField<Record<string, unknown>>(fortuneRow.daily_fortune) : null;
-      if (dailyFortune) {
-        todayFortuneSummary = buildTodayFortuneSummary(dailyFortune);
+    if (expertCategory === 'today_fortune') {
+      try {
+        const { data: fortuneRow } = await supabase
+          .from('saju_analyses')
+          .select('daily_fortune')
+          .eq('user_id', userId)
+          .single();
+        const dailyFortune = fortuneRow?.daily_fortune ? parseJsonField<Record<string, unknown>>(fortuneRow.daily_fortune) : null;
+        if (dailyFortune) {
+          todayFortuneSummary = buildTodayFortuneSummary(dailyFortune);
+        }
+      } catch (e) {
+        log('warn', '오늘의 운세 컨텍스트 조회 실패(무시 가능)', e);
       }
-    } catch (e) {
-      log('warn', '오늘의 운세 컨텍스트 조회 실패(무시 가능)', e);
+    }
+    
+    // 신년운세 카테고리일 때만 new_year_fortune 조회
+    let newYearFortuneSummary = '';
+    if (expertCategory === 'newyear_fortune') {
+      try {
+        const { data: fortuneRow } = await supabase
+          .from('saju_analyses')
+          .select('new_year_fortune')
+          .eq('user_id', userId)
+          .single();
+        const newYearFortune = fortuneRow?.new_year_fortune ? parseJsonField<Record<string, unknown>>(fortuneRow.new_year_fortune) : null;
+        if (newYearFortune) {
+          newYearFortuneSummary = buildNewYearFortuneSummary(newYearFortune);
+        }
+      } catch (e) {
+        log('warn', '신년운세 컨텍스트 조회 실패(무시 가능)', e);
+      }
     }
     const userPrompt = buildUserPrompt({
       expertSummary,
-      sajuSummary,
+      sajuSummary: '', // System Prompt로 이동했으므로 빈 문자열 전달
       conversationSummary: chatRoom?.conversation_summary || null,
       historyLines,
       currentQuestion: lastQuestion,
     });
-    const fullUserPrompt = todayFortuneSummary && todayFortuneSummary.length > 0
-      ? `${userPrompt}\n\n### Today Fortune\n${todayFortuneSummary}`
-      : userPrompt;
+    
+    // 카테고리별로 추가 데이터 조합
+    let fullUserPrompt = userPrompt;
+    if (expertCategory === 'today_fortune' && todayFortuneSummary && todayFortuneSummary.length > 0) {
+      fullUserPrompt += `\n\n### Today Fortune\n${todayFortuneSummary}`;
+    }
+    if (expertCategory === 'newyear_fortune' && newYearFortuneSummary && newYearFortuneSummary.length > 0) {
+      fullUserPrompt += `\n\n### New Year Fortune\n${newYearFortuneSummary}`;
+    }
     log('debug', '[buildUserPrompt] User prompt assembled', {
       length: (fullUserPrompt).length,
       preview: (fullUserPrompt).slice(0, 200),
