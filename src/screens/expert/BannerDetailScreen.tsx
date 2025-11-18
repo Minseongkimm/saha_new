@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
   processText: {
     fontSize: 14,
     color: '#000000',
-    lineHeight: 21,
+    lineHeight: 23,
     fontWeight: '400',
     textAlign: 'left',
   },
