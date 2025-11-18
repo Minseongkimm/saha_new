@@ -18,6 +18,7 @@ import BottomFixedButton from '../../components/common/BottomFixedButton';
 import { startChatWithExpert, getExpertByCategory } from '../../utils/chat/chatUtils';
 import { useTraditionalSaju } from '../../hooks/useTraditionalSaju';
 import SabaLoader from '../../components/common/SabaLoader';
+import SajuAnalysisLoader from '../../components/common/SajuAnalysisLoader';
 
 
 interface TraditionalSajuScreenProps {
@@ -160,6 +161,12 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
             <SectionHeader 
               title="사주 해석" 
               description="인공지능이 당신의 사주를 깊이 있게 분석해드립니다"
+            />
+            
+            {/* 스트리밍 인디케이터 */}
+            <SajuAnalysisLoader 
+              message="사바가 정통사주를 분석하는 중"
+              visible={isStreaming}
             />
             
             {/* 실시간 스트리밍 중 */}

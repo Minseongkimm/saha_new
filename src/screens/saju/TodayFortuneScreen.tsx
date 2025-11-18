@@ -24,6 +24,7 @@ import {
   getCategoryScoreColor,
 } from '../../utils/today-fortune/todayFortuneScoreUtils';
 import SabaLoader from '../../components/common/SabaLoader';
+import SajuAnalysisLoader from '../../components/common/SajuAnalysisLoader';
 
 interface TodayFortuneScreenProps {
   navigation: any;
@@ -169,6 +170,12 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
           </View>
         </View>
       </View>
+      
+      {/* 스트리밍 인디케이터 */}
+      <SajuAnalysisLoader 
+        message="사바가 오늘의 운세를 분석하는 중"
+        visible={isStreaming}
+      />
       
       {/* 한 줄 요약 */}
       {data.summary && (
@@ -373,11 +380,6 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
         <View style={styles.content}>
           {displayData ? (
             <>
-              {isStreaming && (
-                <View style={styles.streamingIndicatorBox}>
-                  <Text style={styles.streamingIndicator}>✨ AI가 분석하는 중...</Text>
-                </View>
-              )}
               {renderFortuneContent(displayData)}
             </>
           ) : (

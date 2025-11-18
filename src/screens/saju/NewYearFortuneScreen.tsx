@@ -19,6 +19,7 @@ import { startChatWithExpert, getExpertByCategory } from '../../utils/chat/chatU
 import { useNewYearFortune } from '../../hooks/useNewYearFortune';
 import { formatBoldText, removeBoldMarks } from '../../utils/text/textFormatUtils';
 import SabaLoader from '../../components/common/SabaLoader';
+import SajuAnalysisLoader from '../../components/common/SajuAnalysisLoader';
 
 interface NewYearFortuneScreenProps {
   navigation: any;
@@ -215,17 +216,11 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
             description="새해를 맞아 한 해 운세를 미리 확인해보세요"
           />
 
-          {/* 스트리밍 인디케이터 - 항상 위에 표시 */}
-          {isStreaming && (
-            <View style={styles.streamingIndicatorContainer}>
-              <SabaLoader
-                size={32}
-                message="AI가 신년운세를 분석하는 중"
-                containerStyle={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}
-                textStyle={{ marginTop: 0, marginLeft: 8 }}
-              />
-            </View>
-          )}
+          {/* 스트리밍 인디케이터 */}
+          <SajuAnalysisLoader 
+            message="사바가 신년운세를 분석하는 중"
+            visible={isStreaming}
+          />
 
           {/* 간단한 일간-신년 상호작용 - 스트리밍 중에도 표시 */}
           {displayData && myDayGan && yearGan && (
@@ -561,7 +556,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f7ff',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 16,
+    marginTop: 8,
+    marginBottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
