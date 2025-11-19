@@ -461,6 +461,12 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
 
           {isEditing ? (
             <View style={styles.editContainer}>
+              <View style={styles.editHeader}>
+                <Text style={styles.editTitle}>사주 정보 수정</Text>
+                <Text style={styles.editSubtitle}>
+                  정확한 사주 분석을 위해 이름과 생년월일을 입력 해주세요
+                </Text>
+              </View>
               <BirthInfoForm
                 data={{
                   name: sajuInfo.name,
@@ -784,7 +790,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 25,
   },
   editContainer: {
-    paddingTop: 10,
+    paddingTop: 0,
+  },
+  editHeader: {
+    marginTop: 4,
+    marginBottom: 28,
+    alignItems: 'center',
+  },
+  editTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  editSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 20,
+    textAlign: 'center',
   },
   cardHeader: {
     flexDirection: 'row',

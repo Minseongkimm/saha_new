@@ -72,9 +72,6 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
 
     return (
       <View style={styles.analysisContentContainer}>
-        <View style={styles.streamingIndicatorContainer}>
-          <Text style={styles.streamingIndicator}>✨ AI가 분석하는 중...</Text>
-        </View>
         <SajuAnalysis analysis={streamingData} />
       </View>
     );
@@ -299,7 +296,7 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   analysisContentContainer: {
-    marginTop: 15,
+    marginTop: 20,
   },
   analysisSectionTitle: {
     fontSize: 16,

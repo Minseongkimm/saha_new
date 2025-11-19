@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import SabaLoader from './SabaLoader';
+import { Colors } from '../../constants/colors';
 
 interface SajuAnalysisLoaderProps {
   message: string;
@@ -21,7 +22,7 @@ const SajuAnalysisLoader: React.FC<SajuAnalysisLoaderProps> = ({
         size={32}
         message={message}
         containerStyle={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-start' }}
-        textStyle={{ marginTop: 0, marginLeft: 8, color: '#666666', fontWeight: '500' }}
+        textStyle={{ marginTop: 0, marginLeft: 8, color: Colors.primaryColor, fontWeight: '600', fontSize: 14 }}
       />
     </View>
   );

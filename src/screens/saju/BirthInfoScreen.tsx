@@ -178,8 +178,11 @@ interface SajuResult {
         .eq('user_id', userId)
         .single();
 
-      // 사용자 이름 가져오기 (기존 레코드의 이름 우선, 없으면 user_metadata에서)
-      let userName = existingData?.name;
+      // 사용자 이름 가져오기 (입력한 이름 우선, 없으면 기존 이름, 없으면 user_metadata에서)
+      let userName = formData.name?.trim();
+      if (!userName) {
+        userName = existingData?.name;
+      }
       if (!userName) {
         const { data: { user } } = await supabase.auth.getUser();
         userName = user?.user_metadata?.name || 

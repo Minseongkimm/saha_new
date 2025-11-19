@@ -111,22 +111,20 @@ const BirthInfoForm: React.FC<BirthInfoFormProps> = ({
         </>
       )}
 
-      {showName && (
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>이름</Text>
-          <TextInput
-            style={styles.nameInput}
-            value={data.name || ''}
-            onChangeText={(text) => {
-              // 한글, 영문만 허용 (숫자, 특수문자 제거)
-              const filteredText = text.replace(/[^ㄱ-ㅎㅏ-ㅣ가-힣a-zA-Z\s]/g, '');
-              onChange('name', filteredText);
-            }}
-            placeholder="이름을 입력하세요"
-            maxLength={10}
-          />
-        </View>
-      )}
+      <View style={styles.inputContainer}>
+        <Text style={styles.label}>이름</Text>
+        <TextInput
+          style={styles.nameInput}
+          value={data.name || ''}
+          onChangeText={(text) => {
+            // 한글, 영문만 허용 (숫자, 특수문자 제거)
+            const filteredText = text.replace(/[^ㄱ-ㅎㅏ-ㅣ가-힣a-zA-Z\s]/g, '');
+            onChange('name', filteredText);
+          }}
+          placeholder="이름을 입력하세요"
+          maxLength={10}
+        />
+      </View>
 
       <View style={styles.inputContainer}>
         <Text style={styles.label}>생년월일</Text>
@@ -298,10 +296,10 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   inputContainer: {
-    marginBottom: 30,
+    marginBottom: 24,
   },
   label: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     marginBottom: 6,
     color: '#333',
@@ -310,7 +308,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
     paddingVertical: 6,
-    fontSize: 20,
+    fontSize: 18,
     color: '#333',
   },
   dateInputContainer: {
@@ -326,7 +324,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#ddd',
     paddingVertical: 6,
     paddingRight: 30,
-    fontSize: 20,
+    fontSize: 18,
     color: '#333',
   },
   timeInput: {
@@ -334,7 +332,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#ddd',
     paddingVertical: 5,
     paddingRight: 30,
-    fontSize: 20,
+    fontSize: 18,
     color: '#333',
   },
   clearButton: {
@@ -359,13 +357,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   calendarTypeButton: {
-    padding: 12,
+    padding: 10,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: 'white',
-    minWidth: 150,
-    minHeight: 45,
+    minWidth: 140,
+    minHeight: 40,
     alignItems: 'center',
   },
   calendarTypeButtonSelected: {
@@ -373,7 +371,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   calendarTypeText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#333',
   },
   calendarTypeTextSelected: {
@@ -398,13 +396,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   radioButton: {
-    padding: 12,
+    padding: 10,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: 'white',
-    minWidth: 150,
-    minHeight: 45,
+    minWidth: 140,
+    minHeight: 40,
     alignItems: 'center',
   },
   radioButtonSelected: {
@@ -412,7 +410,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   radioText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#333',
   },
   radioTextSelected: {
@@ -445,7 +443,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   checkboxLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#333',
   },
 });
