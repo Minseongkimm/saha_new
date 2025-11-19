@@ -7,8 +7,6 @@ import {
   TouchableOpacity,
   Alert,
   Image,
-  Pressable,
-  GestureResponderEvent,
   Platform,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
@@ -30,13 +28,8 @@ interface LoginScreenProps {
 
 function LoginScreen({ navigation }: LoginScreenProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const handleAppleLogin = async (): Promise<void> => {
-    if (!agreedToTerms) {
-      Alert.alert('약관 동의 필요', '서비스 이용을 위해 이용약관 및 개인정보처리방침에 동의해주세요.');
-      return;
-    }
     if (!isAppleSignInSupported()) {
       Alert.alert('로그인 불가', '이 기기에서는 Apple 로그인을 지원하지 않습니다.');
       return;
@@ -58,20 +51,12 @@ function LoginScreen({ navigation }: LoginScreenProps) {
     }
   };
 
-  const toggleTermsAgreement = (): void => {
-    setAgreedToTerms(prev => !prev);
-  };
-
   const handleNavigateTerms = (type: 'terms' | 'privacy'): void => {
     navigation.navigate('Terms', { type });
   };
 
   // 카카오 로그인 (Native SDK 방식)
   const handleKakaoLogin = async (): Promise<void> => {
-    if (!agreedToTerms) {
-      Alert.alert('약관 동의 필요', '서비스 이용을 위해 이용약관 및 개인정보처리방침에 동의해주세요.');
-      return;
-    }
     setIsLoading(true);
 
     try {
@@ -140,39 +125,28 @@ function LoginScreen({ navigation }: LoginScreenProps) {
             </TouchableOpacity>
           )}
 
-          {/* 약관 동의 */}
+          {/* 약관 동의 안내 */}
           <View style={styles.termsContainer}>
-            <Pressable style={styles.checkboxTapArea} onPress={toggleTermsAgreement}>
-              <View style={styles.checkboxContainer}>
-                <View style={[styles.checkbox, agreedToTerms && styles.checkboxChecked]}>
-                  {agreedToTerms && <Text style={styles.checkmark}>✓</Text>}
-                </View>
-                <View style={styles.termsTextWrapper}>
-                  <Text style={styles.termsText}>
-                    <Text
-                      onPress={(event: GestureResponderEvent) => {
-                        event.stopPropagation();
-                        handleNavigateTerms('terms');
-                      }}
-                      style={styles.termsLink}
-                    >
-                      이용약관
-                    </Text>
-                    {' 및 '}
-                    <Text
-                      onPress={(event: GestureResponderEvent) => {
-                        event.stopPropagation();
-                        handleNavigateTerms('privacy');
-                      }}
-                      style={styles.termsLink}
-                    >
-                      개인정보처리방침
-                    </Text>
-                    에 동의합니다
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
+            <Text style={styles.termsNoticeText}>
+              로그인 시{' '}
+              <Text
+                onPress={() => handleNavigateTerms('terms')}
+                style={styles.termsLink}
+              >
+                서비스이용약관
+              </Text>
+              ,{' '}
+              <Text
+                onPress={() => handleNavigateTerms('privacy')}
+                style={styles.termsLink}
+              >
+                개인정보처리방침
+              </Text>
+              에 동의합니다.
+            </Text>
+            <Text style={styles.ageNoticeText}>
+              만 14세 이상만 이용 가능합니다.
+            </Text>
           </View>
         </View>
       </View>
@@ -261,48 +235,20 @@ const styles = StyleSheet.create({
   },
   termsContainer: {
     alignItems: 'center',
+    marginTop: 8,
+    paddingHorizontal: 20,
   },
-  checkboxTapArea: {
-    paddingVertical: 3,
-    paddingHorizontal: 0,
-    alignItems: 'center',
+  termsNoticeText: {
+    fontSize: 11,
+    color: '#999999',
+    textAlign: 'center',
+    lineHeight: 16,
   },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    maxWidth: '90%',
-    justifyContent: 'center',
-  },
-  termsTextWrapper: {
-    flexShrink: 1,
-    justifyContent: 'center',
-  },
-  checkbox: {
-    width: 17,
-    height: 17,
-    borderWidth: 1,
-    borderColor: '#cccccc',
-    borderRadius: 4,
-    marginRight: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: '#000000',
-    borderColor: '#000000',
-  },
-  checkmark: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  termsText: {
-    fontSize: 13,
-    color: '#666666',
-    flex: 0,
-    flexShrink: 1,
-    flexWrap: 'wrap',
-    textAlign: 'left',
+  ageNoticeText: {
+    fontSize: 11,
+    color: '#999999',
+    textAlign: 'center',
+    marginTop: 4,
   },
   termsLink: {
     color: '#666666',

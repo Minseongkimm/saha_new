@@ -53,6 +53,32 @@ const waitForSession = async (): Promise<void> => {
   }
 };
 
+// 약관 동의 기록 저장
+const saveTermsAgreement = async (userId: string): Promise<void> => {
+  try {
+    // 약관 버전은 하드코딩 (약관 내용도 하드코딩되어 있으므로)
+    const termsVersion = 'v1';
+    const privacyVersion = 'v1';
+
+    // 약관 동의 기록 저장
+    await Promise.all([
+      supabase.from('terms_agreements').insert({
+        user_id: userId,
+        terms_type: 'terms_of_service',
+        terms_version: termsVersion,
+      }),
+      supabase.from('terms_agreements').insert({
+        user_id: userId,
+        terms_type: 'privacy_policy',
+        terms_version: privacyVersion,
+      }),
+    ]);
+  } catch (error) {
+    console.error('약관 동의 기록 저장 오류:', error);
+    // 에러를 throw하지 않고 로그만 남김 (약관 동의는 user_metadata에도 저장되므로)
+  }
+};
+
 // 로그인 이후 사용자 정보 갱신 및 세션 활성화
 export const executePostLogin = async (user: User, extras: LoginMetadata): Promise<void> => {
   const metadata = {
@@ -78,6 +104,9 @@ export const executePostLogin = async (user: User, extras: LoginMetadata): Promi
                    user.email?.split('@')[0] ||
                    '사용자';
 
+  // 약관 동의 기록을 terms_agreements 테이블에 저장
+  await saveTermsAgreement(user.id);
+  
   await ensureBirthInfoExists(user.id, userName);
   await waitForSession();
 };
