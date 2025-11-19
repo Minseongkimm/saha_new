@@ -171,9 +171,9 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
 
         <View style={styles.infoSection}>
           <Text style={styles.infoText}>
-            전체 알림: 모든 알림을 한 번에 켜고 끌 수 있습니다{'\n'}
+            {/* 전체 알림: 모든 알림을 한 번에 켜고 끌 수 있습니다{'\n'}
             채팅 알림: 새로운 메시지가 올 때 알림을 받습니다{'\n'}
-            오늘의 운세: 매일 아침 오늘의 운세를 알려드립니다{'\n'}
+            오늘의 운세: 매일 아침 오늘의 운세를 알려드립니다{'\n'} */}
             설정은 자동으로 저장됩니다
           </Text>
         </View>
