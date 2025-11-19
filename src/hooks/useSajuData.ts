@@ -3,6 +3,7 @@ import { supabase } from '../utils/database/supabaseClient';
 import { SajuCache } from '../utils/saju/sajuCache';
 import { SajuData } from '../types/streaming';
 import { formatSajuData } from '../utils/saju/sajuDataUtils';
+import { getCurrentUserSafely } from '../utils/user/authUtils';
 
 /**
  * 사주 데이터 로딩 훅
@@ -21,9 +22,17 @@ export const useSajuData = () => {
   const loadSajuData = async () => {
     try {
       // 사용자 인증 확인
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
-        setError('사용자 인증에 실패했습니다.');
+      const { status, user } = await getCurrentUserSafely();
+      if (status === 'network_error') {
+        setError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+        setInitializing(false);
+        setLoading(false);
+        return null;
+      }
+      if (status === 'unauthenticated' || !user) {
+        setError('로그인이 필요합니다.');
+        setInitializing(false);
+        setLoading(false);
         return null;
       }
 

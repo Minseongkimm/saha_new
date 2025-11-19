@@ -7,14 +7,15 @@
  * - 사용자 메시지와 AI 응답 메시지를 무료 대화 기록에 연결
  */
 import { supabase } from '../../../../../utils/database/supabaseClient';
+import { getCurrentUserSafely } from '../../../../../utils/user/authUtils';
 
 export async function updateFreeMessageId(
   roomId: string,
   userMessageId: string,
   aiMessageId: string
 ): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+  const { status, user } = await getCurrentUserSafely();
+  if (status !== 'authenticated' || !user) return;
   
   // Edge function과 동일한 방식으로 날짜 계산 (UTC 기준)
   const today = new Date().toISOString().split('T')[0];

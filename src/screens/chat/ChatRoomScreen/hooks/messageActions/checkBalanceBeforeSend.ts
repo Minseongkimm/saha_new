@@ -10,6 +10,7 @@
 import { supabase } from '../../../../../utils/database/supabaseClient';
 import { checkFreeMessageAvailable, FreeMessageStatus } from '../../../../../utils/payments/freeMessage';
 import { fetchUserBalance } from '../../../../../utils/payments/balance';
+import { getCurrentUserSafely } from '../../../../../utils/user/authUtils';
 
 export interface BalanceCheckResult {
   canSend: boolean;
@@ -19,8 +20,8 @@ export interface BalanceCheckResult {
 
 export async function checkBalanceBeforeSend(): Promise<BalanceCheckResult> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const { status, user } = await getCurrentUserSafely();
+    if (status !== 'authenticated' || !user) {
       return { canSend: false };
     }
     // 무료 메시지와 잔액을 한 번에 확인

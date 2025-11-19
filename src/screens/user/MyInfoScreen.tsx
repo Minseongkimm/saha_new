@@ -23,7 +23,7 @@ import PaymentHistoryBottomSheet from '../../components/bottomsheets/PaymentHist
 import { fetchUserBalance as fetchUserBalanceUtil, refreshBalance as refreshBalanceUtil } from '../../utils/payments/balance';
 import { handleChargeFlow } from '../../utils/payments/chargeFlow';
 import { deleteUserAccount } from '../../utils/user/deleteAccount';
-import { handleLogout as handleLogoutUtil } from '../../utils/user/authUtils';
+import { handleLogout as handleLogoutUtil, getCurrentUserSafely } from '../../utils/user/authUtils';
 import SabaLoader from '../../components/common/SabaLoader';
 
 interface MyInfoScreenProps {
@@ -47,13 +47,14 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
     
     // 화면 포커스 시 프로필 정보 및 잔액 갱신
     const unsubscribe = navigation.addListener('focus', async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await Promise.all([
-          fetchUserProfile(user.id),
-          fetchUserBalance(user.id),
-        ]);
+      const { status, user } = await getCurrentUserSafely();
+      if (status !== 'authenticated' || !user) {
+        return;
       }
+      await Promise.all([
+        fetchUserProfile(user.id),
+        fetchUserBalance(user.id),
+      ]);
     });
     
     return unsubscribe;
@@ -61,8 +62,8 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
 
   const fetchUserProfile = async (userId: string) => {
     // 프로필: 이름/생년월일/사주 정보
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const { status, user } = await getCurrentUserSafely();
+    if (status !== 'authenticated' || !user) return;
 
     // 생년월일 정보 (이름도 함께 조회)
     const { data: birthData } = await supabase

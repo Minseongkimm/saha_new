@@ -23,6 +23,7 @@ import { SajuCache } from '../../utils/saju/sajuCache';
 import { TodayFortuneCache } from '../../utils/today-fortune/todayFortuneCache';
 import { clearAllNewYearFortuneCache } from '../../utils/new-year-fortune/newYearFortuneCache';
 import { convertSajuResultToDbFormat } from '../../utils/saju/calculatedSajuUtils';
+import { getCurrentUserSafely } from '../../utils/user/authUtils';
 
 interface SajuInfoScreenProps {
   navigation: any;
@@ -77,8 +78,13 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
       setLoading(true);
       
       // 현재 로그인된 사용자 정보 가져오기
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
+      const { status, user } = await getCurrentUserSafely();
+      if (status === 'network_error') {
+        // 네트워크 이슈일 때는 유저에게 알림을 띄우지 않고 조용히 중단
+        setLoading(false);
+        return;
+      }
+      if (status === 'unauthenticated' || !user) {
         Alert.alert('오류', '로그인이 필요합니다.');
         navigation.goBack();
         return;

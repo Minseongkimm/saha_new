@@ -20,6 +20,7 @@ import { Expert } from '../../types/expert';
 import { getExpertImage } from '../../utils/expert/getExpertImage';
 import { useNavigation } from '@react-navigation/native';
 import { getChatListCache, setChatListCache, isChatListFresh, consumeChatListNeedsRefresh } from '../../utils/chat/chatListCache';
+import { getCurrentUserSafely } from '../../utils/user/authUtils';
 import { removeBoldMarkup } from '../../utils/text/removeBoldMarkup';
 import SabaLoader from '../../components/common/SabaLoader';
 
@@ -48,8 +49,13 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
 
   const fetchChatRooms = useCallback(async () => {
       try {
-        const { data: userData } = await supabase.auth.getUser();
-        const userId: string | undefined = userData.user?.id;
+        const { status, user } = await getCurrentUserSafely();
+        if (status === 'network_error') {
+          // 네트워크 이슈 시에는 리스트를 건드리지 않고 조용히 종료
+          setLoading(false);
+          return;
+        }
+        const userId: string | undefined = status === 'authenticated' && user ? user.id : undefined;
         if (!userId) {
           setChats([]);
           setLoading(false);

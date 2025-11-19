@@ -9,6 +9,7 @@ import newYearFortuneService, { NewYearFortuneData } from '../services/ai/newYea
 import { streamNewYearFortune } from '../services/ai/edgeFunctionClient';
 import { getCachedNewYearFortune, setCachedNewYearFortune, isCacheValid } from '../utils/new-year-fortune/newYearFortuneCache';
 import { useSajuData } from './useSajuData';
+import { getCurrentUserSafely } from '../utils/user/authUtils';
 
 interface UseNewYearFortuneResult {
   fortuneData: NewYearFortuneData | null;
@@ -53,8 +54,12 @@ export const useNewYearFortune = (targetYear?: number): UseNewYearFortuneResult 
       setLoading(true);
       setError(null);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { status, user } = await getCurrentUserSafely();
+      if (status === 'network_error') {
+        setError('네트워크 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.');
+        return;
+      }
+      if (status === 'unauthenticated' || !user) {
         setError('로그인이 필요합니다');
         return;
       }

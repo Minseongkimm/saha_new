@@ -1,5 +1,6 @@
 import { Alert } from 'react-native';
 import { supabase } from '../database/supabaseClient';
+import { getCurrentUserSafely } from './authUtils';
 
 /**
  * BirthInfo 존재 여부 확인. 없으면 BirthInfo 화면으로 이동.
@@ -9,8 +10,12 @@ export const ensureBirthInfoOrNavigate = async (
   navigation: any,
   redirectTo?: string
 ): Promise<boolean> => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { status, user } = await getCurrentUserSafely();
+  if (status === 'network_error') {
+    // 네트워크 문제일 때는 UX를 해치지 않기 위해 조용히 통과시킨다.
+    return true;
+  }
+  if (status === 'unauthenticated' || !user) {
     Alert.alert('오류', '로그인이 필요합니다.');
     return false;
   }

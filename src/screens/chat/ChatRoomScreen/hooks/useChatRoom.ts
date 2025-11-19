@@ -11,6 +11,7 @@ import { ChatMessage } from '../../../../types/chat';
 import { BirthInfo } from '../../../../services/ai';
 import { fetchUserBalance } from '../../../../utils/payments/balance';
 import { checkFreeMessageAvailable, FreeMessageStatus } from '../../../../utils/payments/freeMessage';
+import { getCurrentUserSafely } from '../../../../utils/user/authUtils';
 
 interface UseChatRoomProps {
   roomId: string;
@@ -185,8 +186,8 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
   // 사용자의 사주 정보 가져오기
   useEffect(() => {
     const fetchUserBirthInfo = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { status, user } = await getCurrentUserSafely();
+      if (status !== 'authenticated' || !user) return;
 
       const { data, error } = await supabase
         .from('birth_info')
@@ -224,8 +225,8 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
       return;
     }
     
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
+    const { status, user } = await getCurrentUserSafely();
+    if (status === 'authenticated' && user) {
       // 잔액과 무료 메시지 정보를 병렬로 조회하여 호출 최소화
       const [balance, freeInfo] = await Promise.all([
         fetchUserBalance(user.id),

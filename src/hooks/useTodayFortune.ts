@@ -7,6 +7,7 @@ import { useAnalysisData } from './useAnalysisData';
 import { TodayFortuneData } from '../types/streaming';
 import { useSajuData } from './useSajuData';
 import { todayFortuneCalculator, TodayFortuneResult } from '../utils/today-fortune/todayFortuneCalculator';
+import { getCurrentUserSafely } from '../utils/user/authUtils';
 
 /**
  * 오늘의 운세 데이터 및 스트리밍 관리 훅
@@ -52,8 +53,12 @@ export const useTodayFortune = () => {
     try {
       setFortuneLoading(true);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { status, user } = await getCurrentUserSafely();
+      if (status === 'network_error') {
+        setFortuneLoading(false);
+        return;
+      }
+      if (status === 'unauthenticated' || !user) {
         setFortuneLoading(false);
         return;
       }
@@ -220,8 +225,8 @@ export const useTodayFortune = () => {
       setStreamingJsonText('');
 
       // 4. 캐시 및 DB 저장
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { status, user } = await getCurrentUserSafely();
+      if (status !== 'authenticated' || !user) return;
 
       const { data: birthData } = await supabase
         .from('birth_info')

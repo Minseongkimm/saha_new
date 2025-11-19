@@ -2,6 +2,7 @@ import { supabase } from '../database/supabaseClient';
 import { markChatListNeedsRefresh } from './chatListCache';
 import { Alert } from 'react-native';
 import { ensureBirthInfoOrNavigate } from '../user/birthInfoGuard';
+import { getCurrentUserSafely } from '../user/authUtils';
 
 /**
  * 카테고리로 전문가 조회
@@ -43,8 +44,12 @@ export const startChatWithExpert = async (
   const ok = await ensureBirthInfoOrNavigate(navigation);
   if (!ok) return;
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { status, user } = await getCurrentUserSafely();
+  if (status === 'network_error') {
+    // 네트워크 문제일 때는 유저에게 알림을 띄우지 않고 조용히 종료
+    return;
+  }
+  if (status === 'unauthenticated' || !user) {
     Alert.alert('오류', '로그인이 필요합니다.');
     return;
   }

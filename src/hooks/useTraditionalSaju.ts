@@ -5,6 +5,7 @@ import { streamTraditionalSaju } from '../services/ai/edgeFunctionClient';
 import { useSajuData } from './useSajuData';
 import { useAnalysisData } from './useAnalysisData';
 import { TraditionalSajuData } from '../types/streaming';
+import { getCurrentUserSafely } from '../utils/user/authUtils';
 
 /**
  * 정통사주 데이터 및 스트리밍 관리 훅 (Edge Function 버전)
@@ -49,8 +50,9 @@ export const useTraditionalSaju = () => {
     try {
       setAnalysisLoading(true);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { status, user } = await getCurrentUserSafely();
+      if (status !== 'authenticated' || !user) {
+        // 네트워크/인증 문제일 때는 분석 로드만 건너뛰고 UI는 기존 데이터 유지
         setAnalysisLoading(false);
         return;
       }
@@ -140,8 +142,8 @@ export const useTraditionalSaju = () => {
       setAnalysisData(parsedAnalysis);
 
       // 저장
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+      const { status, user } = await getCurrentUserSafely();
+      if (status === 'authenticated' && user) {
         const { data: birthData } = await supabase
           .from('birth_info')
           .select('id')
