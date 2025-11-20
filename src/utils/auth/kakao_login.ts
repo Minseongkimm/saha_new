@@ -1,4 +1,4 @@
-import { login as kakaoLogin } from '@react-native-seoul/kakao-login';
+import { login as kakaoLogin, logout as kakaoLogout } from '@react-native-seoul/kakao-login';
 
 import { supabase } from '../database/supabaseClient';
 import { executePostLogin, LoginMetadata } from './login_finalizer';
@@ -91,6 +91,16 @@ export const performKakaoLogin = async (): Promise<void> => {
       KakaoLoginErrorCode.Unknown,
       'Kakao Sign In failed unexpectedly.',
     );
+  }
+};
+
+export const performKakaoLogout = async (): Promise<void> => {
+  try {
+    await kakaoLogout();
+  } catch (error) {
+    // Kakao 로그아웃 실패는 치명적이지 않으므로 에러를 무시
+    // (이미 로그아웃된 상태이거나 세션이 없는 경우 등)
+    console.warn('⚠️ === Kakao logout warning ===', error);
   }
 };
 

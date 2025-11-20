@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TodayFortuneCache } from '../today-fortune/todayFortuneCache';
 import { SajuCache } from '../saju/sajuCache';
 import type { User } from '@supabase/supabase-js';
+import { performKakaoLogout } from '../auth/kakao_login';
 
 /**
  * 로그아웃
@@ -29,6 +30,11 @@ export async function handleLogout(): Promise<void> {
 
     // 세션 종료
     await supabase.auth.signOut();
+    
+    // Kakao SDK 세션도 종료
+    // 이렇게 하지 않으면 다음 사용자가 로그인할 때 이전 계정 정보가 노출될 수 있음
+    await performKakaoLogout();
+    
     // navigation.replace 대신 세션 상태 변경을 기다림
     // App.tsx의 onAuthStateChange가 자동으로 Login 화면으로 전환
   } catch (error) {
