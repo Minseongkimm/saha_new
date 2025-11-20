@@ -433,7 +433,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
 
           {/* 실제 상담 사례 */}
           {expert.expert_details.consultation_cases && expert.expert_details.consultation_cases.length > 0 && (
-            <View style={styles.sectionContainer}>
+            <View style={[styles.sectionContainer, { borderBottomWidth: 0, marginBottom: -15, paddingBottom: 0 }]}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>이런 분들이 찾아오십니다</Text>
               </View>
@@ -448,8 +448,8 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
             </View>
           )}
 
-          {/* 5. 최근 리뷰 */}
-          {expert.expert_details.recent_reviews && expert.expert_details.recent_reviews.length > 0 && (
+          {/* 5. 최근 리뷰 - 주석처리: 허위 후기로 오해받을 수 있어 심사 위험 */}
+          {/* {expert.expert_details.recent_reviews && expert.expert_details.recent_reviews.length > 0 && (
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>최근 상담 후기</Text>
@@ -464,7 +464,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
                 </View>
               ))}
             </View>
-          )}
+          )} */}
 
         </View>
       </ScrollView>
