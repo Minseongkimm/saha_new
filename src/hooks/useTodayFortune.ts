@@ -8,6 +8,7 @@ import { TodayFortuneData } from '../types/streaming';
 import { useSajuData } from './useSajuData';
 import { todayFortuneCalculator, TodayFortuneResult } from '../utils/today-fortune/todayFortuneCalculator';
 import { getCurrentUserSafely } from '../utils/user/authUtils';
+import { getKoreanDateString } from '../utils/date/koreanDate';
 
 /**
  * 오늘의 운세 데이터 및 스트리밍 관리 훅
@@ -63,7 +64,7 @@ export const useTodayFortune = () => {
         return;
       }
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = getKoreanDateString();
 
       // 1. 캐시 확인
       const cachedFortune = await checkCache(
@@ -111,7 +112,7 @@ export const useTodayFortune = () => {
         return;
       }
 
-      const today = new Date().toISOString().split('T')[0];
+      const today = getKoreanDateString();
 
       // 1. 클라이언트에서 운세 계산 (점수만)
       const fiveProperties = calculatedSaju?.fiveProperties || {};

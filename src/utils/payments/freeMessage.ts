@@ -2,6 +2,7 @@
 // - checkFreeMessageAvailable: 오늘 무료 대화 사용 가능 여부 확인
 // - getFreeMessagePolicy: 무료 대화 정책 조회
 import { supabase } from '../database/supabaseClient';
+import { getKoreanDateString } from '../date/koreanDate';
 
 export interface FreeMessagePolicy {
   daily_free_count: number;
@@ -71,9 +72,8 @@ export async function checkFreeMessageAvailable(userId: string): Promise<FreeMes
       return { available: false, usedCount: 0, dailyLimit: 0 };
     }
     
-    // 오늘 사용한 무료 대화 수 조회 (UTC 기준으로 Edge function과 동일하게)
-    // Edge function과 동일한 방식으로 날짜 계산
-    const today = new Date().toISOString().split('T')[0];
+    // 오늘 사용한 무료 대화 수 조회 (한국 시간 기준)
+    const today = getKoreanDateString();
     const { data, error } = await supabase
       .from('free_messages')
       .select('id')

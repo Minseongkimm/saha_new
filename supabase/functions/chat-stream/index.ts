@@ -8,6 +8,7 @@ import { createErrorResponse, validateRequest, validateEnvVars, StreamingError }
 import { AI_CONFIG, getEnvVar, log } from '../_shared/config.ts';
 import { OpenAIMessage } from '../_shared/types.ts';
 import { formatTokenUsage } from '../_shared/token-calculator.ts';
+import { getKoreanDateString } from '../_shared/korean-date.ts';
 
 type SupabaseDatabaseClient = ReturnType<typeof createClient>;
 
@@ -677,8 +678,8 @@ async function checkAndChargeBalance(
     const dailyFreeCount = policy?.daily_free_count || 1;
     const freeMessageEnabled = policy?.enabled !== false;
     
-    // 2. 오늘 사용한 무료 대화 수 확인
-    const today = new Date().toISOString().split('T')[0];
+    // 2. 오늘 사용한 무료 대화 수 확인 (한국 시간 기준)
+    const today = getKoreanDateString();
     const { data: freeMessages } = await supabase
       .from('free_messages')
       .select('id')

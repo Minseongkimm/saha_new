@@ -1,13 +1,26 @@
 /**
  * 현재 시점 컨텍스트 (모든 도사 공통)
+ * 한국 시간 기준
  */
 
 export function getCurrentContext(): string {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth() + 1;
-  const day = today.getDate();
-  const dayOfWeek = ['일', '월', '화', '수', '목', '금', '토'][today.getDay()];
+  // 한국 시간 기준으로 날짜 계산
+  const now = new Date();
+  const koreanTime = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    weekday: 'long',
+  }).formatToParts(now);
+  
+  const year = parseInt(koreanTime.find(p => p.type === 'year')?.value || '0');
+  const month = parseInt(koreanTime.find(p => p.type === 'month')?.value || '0');
+  const day = parseInt(koreanTime.find(p => p.type === 'day')?.value || '0');
+  const weekday = koreanTime.find(p => p.type === 'weekday')?.value || '';
+  const dayOfWeek = ['일', '월', '화', '수', '목', '금', '토'][
+    ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].indexOf(weekday)
+  ] || '일';
   
   return `
 ### 현재 시점 정보 (반드시 활용)

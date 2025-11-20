@@ -5,6 +5,7 @@
 
 import { SajuUtils } from '../saju-calculator/utils/SajuUtils';
 import { FiveElement } from '../saju-calculator/types';
+import { getKoreanDateString } from '../date/koreanDate';
 import { isHyeong, isPa, isHae } from '../saju-calculator/constants/branch_relations';
 
 export interface UserSajuData {
@@ -117,10 +118,10 @@ export class TodayFortuneCalculator {
     try {
       const testDate = new Date(todayDate);
       if (isNaN(testDate.getTime()) || !todayDate || typeof todayDate !== 'string') {
-        validDate = new Date().toISOString().split('T')[0]; // 오늘 날짜로 fallback
+        validDate = getKoreanDateString(); // 한국 시간 기준 오늘 날짜로 fallback
       }
     } catch (error) {
-      validDate = new Date().toISOString().split('T')[0]; // 오늘 날짜로 fallback
+      validDate = getKoreanDateString(); // 한국 시간 기준 오늘 날짜로 fallback
     }
 
     const todayGanji = SajuUtils.getTodayGanji(validDate);
