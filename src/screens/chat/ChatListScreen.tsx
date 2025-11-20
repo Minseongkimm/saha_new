@@ -8,7 +8,6 @@ import {
   FlatList,
   Image,
   ImageSourcePropType,
-  Modal,
   Animated,
   Alert,
   Platform,
@@ -23,6 +22,7 @@ import { getChatListCache, setChatListCache, isChatListFresh, consumeChatListNee
 import { getCurrentUserSafely } from '../../utils/user/authUtils';
 import { removeBoldMarkup } from '../../utils/text/removeBoldMarkup';
 import SabaLoader from '../../components/common/SabaLoader';
+import ConfirmModal from '../../components/common/ConfirmModal';
 
 interface ChatListScreenProps {
   navigation: any;
@@ -408,22 +408,15 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
           }
         />
       )}
-      <Modal visible={deleteModalVisible} transparent animationType="fade" onRequestClose={() => setDeleteModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <Text style={styles.modalTitle}>대화 삭제</Text>
-            <Text style={styles.modalMessage}>{`${selectedCount}개의 대화를 삭제하시겠습니까?\n진행 시 영구적으로 삭제됩니다.`}</Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={[styles.modalButton, styles.modalCancelButton]} onPress={() => setDeleteModalVisible(false)}>
-                <Text style={styles.modalCancelText}>취소</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalButton, styles.modalDeleteButton]} onPress={executeDeleteSelected} disabled={selectedCount === 0}>
-                <Text style={styles.modalDeleteText}>삭제</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ConfirmModal
+        visible={deleteModalVisible}
+        onClose={() => setDeleteModalVisible(false)}
+        title="대화 삭제"
+        message={`${selectedCount}개의 대화를 삭제하시겠습니까?\n진행 시 영구적으로 삭제됩니다.`}
+        confirmText="삭제"
+        onConfirm={executeDeleteSelected}
+        confirmDisabled={selectedCount === 0}
+      />
     </SafeAreaView>
   );
 };
@@ -628,70 +621,6 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#999',
     fontSize: 14,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalContainer: {
-    width: '100%',
-    backgroundColor: 'white',
-    borderRadius: 14,
-    paddingVertical: 32,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    minHeight: 220,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#111',
-    marginBottom: 14,
-    textAlign: 'center',
-  },
-  modalMessage: {
-    fontSize: 14,
-    color: '#555',
-    lineHeight: 20,
-    marginBottom: 22,
-    textAlign: 'center',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    width: '100%',
-    marginTop: 12,
-  },
-  modalButton: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderRadius: 10,
-    marginHorizontal: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalCancelButton: {
-    backgroundColor: '#f1f3f5',
-  },
-  modalDeleteButton: {
-    backgroundColor: '#F85656FF',
-  },
-  modalCancelText: {
-    color: '#333',
-    fontSize: 16,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  modalDeleteText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '800',
-    textAlign: 'center',
   },
 });
 

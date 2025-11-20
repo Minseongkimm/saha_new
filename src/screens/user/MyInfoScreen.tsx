@@ -20,6 +20,7 @@ import {
 } from '../../constants/fiveElements';
 import ChargeBottomSheet from '../../components/bottomsheets/ChargeBottomSheet';
 import PaymentHistoryBottomSheet from '../../components/bottomsheets/PaymentHistoryBottomSheet';
+import ConfirmModal from '../../components/common/ConfirmModal';
 import { fetchUserBalance as fetchUserBalanceUtil, refreshBalance as refreshBalanceUtil } from '../../utils/payments/balance';
 import { handleChargeFlow } from '../../utils/payments/chargeFlow';
 import { deleteUserAccount } from '../../utils/user/deleteAccount';
@@ -39,6 +40,9 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
   const [showChargeModal, setShowChargeModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [deleteAccountModalVisible, setDeleteAccountModalVisible] = useState(false);
+  const [deleteAccountConfirmVisible, setDeleteAccountConfirmVisible] = useState(false);
 
 
   // 사용자 정보 로드
@@ -177,82 +181,48 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      '로그아웃',
-      '정말 로그아웃 하시겠습니까?',
-      [
-        {
-          text: '취소',
-          style: 'cancel',
-        },
-        {
-          text: '로그아웃',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await handleLogoutUtil();
-            } catch (error) {
-              Alert.alert('오류', '로그아웃에 실패했습니다.');
-            }
-          },
-        },
-      ]
-    );
+    setLogoutModalVisible(true);
+  };
+
+  const executeLogout = async () => {
+    setLogoutModalVisible(false);
+    try {
+      await handleLogoutUtil();
+    } catch (error) {
+      Alert.alert('오류', '로그아웃에 실패했습니다.');
+    }
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert(
-      '계정 탈퇴',
-      '나를 알아가기 위한 여정이 끝나신 건가요?\n다 아셨다면 저희는 그 결정을 존중합니다.',
-      [
-        {
-          text: '더 이용하기',
-          style: 'cancel',
-        },
-        {
-          text: '탈퇴하기',
-          style: 'destructive',
-          onPress: () => {
-            // 2단계: 최종 확인
-            Alert.alert(
-              '정말 탈퇴하시겠습니까?',
-              '탈퇴 시 구매내역, 사용내역, 잔액 정보를 제외한 모든 데이터는 삭제되며 복구는 불가능합니다.',
-              [
-                {
-                  text: '취소',
-                  style: 'cancel',
-                },
-                {
-                  text: '탈퇴하기',
-                  style: 'destructive',
-                  onPress: async () => {
-                    try {
-                      const result = await deleteUserAccount();
-                      const retainedLabelMap: Record<string, string> = {
-                        payments: '구매내역',
-                        usages: '사용내역',
-                        user_balances: '잔액 정보',
-                      };
-                      const retainedLabels = result.retainedTables
-                        .map((table) => retainedLabelMap[table] || table)
-                        .join(', ');
-                      const successMessage = retainedLabels.length > 0
-                        ? `${result.message}\n보관 항목: ${retainedLabels}`
-                        : result.message;
-                      Alert.alert('안내', successMessage);
-                      await handleLogoutUtil();
-                    } catch (error) {
-                      console.error('계정 탈퇴 오류:', error);
-                      Alert.alert('오류', '계정 탈퇴에 실패했습니다.');
-                    }
-                  },
-                },
-              ]
-            );
-          },
-        },
-      ]
-    );
+    setDeleteAccountModalVisible(true);
+  };
+
+  const proceedToDeleteConfirm = () => {
+    setDeleteAccountModalVisible(false);
+    setDeleteAccountConfirmVisible(true);
+  };
+
+  const executeDeleteAccount = async () => {
+    setDeleteAccountConfirmVisible(false);
+    try {
+      const result = await deleteUserAccount();
+      const retainedLabelMap: Record<string, string> = {
+        payments: '구매내역',
+        usages: '사용내역',
+        user_balances: '잔액 정보',
+      };
+      const retainedLabels = result.retainedTables
+        .map((table) => retainedLabelMap[table] || table)
+        .join(', ');
+      const successMessage = retainedLabels.length > 0
+        ? `${result.message}\n보관 항목: ${retainedLabels}`
+        : result.message;
+      Alert.alert('안내', successMessage);
+      await handleLogoutUtil();
+    } catch (error) {
+      console.error('계정 탈퇴 오류:', error);
+      Alert.alert('오류', '계정 탈퇴에 실패했습니다.');
+    }
   };
 
   if (loading) {
@@ -399,6 +369,37 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
         visible={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
       />
+
+      {/* 로그아웃 확인 모달 */}
+      <ConfirmModal
+        visible={logoutModalVisible}
+        onClose={() => setLogoutModalVisible(false)}
+        title="로그아웃"
+        message="정말 로그아웃 하시겠습니까?"
+        confirmText="확인"
+        onConfirm={executeLogout}
+      />
+
+      {/* 계정 탈퇴 1단계 모달 */}
+      <ConfirmModal
+        visible={deleteAccountModalVisible}
+        onClose={() => setDeleteAccountModalVisible(false)}
+        title="계정 탈퇴"
+        message={`나를 알아가기 위한 여정이 끝나신 건가요? \n 그렇다면 저희는 그 결정을 존중합니다.`}
+        cancelText="더 이용하기"
+        confirmText="탈퇴하기"
+        onConfirm={proceedToDeleteConfirm}
+      />
+
+      {/* 계정 탈퇴 2단계 최종 확인 모달 */}
+      <ConfirmModal
+        visible={deleteAccountConfirmVisible}
+        onClose={() => setDeleteAccountConfirmVisible(false)}
+        title="정말 탈퇴하시겠습니까?"
+        message="탈퇴 시 구매내역, 사용내역, 잔액 정보를 제외한 모든 데이터는 삭제되며 복구는 불가능합니다."
+        confirmText="탈퇴하기"
+        onConfirm={executeDeleteAccount}
+      />
     </SafeAreaView>
   );
 };
@@ -507,6 +508,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     marginBottom: 0,
     paddingHorizontal: 20,
+    paddingBottom: 8,
   },
   sectionTitle: {
     fontSize: 18,
@@ -546,10 +548,12 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   developerInfo: {
-    marginTop: 10,
+    marginTop: 0,
     alignItems: 'flex-start',
     paddingVertical: 15,
     paddingHorizontal: 20,
+    paddingTop: 15,
+    paddingBottom: 20,
     backgroundColor: 'white',
   },
   legalRow: {
