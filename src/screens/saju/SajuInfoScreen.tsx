@@ -24,6 +24,7 @@ import { TodayFortuneCache } from '../../utils/today-fortune/todayFortuneCache';
 import { clearAllNewYearFortuneCache } from '../../utils/new-year-fortune/newYearFortuneCache';
 import { convertSajuResultToDbFormat } from '../../utils/saju/calculatedSajuUtils';
 import { getCurrentUserSafely } from '../../utils/user/authUtils';
+import { safeGoBack } from '../../utils/navigation/safeGoBack';
 
 interface SajuInfoScreenProps {
   navigation: any;
@@ -86,7 +87,7 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
       }
       if (status === 'unauthenticated' || !user) {
         Alert.alert('오류', '로그인이 필요합니다.');
-        navigation.goBack();
+        safeGoBack(navigation);
         return;
       }
 
@@ -428,7 +429,7 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={[styles.header, { paddingTop: statusBarHeight }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => safeGoBack(navigation)} style={styles.backButton}>
             <Icon name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>사주 정보 관리</Text>
@@ -445,7 +446,7 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={[styles.header, { paddingTop: statusBarHeight }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => safeGoBack(navigation)} style={styles.backButton}>
             <Icon name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>정보 관리</Text>

@@ -25,6 +25,7 @@ import FollowUpQuestions from './components/FollowUpQuestions';
 import InsufficientBalanceBottomSheet from '../../../components/bottomsheets/InsufficientBalanceBottomSheet';
 import ChargeBottomSheet from '../../../components/bottomsheets/ChargeBottomSheet';
 import { handleChargeFlow } from '../../../utils/payments/chargeFlow';
+import { safeGoBack } from '../../../utils/navigation/safeGoBack';
 
 interface ChatRoomScreenProps {
   navigation: any;
@@ -142,7 +143,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     <SafeAreaView style={styles.container}>
       <View style={[styles.header, { paddingTop: statusBarHeight, minHeight: statusBarHeight + headerContentHeight }]}>
         <View style={[styles.leftHeader, { width: leftWidth }]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+          <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack(navigation)}>
             <Icon name="arrow-back" size={19} color="#000000" />
           </TouchableOpacity>
         </View>

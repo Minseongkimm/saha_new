@@ -13,6 +13,7 @@ import { Colors } from '../../constants/colors';
 import SabaLoader from '../../components/common/SabaLoader';
 import CustomHeader from '../../components/common/CustomHeader';
 import PartnerInputForm from '../../components/forms/PartnerInputForm';
+import { safeGoBack } from '../../utils/navigation/safeGoBack';
 import { PartnerBirthInfo } from '../../types/partner';
 import { startChatWithExpert } from '../../utils/chat/chatUtils';
 import { RootStackParamList } from '../../types/navigation';
@@ -131,7 +132,7 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
     <SafeAreaView style={styles.container}>
       <CustomHeader
         title="상대방 정보 입력"
-        onBackPress={() => navigation.goBack()}
+        onBackPress={() => safeGoBack(navigation)}
       />
       
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>

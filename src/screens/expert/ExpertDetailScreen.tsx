@@ -12,6 +12,7 @@ import {
 import { Colors } from '../../constants/colors';
 import CustomHeader from '../../components/common/CustomHeader';
 import ChatStartBottomSheet from '../../components/bottomsheets/ChatStartBottomSheet';
+import { safeGoBack } from '../../utils/navigation/safeGoBack';
 import BottomFixedButton from '../../components/common/BottomFixedButton';
 import { supabase } from '../../utils/database/supabaseClient';
 import { Expert } from '../../types/expert';
@@ -359,7 +360,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
       {/* 커스텀 헤더 */}
       <CustomHeader
         title="전문가 상세"
-        onBackPress={() => navigation.goBack()}
+        onBackPress={() => safeGoBack(navigation)}
       />
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>

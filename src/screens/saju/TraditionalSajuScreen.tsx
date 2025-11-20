@@ -12,6 +12,7 @@ import SectionHeader from '../../components/common/SectionHeader';
 import CustomHeader from '../../components/common/CustomHeader';
 import SajuChart from '../../components/saju/SajuChart';
 import SajuAnalysis from '../../components/saju/SajuAnalysis';
+import { safeGoBack } from '../../utils/navigation/safeGoBack';
 import ChatStartBottomSheet from '../../components/bottomsheets/ChatStartBottomSheet';
 import AIGuideSection from '../../components/common/AIGuideSection';
 import BottomFixedButton from '../../components/common/BottomFixedButton';
@@ -85,7 +86,7 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
       <View style={styles.container}>
         <CustomHeader 
           title="정통사주"
-          onBackPress={() => navigation.goBack()}
+          onBackPress={() => safeGoBack(navigation)}
         />
         <View style={styles.centerContainer}>
           {/* 캐시 확인 중에는 빈 화면 (깜빡임 방지) */}
@@ -115,7 +116,7 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
       <View style={styles.container}>
         <CustomHeader 
           title="정통사주"
-          onBackPress={() => navigation.goBack()}
+          onBackPress={() => safeGoBack(navigation)}
         />
         <View style={styles.centerContainer}>
               <Text style={styles.noDataTitle}>사주 정보가 없습니다</Text>
@@ -211,7 +212,7 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
             Alert.alert('오류', '전문가를 찾을 수 없습니다.');
           }
         }}
-        text="AI 도사와 이야기 나누기"
+        text="정통사주 깊게 이야기 하기"
       />
       
       {/* 채팅 시작 바텀 시트 */}

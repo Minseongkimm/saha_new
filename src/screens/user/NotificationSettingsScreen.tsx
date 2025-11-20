@@ -16,6 +16,7 @@ import { supabase } from '../../utils/database/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import SabaLoader from '../../components/common/SabaLoader';
+import { safeGoBack } from '../../utils/navigation/safeGoBack';
 
 interface NotificationSettingsScreenProps {
   navigation: any;
@@ -44,7 +45,7 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
       // 사용자 ID 가져오기
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
-        navigation.goBack();
+        safeGoBack(navigation);
         return;
       }
       setUserId(user.id);
@@ -102,7 +103,7 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
     return (
       <SafeAreaView style={styles.container}>
         <View style={[styles.header, { paddingTop: statusBarHeight }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => safeGoBack(navigation)} style={styles.backButton}>
             <Icon name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>알림 설정</Text>
@@ -119,7 +120,7 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={[styles.header, { paddingTop: statusBarHeight }]}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <TouchableOpacity onPress={() => safeGoBack(navigation)} style={styles.backButton}>
             <Icon name="arrow-back" size={24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>알림 설정</Text>

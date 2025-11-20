@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
 import CustomHeader from '../../components/common/CustomHeader';
+import { safeGoBack } from '../../utils/navigation/safeGoBack';
 
 interface TermsScreenProps {
   navigation: any;
@@ -286,7 +287,7 @@ const TermsScreen: React.FC<TermsScreenProps> = ({ navigation, route }) => {
     <SafeAreaView style={styles.container}>
       <CustomHeader 
         title={getTitle()}
-        onBackPress={() => navigation.goBack()}
+        onBackPress={() => safeGoBack(navigation)}
       />
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
         <Text style={styles.content}>{getContent()}</Text>

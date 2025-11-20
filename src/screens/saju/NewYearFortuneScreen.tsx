@@ -13,6 +13,7 @@ import SectionHeader from '../../components/common/SectionHeader';
 import CustomHeader from '../../components/common/CustomHeader';
 import ChatStartBottomSheet from '../../components/bottomsheets/ChatStartBottomSheet';
 import AIGuideSection from '../../components/common/AIGuideSection';
+import { safeGoBack } from '../../utils/navigation/safeGoBack';
 import BottomFixedButton from '../../components/common/BottomFixedButton';
 import SimpleYearInteraction from '../../components/saju/SimpleYearInteraction';
 import { startChatWithExpert, getExpertByCategory } from '../../utils/chat/chatUtils';
@@ -155,7 +156,7 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
       <View style={styles.container}>
         <CustomHeader 
           title="신년운세"
-          onBackPress={() => navigation.goBack()}
+          onBackPress={() => safeGoBack(navigation)}
         />
         <View style={styles.loadingContainer}>
           <SabaLoader message={loadingMessage} />
@@ -170,7 +171,7 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
       <View style={styles.container}>
         <CustomHeader 
           title="신년운세"
-          onBackPress={() => navigation.goBack()}
+          onBackPress={() => safeGoBack(navigation)}
         />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
@@ -188,7 +189,7 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
       <View style={styles.container}>
         <CustomHeader 
           title="신년운세"
-          onBackPress={() => navigation.goBack()}
+          onBackPress={() => safeGoBack(navigation)}
         />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>신년운세 데이터를 불러올 수 없습니다.</Text>

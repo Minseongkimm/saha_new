@@ -10,6 +10,7 @@ import {
 import { Colors } from '../../constants/colors';
 import CustomHeader from '../../components/common/CustomHeader';
 import { renderHighlight } from '../../utils/text/textFormatUtils';
+import { safeGoBack } from '../../utils/navigation/safeGoBack';
 
 interface BannerDetailScreenProps {
   navigation: any;
@@ -17,7 +18,7 @@ interface BannerDetailScreenProps {
 
 const BannerDetailScreen: React.FC<BannerDetailScreenProps> = ({ navigation }) => {
   const handleClose = () => {
-    navigation.goBack();
+    safeGoBack(navigation);
   };
 
   const handleStart = () => {
@@ -76,10 +77,10 @@ const BannerDetailScreen: React.FC<BannerDetailScreenProps> = ({ navigation }) =
             
             <View style={styles.processItem}>
               <Text style={styles.processText}>
-                기존의 오프라인 상담은 비싸고 묻기 어렵고 시간에 묶여 있었어요.
+                기존의 오프라인 상담은 비싸고 시간에 묶여 있었어요.
               </Text>
               <Text style={styles.processText}>
-                평균 5~7개 질문으로 끝나던 대화, 편하게 물어볼 수 없는 분위기
+                5~7개 질문으로 끝나던 대화, 편하게 물어볼 수 없는 분위기
               </Text>
               <Text style={styles.processText}>
                  이제는 다릅니다. 사바에게는 시간, 질문 개수 제한이 없습니다.
@@ -107,7 +108,7 @@ const BannerDetailScreen: React.FC<BannerDetailScreenProps> = ({ navigation }) =
             <Text style={styles.sectionTitle}>사바 활용법</Text>
               <View style={styles.processItem}>
                 <Text style={styles.processText}>
-                  1. 연애 일 인생 중 {renderHighlight('궁금한 주제의 도사를 선택')}하세요.
+                  1. 연애 일 인생 등 {renderHighlight('궁금한 주제의 도사를 선택')}하세요.
                 </Text>
                 <Text style={styles.processText}>
                   2. {renderHighlight('나를 알아가는 과정')}에서 궁금한 부분을 디테일하게 물어보세요.

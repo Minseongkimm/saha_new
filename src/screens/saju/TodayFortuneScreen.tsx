@@ -11,9 +11,11 @@ import { Colors } from '../../constants/colors';
 import CustomHeader from '../../components/common/CustomHeader';
 import ChatStartBottomSheet from '../../components/bottomsheets/ChatStartBottomSheet';
 import AIGuideSection from '../../components/common/AIGuideSection';
+import { safeGoBack } from '../../utils/navigation/safeGoBack';
 import BottomFixedButton from '../../components/common/BottomFixedButton';
 import { startChatWithExpert, getExpertByCategory } from '../../utils/chat/chatUtils';
 import { useTodayFortune } from '../../hooks/useTodayFortune';
+import { getKoreanDateString } from '../../utils/date/koreanDate';
 import { formatBoldText, removeBoldMarks } from '../../utils/text/textFormatUtils';
 import {
   getScoreColor,
@@ -102,12 +104,14 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
         }
       },
       generatedAt: new Date().toISOString(),
-      date: new Date().toISOString().split('T')[0],
+      date: getKoreanDateString(),
       llmModel: 'gpt-4o'
     };
   }, [isStreaming, streamingJsonText, calculatedResult, fortuneData]);
 
+  // 한국 시간 기준으로 날짜 표시
   const todayDate = new Date().toLocaleDateString('ko-KR', {
+    timeZone: 'Asia/Seoul',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -317,7 +321,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
       <View style={styles.container}>
         <CustomHeader 
           title="오늘의 운세"
-          onBackPress={() => navigation.goBack()}
+          onBackPress={() => safeGoBack(navigation)}
         />
         <View style={styles.centerContainer}>
           {/* 캐시 확인 중에는 빈 화면 (깜빡임 방지) */}
@@ -332,7 +336,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
       <View style={styles.container}>
         <CustomHeader 
           title="오늘의 운세"
-          onBackPress={() => navigation.goBack()}
+          onBackPress={() => safeGoBack(navigation)}
         />
         <View style={styles.centerContainer}>
           <SabaLoader message="사주 정보를 불러오는 중" />
@@ -347,7 +351,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
       <View style={styles.container}>
         <CustomHeader 
           title="오늘의 운세"
-          onBackPress={() => navigation.goBack()}
+          onBackPress={() => safeGoBack(navigation)}
         />
         <View style={styles.centerContainer}>
           <Text style={styles.noDataTitle}>사주 정보가 없습니다</Text>

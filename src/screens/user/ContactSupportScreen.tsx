@@ -4,8 +4,9 @@ import { StackScreenProps } from '@react-navigation/stack';
 import { RootStackParamList } from '../../types/navigation';
 import { Colors } from '../../constants/colors';
 import CustomHeader from '../../components/common/CustomHeader';
+import { safeGoBack } from '../../utils/navigation/safeGoBack';
 
-const SUPPORT_EMAIL: string = 'support@saha.app';
+const SUPPORT_EMAIL: string = 'saha994959@gmail.com';
 const EMAIL_SUBJECT: string = '사바 고객 문의';
 const EMAIL_BODY_TEMPLATE: string = '안녕하세요 사바관련 문의 드립니다.\n\n문의 유형: \n\n상세 내용: \n\n발생 일시: \n\n첨부 자료: \n\n이메일 (간편 로그인과 다른 주소일 때만): \n\n앱 버전: 1.0.0\n';
 
@@ -13,7 +14,7 @@ type ContactSupportScreenProps = StackScreenProps<RootStackParamList, 'ContactSu
 
 const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation }) => {
   const handlePressBack = () => {
-    navigation.goBack();
+    safeGoBack(navigation);
   };
   const handlePressEmail = async () => {
     const encodedBody: string = encodeURIComponent(EMAIL_BODY_TEMPLATE);
