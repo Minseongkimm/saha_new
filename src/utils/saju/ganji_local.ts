@@ -1,6 +1,7 @@
 import { lunarToSolar } from "./manseryeok_local";
 import { SajuCalculator } from "../saju-calculator/core/SajuCalculator";
 import { SajuInfo } from "../saju-calculator/types";
+import { getLichunKstMidnightUtcMs } from "./solar_terms";
 
 
 export interface SajuInput {
@@ -144,26 +145,35 @@ const SOLAR_TERM_DAY = {
   12: 7, // 대설(12/7경)
 } as const;
 
-const isReachSpring = (d: Date): boolean => {
-  // 입춘(2/4) 도달 여부
-  if (d.getMonth() + 1 > 2) return true;
-  if (d.getMonth() + 1 < 2) return false;
-  return d.getDate() >= SOLAR_TERM_DAY[2];
-};
-
 const isReachMonth = (d: Date): boolean => {
   const m = d.getMonth() + 1 as keyof typeof SOLAR_TERM_DAY;
   const startDay = SOLAR_TERM_DAY[m];
   return d.getDate() >= startDay;
 };
 
+// 절기(입춘·경칩 등) 기준으로 월 인덱스를 계산
+// - 반환값: 0~11 (양력 1월(자월)~12월(해월)을 절기 기준으로 보정한 월 인덱스)
+const getSolarTermsMonthIndex = (d: Date): number => {
+  let monthIndex = d.getMonth(); // 0-11 (양력 월)
+  if (!isReachMonth(d)) {
+    monthIndex -= 1;
+  }
+  if (monthIndex < 0) {
+    monthIndex = 11;
+  }
+  return monthIndex;
+};
+
 const calcYearGanji = (dt: Date): string => {
   const sibganForYear = ['庚', '辛', '壬', '癸', '甲', '乙', '丙', '丁', '戊', '己'];
   const sibijiForYear = ['申', '酉', '戌', '亥', '子', '丑', '寅', '卯', '辰', '巳', '午', '未'];
-  let year = dt.getFullYear();
-  if (!isReachSpring(dt)) year -= 1;
-  const stem = sibganForYear[year % 10];
-  const branch = sibijiForYear[year % 12];
+  const year = dt.getFullYear();
+  const targetUtcMs =
+    Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate()) - 9 * 60 * 60 * 1000;
+  const ipchunUtcMs = getLichunKstMidnightUtcMs(year);
+  const adjustedYear = targetUtcMs < ipchunUtcMs ? year - 1 : year;
+  const stem = sibganForYear[adjustedYear % 10];
+  const branch = sibijiForYear[adjustedYear % 12];
   return `${stem}${branch}`;
 };
 
@@ -180,9 +190,7 @@ const calcMonthGanji = (dt: Date, yearGanji: string): string => {
       ? '壬寅 癸卯 甲辰 乙巳 丙午 丁未 戊申 己酉 庚戌 辛亥 壬子 癸丑'
       : '甲寅 乙卯 丙辰 丁巳 戊午 己未 庚申 辛酉 壬戌 癸亥 甲子 乙丑';
 
-  let monthIndex = dt.getMonth(); // 0-11
-  if (!isReachMonth(dt)) monthIndex -= 1;
-  if (monthIndex < 0) monthIndex = 11;
+  let monthIndex = getSolarTermsMonthIndex(dt); // 절기 기준 월 인덱스
   monthIndex -= 1; // 구현 원본 로직 반영
   if (monthIndex < 0) monthIndex = 11;
   return monthGanjiList.split(' ')[monthIndex];

@@ -1,4 +1,5 @@
 import { FiveElement, YinYang } from '../types';
+import { getLichunKstMidnightUtcMs, getMonthBranchIndexBySolarTerms } from '../../saju/solar_terms';
 
 export class SajuUtils {
   static readonly SIBGAN_HANGUL = ['갑', '을', '병', '정', '무', '기', '경', '신', '임', '계'];
@@ -155,10 +156,12 @@ export class SajuUtils {
    * @return 한글
    */
   static getHanjaToHangulChar(hanja: string): string {
-    const hanjaSibganIndex = this.SIBIJI_HANJA.indexOf(hanja);
-    if (hanjaSibganIndex !== -1) return this.SIBIJI_HANGUL[hanjaSibganIndex];
-    const hanjaSibijiIndex = this.SIBGAN_HANJA.indexOf(hanja);
-    if (hanjaSibijiIndex !== -1) return this.SIBGAN_HANGUL[hanjaSibijiIndex];
+    // 천간 → 천간 한글
+    const ganIndex = this.SIBGAN_HANJA.indexOf(hanja);
+    if (ganIndex !== -1) return this.SIBGAN_HANGUL[ganIndex];
+    // 지지 → 지지 한글
+    const jiIndex = this.SIBIJI_HANJA.indexOf(hanja);
+    if (jiIndex !== -1) return this.SIBIJI_HANGUL[jiIndex];
     return ' ';
   }
 
@@ -181,10 +184,12 @@ export class SajuUtils {
    * @return 한자
    */
   static getHangulToHanjaChar(hangul: string): string {
-    const hangulSibganIndex = this.SIBIJI_HANGUL.indexOf(hangul);
-    if (hangulSibganIndex !== -1) return this.SIBIJI_HANJA[hangulSibganIndex];
-    const hangulSibijiIndex = this.SIBGAN_HANGUL.indexOf(hangul);
-    if (hangulSibijiIndex !== -1) return this.SIBGAN_HANJA[hangulSibijiIndex];
+    // 천간 → 천간 한자
+    const ganIndex = this.SIBGAN_HANGUL.indexOf(hangul);
+    if (ganIndex !== -1) return this.SIBGAN_HANJA[ganIndex];
+    // 지지 → 지지 한자
+    const jiIndex = this.SIBIJI_HANGUL.indexOf(hangul);
+    if (jiIndex !== -1) return this.SIBIJI_HANJA[jiIndex];
     return ' ';
   }
 
@@ -240,17 +245,17 @@ export class SajuUtils {
    */
   static getAllGanji(): string[] {
     const ganjiList: string[] = [];
-    this.SIBGAN_HANJA.forEach(gan => {
-      this.SIBIJI_HANJA.forEach(ji => {
-        ganjiList.push(gan + ji);
-      });
-    });
+    for (let i = 0; i < 60; i += 1) {
+      const gan = this.SIBGAN_HANJA[i % 10];
+      const ji = this.SIBIJI_HANJA[i % 12];
+      ganjiList.push(gan + ji);
+    }
     return ganjiList;
   }
 
   /**
    * 오늘 날짜를 간지로 변환
-   * @param date 날짜 (YYYY-MM-DD 형식)
+   * @param date 날짜 (YYYY-MM-DD 형식, 한국 시간 기준으로 전달되는 문자열)
    * @return 오늘의 간지 정보
    */
   static getTodayGanji(date: string): {
@@ -263,23 +268,27 @@ export class SajuUtils {
     dayHangul: string;
     timeHangul: string;
   } {
+    /**
+     * YYYY-MM-DD 형태 문자열은 JS에서 UTC 00:00으로 해석된다.
+     * - 연/월/일은 getUTC계열로 읽으면 의도한 날짜와 일치
+     * - 시간(시주)은 한국 사용자를 기준으로 KST(UTC+9) 기준으로 계산해야 하므로,
+     *   UTC 기준 시각을 KST로 보정해서 calcTimeGanji에 전달한다.
+     */
     const targetDate = new Date(date);
-    const year = targetDate.getFullYear();
-    const month = targetDate.getMonth() + 1;
-    const day = targetDate.getDate();
-    const hour = targetDate.getHours();
+    const year = targetDate.getUTCFullYear();
+    const month = targetDate.getUTCMonth() + 1;
+    const day = targetDate.getUTCDate();
+    const hourUTC = targetDate.getUTCHours();
+    const hourKST = (hourUTC + 9) % 24;
 
-    // 년주 계산
-    const yearGanji = this.calcYearGanji(year);
-    
-    // 월주 계산
-    const monthGanji = this.calcMonthGanji(year, month, yearGanji);
-    
-    // 일주 계산
+    // 년주 계산 (입춘 보정 포함)
+    const yearGanji = this.calcYearGanji(year, month, day);
+    // 월주 계산 (절입/입춘 보정 및 전통 공식 기반)
+    const monthGanji = this.calcMonthGanji(year, month, day, yearGanji);
+    // 일주 계산 (1984-02-04 甲子일 기준 60갑자 순환)
     const dayGanji = this.calcDayGanji(year, month, day);
-    
-    // 시주 계산
-    const timeGanji = this.calcTimeGanji(dayGanji, hour);
+    // 시주 계산 (KST 기준 시각 사용)
+    const timeGanji = this.calcTimeGanji(dayGanji, hourKST);
 
     return {
       yearGanji,
@@ -289,87 +298,90 @@ export class SajuUtils {
       yearHangul: this.getHanjaToHangulString(yearGanji),
       monthHangul: this.getHanjaToHangulString(monthGanji),
       dayHangul: this.getHanjaToHangulString(dayGanji),
-      timeHangul: this.getHanjaToHangulString(timeGanji)
+      timeHangul: this.getHanjaToHangulString(timeGanji),
     };
+  }
+
+  /**
+   * 주어진 양력 날짜(YYYY, MM, DD)의 "KST 00:00" 시각을 UTC 기준 ms로 반환한다.
+   * - Date.UTC(year, month-1, day)는 해당 날짜의 00:00 UTC
+   * - 같은 날짜의 00:00 KST는 UTC 기준으로 전날 15:00이므로 9시간을 빼준다.
+   */
+  private static kstMidnightUtcMs(year: number, month: number, day: number): number {
+    return Date.UTC(year, month - 1, day) - 9 * 60 * 60 * 1000;
   }
 
   /**
    * 년주 계산
    * @param year 년도
+   * @param month 월
+   * @param day 일
    * @return 년주 간지
    */
-  private static calcYearGanji(year: number): string {
-    const sibganForYear = ['庚', '辛', '壬', '癸', '甲', '乙', '丙', '丁', '戊', '己'];
-    const sibijiForYear = ['申', '酉', '戌', '亥', '子', '丑', '寅', '卯', '辰', '巳', '午', '未'];
-    
-    // 입춘 기준으로 년도 조정 (간단화: 2월 4일 기준)
+  private static calcYearGanji(year: number, month: number, day: number): string {
+    // 입춘 보정: lunar-javascript 기반 실제 입춘 시각(KST 00:00 기준)으로 연도 전환
+    const targetUTCms = this.kstMidnightUtcMs(year, month, day);
+    const ipchunUTCms = getLichunKstMidnightUtcMs(year);
+
     let targetYear = year;
-    const currentDate = new Date(year, 1, 4); // 2월 4일
-    const today = new Date();
-    if (today < currentDate) {
-      targetYear--;
+    if (targetUTCms < ipchunUTCms) {
+      targetYear = year - 1;
     }
-    
-    const sibgan = sibganForYear[targetYear % 10];
-    const sibiji = sibijiForYear[targetYear % 12];
-    return sibgan + sibiji;
+
+    // 표준 공식: (year - 4)를 기준으로 간지 인덱스 계산
+    const yearOffset = targetYear - 4;
+    const ganIndex = ((yearOffset % 10) + 10) % 10; // 0..9
+    const jiIndex = ((yearOffset % 12) + 12) % 12;  // 0..11
+
+    return this.SIBGAN_HANJA[ganIndex] + this.SIBIJI_HANJA[jiIndex];
   }
 
   /**
    * 월주 계산
    * @param year 년도
    * @param month 월
+   * @param day 일
    * @param yearGanji 년주 간지
    * @return 월주 간지
    */
-  private static calcMonthGanji(year: number, month: number, yearGanji: string): string {
-    const monthGanjiMap: { [key: string]: string[] } = {
-      '甲': ['丙寅', '丁卯', '戊辰', '己巳', '庚午', '辛未', '壬申', '癸酉', '甲戌', '乙亥', '丙子', '丁丑'],
-      '己': ['丙寅', '丁卯', '戊辰', '己巳', '庚午', '辛未', '壬申', '癸酉', '甲戌', '乙亥', '丙子', '丁丑'],
-      '乙': ['戊寅', '己卯', '庚辰', '辛巳', '壬午', '癸未', '甲申', '乙酉', '丙戌', '丁亥', '戊子', '己丑'],
-      '庚': ['戊寅', '己卯', '庚辰', '辛巳', '壬午', '癸未', '甲申', '乙酉', '丙戌', '丁亥', '戊子', '己丑'],
-      '丙': ['庚寅', '辛卯', '壬辰', '癸巳', '甲午', '乙未', '丙申', '丁酉', '戊戌', '己亥', '庚子', '辛丑'],
-      '辛': ['庚寅', '辛卯', '壬辰', '癸巳', '甲午', '乙未', '丙申', '丁酉', '戊戌', '己亥', '庚子', '辛丑'],
-      '丁': ['壬寅', '癸卯', '甲辰', '乙巳', '丙午', '丁未', '戊申', '己酉', '庚戌', '辛亥', '壬子', '癸丑'],
-      '壬': ['壬寅', '癸卯', '甲辰', '乙巳', '丙午', '丁未', '戊申', '己酉', '庚戌', '辛亥', '壬子', '癸丑'],
-      '戊': ['甲寅', '乙卯', '丙辰', '丁巳', '戊午', '己未', '庚申', '辛酉', '壬戌', '癸亥', '甲子', '乙丑'],
-      '癸': ['甲寅', '乙卯', '丙辰', '丁巳', '戊午', '己未', '庚申', '辛酉', '壬戌', '癸亥', '甲子', '乙丑']
-    };
-
+  private static calcMonthGanji(year: number, month: number, day: number, yearGanji: string): string {
     const yearGan = yearGanji[0];
-    const monthGanjiList = monthGanjiMap[yearGan] || monthGanjiMap['甲'];
-    
-    // 입춘 기준으로 월 조정 (간단화: 매월 6일 기준)
-    let monthIndex = month - 1;
-    const currentDate = new Date(year, month - 1, 6);
-    const today = new Date();
-    if (today < currentDate) {
-      monthIndex--;
-    }
-    if (monthIndex < 0) monthIndex = 11;
-    
-    return monthGanjiList[monthIndex];
+    const yearGanIndex = this.SIBGAN_HANJA.indexOf(yearGan); // 0..9
+
+    // 절기 기준 월지 인덱스 (寅=0, 卯=1, ..., 丑=11)
+    const monthBranchIndex = getMonthBranchIndexBySolarTerms(year, month, day);
+
+    // 월지: SIBIJI_HANJA는 子(0)~丑(11)이므로 寅(2)부터 시작하도록 보정
+    const zhiIndex = (monthBranchIndex + 2) % 12;
+    const ji = this.SIBIJI_HANJA[zhiIndex];
+
+    // 전통 월간 공식: monthStemIndex = (yearStemIndex * 2 + monthBranchIndex + 2) % 10
+    const monthGanIndex = (yearGanIndex * 2 + monthBranchIndex + 2) % 10;
+    const gan = this.SIBGAN_HANJA[monthGanIndex];
+
+    return gan + ji;
   }
 
   /**
    * 일주 계산
    * @param year 년도
-   * @param month 월
+   * @param month 월 (1~12)
    * @param day 일
    * @return 일주 간지
+   *
+   * 기준:
+   * - 1984-02-04 (양력)이 갑자(甲子)일이라는 널리 쓰이는 기준일을 사용
+   * - 기준일과 대상일 모두 "KST 00:00"을 기준으로 한 일수 차이를 60갑자 순환에 매핑
    */
   private static calcDayGanji(year: number, month: number, day: number): string {
-    // 1900년 1월 1일을 기준으로 계산 (갑자일)
-    const baseDate = new Date(1900, 0, 1); // 1900년 1월 1일
-    const targetDate = new Date(year, month - 1, day);
+    const baseUtcMs = this.kstMidnightUtcMs(1984, 2, 4); // 기준일: 1984-02-04 (甲子일) KST 00:00
+    const targetUtcMs = this.kstMidnightUtcMs(year, month, day);
+    const diffDays = Math.floor((targetUtcMs - baseUtcMs) / (1000 * 60 * 60 * 24));
     
-    // 일수 차이 계산
-    const diffTime = targetDate.getTime() - baseDate.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
-    // 60갑자 순환 계산
-    const sibganIndex = (diffDays + 0) % 10; // 갑자일 기준
-    const sibijiIndex = (diffDays + 10) % 12; // 갑자일 기준
+    // 60갑자 순환 인덱스 (0 = 갑자)
+    const cycleIndex = ((diffDays % 60) + 60) % 60;
+    const sibganIndex = cycleIndex % 10;
+    const sibijiIndex = cycleIndex % 12;
     
     return this.SIBGAN_HANJA[sibganIndex] + this.SIBIJI_HANJA[sibijiIndex];
   }
