@@ -281,7 +281,7 @@ export function getTodayFortunePrompt(
 ## 4. 응답 형식 (JSON)
 \`\`\`json
 {
-  "summary": "15자 이내 한 줄 요약(예: 과감하게 밀어붙이세요, 오늘은 신중하세요, 스스로를 돌보는 하루)",
+  "summary": "15자 이내 한 줄 요약(예: 과감하게 밀어붙이세요, 오늘은 신중하세요, 스스로를 돌보는 하루 등)",
   "explanation": "종합 운세 설명 3줄 (ToneLevel에 맞춰 작성)",
   "categories": {
     "career": "직업운 조언 3-4줄 (점수와 톤에 맞춰 업무 태도와 전략을 구체적으로 조언)",
