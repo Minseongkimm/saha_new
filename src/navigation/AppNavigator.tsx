@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { Image, View, Platform, ActivityIndicator } from 'react-native';
+import { Image, View, Platform, ActivityIndicator, Dimensions } from 'react-native';
 import { Session } from '@supabase/supabase-js';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const IS_SMALL_DEVICE: boolean = SCREEN_HEIGHT < 700;
 
 import SplashScreen from '../screens/entry/SplashScreen';
 import BottomTabNavigator from './BottomTabNavigator';
@@ -83,6 +86,7 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session, initialAuthRouteNa
                     flex: 1, 
                     alignItems: 'center', 
                     justifyContent: 'center',
+                    paddingTop: IS_SMALL_DEVICE ? 10 : 0,
                     ...(Platform.OS === 'android' && { position: 'absolute', left: 0, right: 0 })
                   }}>
                     <Image

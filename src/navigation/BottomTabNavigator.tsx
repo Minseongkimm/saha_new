@@ -1,12 +1,15 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Dimensions } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../constants/colors';
 import HomeScreen from '../screens/saju/HomeScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
 import MyInfoScreen from '../screens/user/MyInfoScreen';
 
-const TAB_BAR_HEIGHT: number = 82;
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const IS_SMALL_DEVICE: boolean = SCREEN_HEIGHT < 700;
+const TAB_BAR_HEIGHT: number = IS_SMALL_DEVICE ? 62 : 82;
 const TAB_BAR_PADDING_TOP: number = 5;
 
 const Tab = createBottomTabNavigator();

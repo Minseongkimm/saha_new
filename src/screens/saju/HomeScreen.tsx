@@ -178,7 +178,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <Image
             source={require('../../../assets/banner/home_banner2.jpg')}
             style={styles.bannerImage}
-            resizeMode="contain"
+            resizeMode="cover" // 비율에 맞춰 꽉 채움
           />
         </TouchableOpacity>
           
@@ -298,6 +298,9 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   );
 };
 
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const IS_SMALL_DEVICE: boolean = SCREEN_HEIGHT < 700;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -310,8 +313,8 @@ const styles = StyleSheet.create({
     minHeight: 200,
   },
   bannerSection: {
-    height: Dimensions.get('window').height * 0.15,
-    width: Dimensions.get('window').width - 30,
+    width: SCREEN_WIDTH - 30,
+    aspectRatio: IS_SMALL_DEVICE ? 2.8 : 3.2, // 비율로 높이 자동 조절 (작은 기종은 좀 더 높게)
     position: 'relative',
     marginTop: Platform.OS === 'android' ? 0 : 15,
     marginLeft: 15,
