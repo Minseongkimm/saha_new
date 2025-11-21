@@ -99,17 +99,6 @@ export interface TodayFortuneResult {
 
 export class TodayFortuneCalculator {
   /**
-   * 날짜와 카테고리 기반 시드 랜덤 생성 (같은 날 같은 카테고리는 같은 값)
-   */
-  private getSeededRandom(date: string, category: string): number {
-    const dateNum = new Date(date).getTime();
-    const categoryNum = category.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const seed = dateNum + categoryNum;
-    const x = Math.sin(seed) * 10000;
-    return x - Math.floor(x); // 0~1 사이의 값 반환
-  }
-
-  /**
    * 오늘의 운세 계산 메인 메서드
    */
   calculateTodayFortune(userSajuData: UserSajuData, todayDate: string): TodayFortuneResult {
@@ -134,19 +123,47 @@ export class TodayFortuneCalculator {
     const detailedJiRelations = this.analyzeJiDetails(todayGanji.dayGanji[1], userSajuData);
     const fiveElementBalance = this.analyzeFiveElementBalance(todayGanji.dayGanji[0], userSajuData);
     
-    // 3. 비중 기반 점수 계산 (스케일링 적용) - 모두 정수로 반올림
-    const baseScore = 50;
+    // 3. 비중 기반 보정 점수 계산 (컴포넌트 합을 10~100 구간으로 정규화)
+    // 전통 사주 구조를 따르기 위해, 모든 보정은 오늘의 간지/오행/신살/귀인 관계에서만 파생된다.
+    // - ganjiScore: 오늘 일간/일지와 내 일간/지지의 상생·상극·합·충 비중 (기본: 가장 큰 축)
+    // - sinsalScore: 오늘 일진에 의해 발동하는 신살(장성살, 화개살 등)의 영향력
+    // - guinScore: 오늘 일지에서 활성화되는 각종 귀인(천을귀인 등)의 영향력
+    // - tenGodScore: 오늘 천간이 내 일간 기준 십신(비견, 재성, 관성, 인성 등)에서 차지하는 위치
+    // - balanceScore: 오행 불균형 보정 (오늘 오행이 부족한 오행을 돕는지, 이미 강한 오행을 더 과하게 만드는지)
+    // - jiDetailScore: 형/파/해 등의 지지 디테일 관계에 따른 감점/보정
     const ganjiScore = Math.round(Math.min((ganInteraction.score + jiInteraction.score) * 0.5, 25)); // 50% 비중, 최대 25점
     const sinsalScore = Math.round(Math.min(sinsalInteraction.score * 0.25, 13)); // 25% 비중, 최대 13점
     const guinScore = Math.round(Math.min(this.calculateGuinScore(todayGanji.dayGanji, userSajuData.guin) * 0.15, 8)); // 15% 비중, 최대 8점
-    const randomScore = Math.round(Math.min(this.calculateRandomScore(todayDate) * 0.1, 5)); // 10% 비중, 최대 5점
     const tenGodScore = Math.round(Math.min(tenGodInteraction.score * 0.2, 6)); // 경미 반영
     const balanceScore = Math.round(Math.min(Math.max(fiveElementBalance?.score ?? 0, -10) * 0.2, 2)); // -2~+2
     const jiDetailScore = Math.round(Math.max(Math.min(detailedJiRelations.score, 5), -10)); // 안전 제한
-    
-    const totalScore = Math.round(Math.max(1, Math.min(100, 
-      baseScore + ganjiScore + sinsalScore + guinScore + randomScore + tenGodScore + balanceScore + jiDetailScore
-    )));
+
+    const componentSum =
+      ganjiScore +
+      sinsalScore +
+      guinScore +
+      tenGodScore +
+      balanceScore +
+      jiDetailScore;
+
+    // 예상되는 컴포넌트 합의 최소/최대 범위를 설정 (-7 ~ +7)
+    // minRawScore/maxRawScore를 조정하면 "전체 분포의 극단 정도"를 튜닝할 수 있다.
+    // - 절댓값을 키우면: 같은 컴포넌트 합에서도 점수가 50 근처에 더 많이 모인다.
+    // - 절댓값을 줄이면: 작은 차이에도 점수가 10/100 근처까지 더 크게 벌어진다.
+    //
+    // 기본값:
+    // - minRawScore = -7, maxRawScore = 7
+    //   → 전통 요소(상생/상극, 신살, 귀인, 오행, 형/충 등)만으로도
+    //     10~100 전체 구간을 적극적으로 사용하되, -6/6보다 약간 더 완화된 극단 스케일
+    const minRawScore = -7;
+    const maxRawScore = 7;
+    const clampedRawScore = Math.max(minRawScore, Math.min(maxRawScore, componentSum));
+
+    // 10~100 사이로 선형 매핑
+    // - 컴포넌트 합이 0 근처이면 약 55점
+    // - 일반적인 분포는 대략 30~80 근처에서 움직이고, 극단적인 날은 10점/100점까지 도달 가능
+    const normalized = (clampedRawScore - minRawScore) / (maxRawScore - minRawScore); // 0~1
+    const totalScore = Math.round(10 + normalized * 90); // 10~100
     
     // 4. 카테고리별 점수 계산
     const careerScore = this.calculateCareerScore(totalScore, todayGanji, userSajuData, validDate);
@@ -410,14 +427,9 @@ export class TodayFortuneCalculator {
    * 직업운 점수 계산
    */
   private calculateCareerScore(baseScore: number, todayGanji: any, userSaju: UserSajuData, date: string): number {
-    // baseScore에서 -15 ~ +15 범위로 변동 (날짜 기반 시드 랜덤)
-    let adjustment = Math.floor((this.getSeededRandom(date, 'career') - 0.5) * 20); // -10 ~ +10 기본 랜덤
-    
-    // 요일 보너스 (월요일)
-    const dayOfWeek = new Date().getDay();
-    if (dayOfWeek === 1) adjustment += 10; // 월요일은 직업운 상승
-    if (dayOfWeek === 0) adjustment -= 8; // 일요일은 직업운 하락
-    
+    // 전통 구조를 따르기 위해, 모든 보정은 오늘 일진과 원국의 관계(신살/오행/합충)만 사용한다.
+    let adjustment = 0;
+
     // 편관살/정관살 발동
     const allSinsal = Object.values(userSaju.sinsal).flat();
     if (allSinsal.includes("편관살") && this.isSinsalActivated(todayGanji.dayGanji[1], "편관살")) {
@@ -442,15 +454,9 @@ export class TodayFortuneCalculator {
    * 연애운 점수 계산
    */
   private calculateLoveScore(baseScore: number, todayGanji: any, userSaju: UserSajuData, date: string): number {
-    // baseScore에서 -15 ~ +15 범위로 변동 (날짜 기반 시드 랜덤)
-    let adjustment = Math.floor((this.getSeededRandom(date, 'love') - 0.5) * 20); // -10 ~ +10 기본 랜덤
-    
-    // 요일 보너스 (금요일)
-    const dayOfWeek = new Date().getDay();
-    if (dayOfWeek === 5) adjustment += 12; // 금요일은 연애운 상승
-    if (dayOfWeek === 6 || dayOfWeek === 0) adjustment += 8; // 주말도 연애운 좋음
-    if (dayOfWeek === 1) adjustment -= 8; // 월요일은 연애운 하락
-    
+    // 전통 구조를 따르기 위해, 보정은 오늘 일지와 원국 지지 관계(합/충)만 사용한다.
+    let adjustment = 0;
+
     // 육합/삼합 관계
     if (this.hasYukhap(todayGanji.dayGanji[1], userSaju.jijiRelations.육합)) {
       adjustment += 15; // 육합은 연애운에 매우 유리
@@ -472,14 +478,9 @@ export class TodayFortuneCalculator {
    * 재물운 점수 계산
    */
   private calculateWealthScore(baseScore: number, todayGanji: any, userSaju: UserSajuData, date: string): number {
-    // baseScore에서 -15 ~ +15 범위로 변동 (날짜 기반 시드 랜덤)
-    let adjustment = Math.floor((this.getSeededRandom(date, 'wealth') - 0.5) * 20); // -10 ~ +10 기본 랜덤
-    
-    // 월말 보너스
-    const dayOfMonth = new Date().getDate();
-    if (dayOfMonth >= 25) adjustment += 10; // 월말에 재물운 상승
-    if (dayOfMonth <= 5) adjustment -= 5; // 월초는 재물운 하락
-    
+    // 전통 구조를 따르기 위해, 보정은 오늘 일지와 재물 관련 신살/오행 관계만 사용한다.
+    let adjustment = 0;
+
     // 정재살/편재살 발동
     const allSinsal = Object.values(userSaju.sinsal).flat();
     if (allSinsal.includes("정재살") && this.isSinsalActivated(todayGanji.dayGanji[1], "정재살")) {
@@ -504,14 +505,9 @@ export class TodayFortuneCalculator {
    * 인간관계 점수 계산
    */
   private calculateRelationshipScore(baseScore: number, todayGanji: any, userSaju: UserSajuData, date: string): number {
-    // baseScore에서 -15 ~ +15 범위로 변동 (날짜 기반 시드 랜덤)
-    let adjustment = Math.floor((this.getSeededRandom(date, 'relationship') - 0.5) * 20); // -10 ~ +10 기본 랜덤
-    
-    // 주말 보너스
-    const dayOfWeek = new Date().getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) adjustment += 10; // 주말은 인간관계 좋음
-    if (dayOfWeek === 3) adjustment += 5; // 수요일도 인간관계 보너스
-    
+    // 전통 구조를 따르기 위해, 보정은 오늘 일지와 원국 지지 관계(삼합/육합/형/충/파/해)만 사용한다.
+    let adjustment = 0;
+
     // 삼합 관계
     if (this.hasSamhap(todayGanji.dayGanji[1], userSaju.jijiRelations.삼합)) {
       adjustment += 15; // 삼합은 인간관계에 매우 유리
@@ -654,54 +650,7 @@ export class TodayFortuneCalculator {
     return score;
   }
 
-  /**
-   * 랜덤성 요소 점수 계산 (10% 비중, 최대 50점)
-   */
-  private calculateRandomScore(todayDate: string): number {
-    const date = new Date(todayDate);
-    const dayOfWeek = date.getDay();
-    const dayOfMonth = date.getDate();
-    const month = date.getMonth() + 1;
-    let score = 0;
-    
-    // 요일 보너스 (조정된 점수)
-    switch (dayOfWeek) {
-      case 1: // 월요일 - 직업운
-        score += 3; // 5 → 3으로 조정
-        break;
-      case 5: // 금요일 - 연애운
-        score += 3; // 5 → 3으로 조정
-        break;
-      case 0: // 일요일 - 인간관계
-      case 6: // 토요일 - 인간관계
-        score += 2; // 3 → 2로 조정
-        break;
-    }
-    
-    // 월말 보너스 (재물운)
-    if (dayOfMonth >= 25) {
-      score += 2; // 3 → 2로 조정
-    }
-    
-    // 계절 보너스 (간단화)
-    if (month >= 3 && month <= 5) { // 봄
-      score += 1; // 2 → 1로 조정
-    } else if (month >= 6 && month <= 8) { // 여름
-      score += 1; // 2 → 1로 조정
-    } else if (month >= 9 && month <= 11) { // 가을
-      score += 1; // 2 → 1로 조정
-    } else { // 겨울
-      score += 1; // 소수점 제거
-    }
-    
-    // 날짜 특별 보너스 (1일, 15일 등)
-    if (dayOfMonth === 1 || dayOfMonth === 15) {
-      score += 1; // 2 → 1로 조정
-    }
-    
-    // 최대 50점으로 제한 (10% 비중 유지)
-    return Math.min(score, 50);
-  }
+  // 랜덤성 요소 점수 계산은 전통 구조에서는 사용하지 않으므로 제거됐다.
 }
 
 export const todayFortuneCalculator = new TodayFortuneCalculator();
