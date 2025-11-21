@@ -7,10 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0B1AC4DB1D780FEF2059A05F /* libPods-saha.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0769C6F707A1CC98B0ECB94E /* libPods-saha.a */; };
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		241611352EC4130200BFFC26 /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 241611342EC4130200BFFC26 /* StoreKit.framework */; };
 		241611372EC4152C00BFFC26 /* saha_inapp_test.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 241611362EC4152C00BFFC26 /* saha_inapp_test.storekit */; };
-		36DAEF7FE7F44788D639AE0C /* libPods-saha_new.a in Frameworks */ = {isa = PBXBuildFile; fileRef = ADDC46247E49C3B8DA3E386E /* libPods-saha_new.a */; };
 		6B0DF664AE4F4BBA91AD0411 /* SSRockRegular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 146CD13BCC944E49BEFBDB57 /* SSRockRegular.ttf */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
@@ -18,6 +18,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0769C6F707A1CC98B0ECB94E /* libPods-saha.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-saha.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07F961A680F5B00A75B9A /* saha.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = saha.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = saha_new/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = saha_new/Info.plist; sourceTree = "<group>"; };
@@ -28,9 +29,10 @@
 		241611362EC4152C00BFFC26 /* saha_inapp_test.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = saha_inapp_test.storekit; sourceTree = "<group>"; };
 		3B4392A12AC88292D35C810B /* Pods-saha_new.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-saha_new.debug.xcconfig"; path = "Target Support Files/Pods-saha_new/Pods-saha_new.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-saha_new.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-saha_new.release.xcconfig"; path = "Target Support Files/Pods-saha_new/Pods-saha_new.release.xcconfig"; sourceTree = "<group>"; };
+		672A3953CD49C8B0DF940B80 /* Pods-saha.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-saha.debug.xcconfig"; path = "Target Support Files/Pods-saha/Pods-saha.debug.xcconfig"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = saha_new/AppDelegate.swift; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = saha_new/LaunchScreen.storyboard; sourceTree = "<group>"; };
-		ADDC46247E49C3B8DA3E386E /* libPods-saha_new.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-saha_new.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		93A3D4FC4FEBEABEB3682D74 /* Pods-saha.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-saha.release.xcconfig"; path = "Target Support Files/Pods-saha/Pods-saha.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -39,8 +41,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				36DAEF7FE7F44788D639AE0C /* libPods-saha_new.a in Frameworks */,
 				241611352EC4130200BFFC26 /* StoreKit.framework in Frameworks */,
+				0B1AC4DB1D780FEF2059A05F /* libPods-saha.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,7 +67,7 @@
 			children = (
 				241611342EC4130200BFFC26 /* StoreKit.framework */,
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				ADDC46247E49C3B8DA3E386E /* libPods-saha_new.a */,
+				0769C6F707A1CC98B0ECB94E /* libPods-saha.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -114,6 +116,8 @@
 			children = (
 				3B4392A12AC88292D35C810B /* Pods-saha_new.debug.xcconfig */,
 				5709B34CF0A7D63546082F79 /* Pods-saha_new.release.xcconfig */,
+				672A3953CD49C8B0DF940B80 /* Pods-saha.debug.xcconfig */,
+				93A3D4FC4FEBEABEB3682D74 /* Pods-saha.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -148,7 +152,8 @@
 		83CBB9F71A601CBA00E9B192 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 1210;
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1640;
 				TargetAttributes = {
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 1120;
@@ -211,19 +216,15 @@
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-saha_new/Pods-saha_new-frameworks-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-saha/Pods-saha-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-saha_new/Pods-saha_new-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-saha/Pods-saha-frameworks-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-saha_new/Pods-saha_new-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-saha/Pods-saha-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */ = {
@@ -241,7 +242,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-saha_new-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-saha-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -254,19 +255,15 @@
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-saha_new/Pods-saha_new-resources-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-saha/Pods-saha-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-saha_new/Pods-saha_new-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-saha/Pods-saha-resources-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-saha_new/Pods-saha_new-resources.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-saha/Pods-saha-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -285,13 +282,12 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-saha_new.debug.xcconfig */;
+			baseConfigurationReference = 672A3953CD49C8B0DF940B80 /* Pods-saha.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = saha_new/saha_new.entitlements;
 				CURRENT_PROJECT_VERSION = 5;
-				DEVELOPMENT_TEAM = T3U8HF62FX;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = saha_new/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
@@ -315,13 +311,12 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5709B34CF0A7D63546082F79 /* Pods-saha_new.release.xcconfig */;
+			baseConfigurationReference = 93A3D4FC4FEBEABEB3682D74 /* Pods-saha.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = saha_new/saha_new.entitlements;
 				CURRENT_PROJECT_VERSION = 5;
-				DEVELOPMENT_TEAM = T3U8HF62FX;
 				INFOPLIST_FILE = saha_new/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -372,8 +367,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = NO;
+				DEVELOPMENT_TEAM = T3U8HF62FX;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
@@ -421,7 +418,10 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = "$(inherited)  ";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					" ",
+				);
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) DEBUG";
@@ -460,8 +460,10 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				COPY_PHASE_STRIP = YES;
+				DEVELOPMENT_TEAM = T3U8HF62FX;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = "";
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -501,9 +503,13 @@
 					"-DFOLLY_CFG_NO_COROUTINES=1",
 					"-DFOLLY_HAVE_CLOCK_GETTIME=1",
 				);
-				OTHER_LDFLAGS = "$(inherited)  ";
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					" ",
+				);
 				REACT_NATIVE_PATH = "${PODS_ROOT}/../../node_modules/react-native";
 				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
 				USE_HERMES = true;
 				VALIDATE_PRODUCT = YES;
 			};
