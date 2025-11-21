@@ -15,8 +15,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "saha_new.app"
-               BlueprintName = "saha_new"
+               BuildableName = "saha.app"
+               BlueprintName = "saha"
                ReferencedContainer = "container:saha_new.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -33,8 +33,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
-               BuildableName = "saha_newTests.xctest"
-               BlueprintName = "saha_newTests"
+               BuildableName = "sahaTests.xctest"
+               BlueprintName = "sahaTests"
                ReferencedContainer = "container:saha_new.xcodeproj">
             </BuildableReference>
          </TestableReference>
@@ -55,8 +55,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "saha_new.app"
-            BlueprintName = "saha_new"
+            BuildableName = "saha.app"
+            BlueprintName = "saha"
             ReferencedContainer = "container:saha_new.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -75,8 +75,8 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "saha_new.app"
-            BlueprintName = "saha_new"
+            BuildableName = "saha.app"
+            BlueprintName = "saha"
             ReferencedContainer = "container:saha_new.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
