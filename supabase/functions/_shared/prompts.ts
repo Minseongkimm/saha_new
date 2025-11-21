@@ -286,10 +286,10 @@ export function getTodayFortunePrompt(
   "summary": "한 줄 요약 (10-15글자 예: '과감하게 밀어붙이세요')",
   "explanation": "사주 전문적 설명 (2-3줄 왜 그런 운세인지 구체적으로 설명)",
   "categories": {
-    "career": "직업운 상세 설명 (2-3줄. ${fortune.categoryScores?.career || 0}점 기반)",
-    "love": "연애운 상세 설명 (2-3줄. ${fortune.categoryScores?.love || 0}점 기반)",
-    "wealth": "재물운 상세 설명 (2-3줄. ${fortune.categoryScores?.wealth || 0}점 기반)",
-    "relationship": "인간관계 상세 설명 (2-3줄. ${fortune.categoryScores?.relationship || 0}점 기반)"
+    "career": "직업운 상세 설명 (3-4줄. ${fortune.categoryScores?.career || 0}점 기반)",
+    "love": "연애운 상세 설명 (3-4줄. ${fortune.categoryScores?.love || 0}점 기반)",
+    "wealth": "재물운 상세 설명 (3-4줄. ${fortune.categoryScores?.wealth || 0}점 기반)",
+    "relationship": "인간관계 상세 설명 (3-4줄. ${fortune.categoryScores?.relationship || 0}점 기반)"
   },
   "doList": ["해야할 것1 (1줄)", "해야할 것2 (1줄)", "해야할 것3 (1줄)"],
   "dontList": ["하지말아야 할 것1 (1줄)", "하지말아야 할 것2 (1줄)", "하지말아야 할 것3 (1줄)"]
