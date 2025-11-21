@@ -10,6 +10,16 @@ import { todayFortuneCalculator, TodayFortuneResult } from '../utils/today-fortu
 import { getCurrentUserSafely } from '../utils/user/authUtils';
 import { getKoreanDateString } from '../utils/date/koreanDate';
 
+type ToneLevel = 'very_bad' | 'bad' | 'neutral' | 'good' | 'very_good';
+
+const getToneLevel = (score: number): ToneLevel => {
+  if (score <= 20) return 'very_bad';
+  if (score <= 40) return 'bad';
+  if (score <= 60) return 'neutral';
+  if (score <= 80) return 'good';
+  return 'very_good';
+};
+
 /**
  * 오늘의 운세 데이터 및 스트리밍 관리 훅
  */
@@ -164,28 +174,43 @@ export const useTodayFortune = () => {
 
       // 3. 최종 파싱 및 저장
       const llmData = parseTodayFortuneJson(fullJsonText);
+
+      const overallToneLevel: ToneLevel = getToneLevel(calculatedFortune.totalScore);
+      const careerToneLevel: ToneLevel = getToneLevel(calculatedFortune.categoryScores.career);
+      const loveToneLevel: ToneLevel = getToneLevel(calculatedFortune.categoryScores.love);
+      const wealthToneLevel: ToneLevel = getToneLevel(calculatedFortune.categoryScores.wealth);
+      const relationshipToneLevel: ToneLevel = getToneLevel(calculatedFortune.categoryScores.relationship);
+
+      const rawExplanation: string = llmData.explanation || '사주상 특별한 변화는 없습니다.';
+      const explanation: string = rawExplanation;
+
+      const careerDescription: string = llmData.categories?.career || '';
+      const loveDescription: string = llmData.categories?.love || '';
+      const wealthDescription: string = llmData.categories?.wealth || '';
+      const relationshipDescription: string = llmData.categories?.relationship || '';
+
       const finalFortuneData: TodayFortuneData = {
         score: calculatedFortune.totalScore,
-        summary: llmData.summary || '오늘은 평범한 하루입니다.',
-        explanation: llmData.explanation || '사주상 특별한 변화는 없습니다.',
+        summary: llmData.summary || '',
+        explanation,
         doList: llmData.doList || ['긍정적인 마음가짐을 유지하세요'],
         dontList: llmData.dontList || ['성급한 판단을 피하세요'],
         categories: {
-          career: { 
-            score: calculatedFortune.categoryScores.career, 
-            description: llmData.categories?.career || '' 
+          career: {
+            score: calculatedFortune.categoryScores.career,
+            description: careerDescription
           },
-          love: { 
-            score: calculatedFortune.categoryScores.love, 
-            description: llmData.categories?.love || '' 
+          love: {
+            score: calculatedFortune.categoryScores.love,
+            description: loveDescription
           },
-          wealth: { 
-            score: calculatedFortune.categoryScores.wealth, 
-            description: llmData.categories?.wealth || '' 
+          wealth: {
+            score: calculatedFortune.categoryScores.wealth,
+            description: wealthDescription
           },
-          relationship: { 
-            score: calculatedFortune.categoryScores.relationship, 
-            description: llmData.categories?.relationship || '' 
+          relationship: {
+            score: calculatedFortune.categoryScores.relationship,
+            description: relationshipDescription
           }
         },
         interactions: {

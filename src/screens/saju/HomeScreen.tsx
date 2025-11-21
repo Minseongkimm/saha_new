@@ -20,11 +20,8 @@ import { Colors } from '../../constants/colors';
 import { supabase } from '../../utils/database/supabaseClient';
 import { Expert, EXPERT_CATEGORIES } from '../../types/expert';
 import { getExpertListCache, setExpertListCache, isExpertListFresh } from '../../utils/expert/expertListCache';
-// import CacheDebugPanel from '../../components/CacheDebugPanel'; // 디버깅이 필요할 때 주석 해제
 import { ensureBirthInfoOrNavigate } from '../../utils/user/birthInfoGuard';
-import { TodayFortuneCache } from '../../utils/today-fortune/todayFortuneCache';
-import { SajuCache } from '../../utils/saju/sajuCache';
-import { clearAllNewYearFortuneCache } from '../../utils/new-year-fortune/newYearFortuneCache';
+import { TestTools } from '../../components/common/TestTools';
 
 interface HomeScreenProps {
   navigation: any;
@@ -137,56 +134,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     setShowBannerModal(false);
   };
 
-  // 테스트용: 오늘의 운세 캐시 삭제
-  const handleClearTodayFortuneCache = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert('오류', '로그인이 필요합니다.');
-        return;
-      }
-
-      await TodayFortuneCache.clearTodayFortuneCache(user.id);
-      Alert.alert('완료', '오늘의 운세 캐시가 삭제되었습니다.');
-    } catch (error) {
-      console.error('캐시 삭제 실패:', error);
-      Alert.alert('오류', '캐시 삭제에 실패했습니다.');
-    }
-  };
-
-  // 테스트용: 정통사주 캐시 삭제
-  const handleClearTraditionalSajuCache = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert('오류', '로그인이 필요합니다.');
-        return;
-      }
-
-      await SajuCache.clearUserCache(user.id);
-      Alert.alert('완료', '정통사주 캐시가 삭제되었습니다.');
-    } catch (error) {
-      console.error('캐시 삭제 실패:', error);
-      Alert.alert('오류', '캐시 삭제에 실패했습니다.');
-    }
-  };
-
-  // 테스트용: 신년운세 캐시 삭제
-  const handleClearNewYearFortuneCache = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        Alert.alert('오류', '로그인이 필요합니다.');
-        return;
-      }
-
-      await clearAllNewYearFortuneCache(user.id);
-      Alert.alert('완료', '신년운세 캐시가 삭제되었습니다.');
-    } catch (error) {
-      console.error('캐시 삭제 실패:', error);
-      Alert.alert('오류', '캐시 삭제에 실패했습니다.');
-    }
-  };
+  // 테스트용: 오늘의 운세 캐시 삭제, 정통사주 캐시 삭제, 신년운세 캐시 삭제, DB 삭제 등은 TestTools 컴포넌트로 이동됨
 
   // 카테고리 선택 핸들러
   const handleCategoryPress = (category: string) => {
@@ -300,33 +248,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
             </View>
           </View>
 
-          {/* 테스트용: 캐시 삭제 버튼들 */}
-          {/* <View style={styles.testButtonContainer}>
-            <TouchableOpacity
-              style={styles.testButton}
-              onPress={handleClearTodayFortuneCache}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.testButtonText}>오늘운세 캐시삭제</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.testButton}
-              onPress={handleClearTraditionalSajuCache}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.testButtonText}>정통사주 캐시삭제</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.testButton}
-              onPress={handleClearNewYearFortuneCache}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.testButtonText}>신년운세 캐시삭제</Text>
-            </TouchableOpacity>
-          </View> */}
-
-          {/* 캐시 디버깅 패널 - 필요할 때만 주석 해제 */}
-          {/* <CacheDebugPanel /> */}
+          {/* 테스트 도구 (캐시 및 DB 삭제) - 필요할 때만 주석 해제 */}
+          {/* <TestTools /> */}
 
           {/* AI 사주 도사 섹션 */}
           <View style={styles.expertSection}>
