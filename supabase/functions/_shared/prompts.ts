@@ -212,6 +212,13 @@ export function getTodayFortunePrompt(
       wealth?: number;
       relationship?: number;
     };
+    toneLevels?: {
+      overall?: string;
+      career?: string;
+      love?: string;
+      wealth?: string;
+      relationship?: string;
+    };
     todayGanji?: {
       dayGanji?: string;
     };
@@ -248,61 +255,44 @@ export function getTodayFortunePrompt(
     }
   }
 
-  return `당신은 전문 사주명리학자입니다. 계산된 오늘의 운세 데이터를 바탕으로 더 자세하고 실용적인 조언을 제공해주세요.
+  return `당신은 전문 사주명리학자입니다. 다음 운세 데이터를 분석하여 실용적인 조언을 제공해주세요.
 
-## 계산된 오늘의 운세 데이터
-모든 점수는 정수로 표현됩니다. 소수점 안됌.
-- 전체 운세 점수: ${fortune.totalScore || 0}점
-- 카테고리별 점수: 
-  * 직업운: ${fortune.categoryScores?.career || 0}점
-  * 연애운: ${fortune.categoryScores?.love || 0}점
-  * 재물운: ${fortune.categoryScores?.wealth || 0}점
-  * 인간관계: ${fortune.categoryScores?.relationship || 0}점
+## 1. 운세 점수 및 톤 (ToneLevel)
+- 종합: ${fortune.totalScore || 0}점 (${fortune.toneLevels?.overall || 'neutral'})
+- 직업: ${fortune.categoryScores?.career || 0}점 (${fortune.toneLevels?.career || 'neutral'})
+- 연애: ${fortune.categoryScores?.love || 0}점 (${fortune.toneLevels?.love || 'neutral'})
+- 재물: ${fortune.categoryScores?.wealth || 0}점 (${fortune.toneLevels?.wealth || 'neutral'})
+- 관계: ${fortune.categoryScores?.relationship || 0}점 (${fortune.toneLevels?.relationship || 'neutral'})
 
-## 오늘의 간지 정보
-- 오늘 간지: ${fortune.todayGanji?.dayGanji || ''}
-- 개인 사주: ${fortune.personalSaju?.dayGanji || ''}
+## 2. 사주 분석 데이터
+- 간지: 오늘 ${fortune.todayGanji?.dayGanji || ''} vs 본인 ${fortune.personalSaju?.dayGanji || ''}
+- 상호작용: 천간 ${fortune.interactions?.ganInteraction?.type || '-'}, 지지 ${fortune.interactions?.jiInteraction?.type || '-'}
+- 십신/신살: ${fortune.interactions?.tenGodInteraction?.label || '-'}, ${fortune.interactions?.sinsalInteraction?.activated ? '신살발동' : '-'}
+- 활성요소: ${fortune.personalSaju?.sinsal?.join(', ') || ''}, ${guinArray.join(', ') || ''}
+- 오행: ${fortune.interactions?.fiveElementBalance?.todayElement || ''}운 (약점: ${fortune.interactions?.fiveElementBalance?.weakest || ''})
 
-## 상호작용 분석
-- 천간 상호작용: ${fortune.interactions?.ganInteraction?.type || ''} (${fortune.interactions?.ganInteraction?.score || 0}점)
-- 지지 상호작용: ${fortune.interactions?.jiInteraction?.type || ''} (${fortune.interactions?.jiInteraction?.score || 0}점)
-- 신살 상호작용: ${fortune.interactions?.sinsalInteraction?.activated ? '발동' : '미발동'} (${fortune.interactions?.sinsalInteraction?.score || 0}점)
-- 십신 관계: ${fortune.interactions?.tenGodInteraction?.label || ''} (${fortune.interactions?.tenGodInteraction?.score || 0}점)
-- 지지 상세: ${fortune.interactions?.detailedJiRelations?.summary || ''} (${fortune.interactions?.detailedJiRelations?.score || 0}점)
-- 오행 균형: 오늘 ${fortune.interactions?.fiveElementBalance?.todayElement || ''} / 약점 ${fortune.interactions?.fiveElementBalance?.weakest || ''} / 강점 ${fortune.interactions?.fiveElementBalance?.strongest || ''} (${fortune.interactions?.fiveElementBalance?.score || 0}점)
+## 3. 작성 원칙 (엄수)
+1. **ToneLevel 일치**: 
+   - 'bad'/'very_bad': 반드시 경고/주의/보수적 태도로 작성. '무난', '안정', '원만' 등 긍정/중립 어휘 절대 금지.
+   - 'good'/'very_good': 기회/성취/적극적 태도로 작성.
+2. **구체적 조언**: 단순 평가('좋다/나쁘다') 대신 구체적인 행동 지침(Do/Don't)을 제시.
+3. **형식 제약**: JSON 반환. 쉼표(,) 사용 금지(마침표 사용). 평문 작성.
 
-## 활성화된 요소들
-- 신살: ${fortune.personalSaju?.sinsal?.join(', ') || ''}
-- 귀인: ${guinArray.join(', ') || ''}
-- 지지관계: ${fortune.personalSaju?.jijiRelations?.join(', ') || ''}
-
-## 요청사항
-위 데이터를 바탕으로 다음을 JSON 형태로 생성해주세요:
-
-**중요: 모든 텍스트에서 쉼표(,)를 사용하지 마세요. 쉼표 대신 마침표(.)나 공백을 사용하세요.**
-**중요: 모든 텍스트를 평문으로 작성하세요. ** 강조 표시를 사용하지 마세요.**
-
+## 4. 응답 형식 (JSON)
+\`\`\`json
 {
-  "summary": "한 줄 요약 (10-15글자 예: '과감하게 밀어붙이세요')",
-  "explanation": "사주 전문적 설명 (2-3줄 왜 그런 운세인지 구체적으로 설명)",
+  "summary": "15자 이내 한 줄 요약(예: 과감하게 밀어붙이세요, 오늘은 신중하세요, 스스로를 돌보는 하루)",
+  "explanation": "종합 운세 설명 3줄 (ToneLevel에 맞춰 작성)",
   "categories": {
-    "career": "직업운 상세 설명 (3-4줄. ${fortune.categoryScores?.career || 0}점 기반)",
-    "love": "연애운 상세 설명 (3-4줄. ${fortune.categoryScores?.love || 0}점 기반)",
-    "wealth": "재물운 상세 설명 (3-4줄. ${fortune.categoryScores?.wealth || 0}점 기반)",
-    "relationship": "인간관계 상세 설명 (3-4줄. ${fortune.categoryScores?.relationship || 0}점 기반)"
+    "career": "직업운 조언 3-4줄 (점수와 톤에 맞춰 업무 태도와 전략을 구체적으로 조언)",
+    "love": "연애운 조언 3-4줄 (점수와 톤에 맞춰 감정 표현 방식과 대화 태도를 조언)",
+    "wealth": "재물운 조언 3-4줄 (점수와 톤에 맞춰 금전 관리와 소비/투자 방향성을 조언)",
+    "relationship": "대인관계 조언 3-4줄 (점수와 톤에 맞춰 타인을 대하는 처세술과 행동을 조언)"
   },
-  "doList": ["해야할 것1 (1줄)", "해야할 것2 (1줄)", "해야할 것3 (1줄)"],
-  "dontList": ["하지말아야 할 것1 (1줄)", "하지말아야 할 것2 (1줄)", "하지말아야 할 것3 (1줄)"]
+  "doList": ["핵심 행동 1 (1줄)", "핵심 행동 2 (1줄)", "핵심 행동 3 (1줄)"],
+  "dontList": ["주의 행동 1 (1줄)", "주의 행동 2 (1줄)", "주의 행동 3 (1줄)"]
 }
-
-## 분석 기준
-1. 계산된 점수와 상호작용 분석을 바탕으로 한 설명
-2. 오늘의 간지와 개인 사주의 관계
-3. 활성화된 신살과 귀인의 영향
-4. 카테고리별 구체적인 조언
-5. 실용적이고 실행 가능한 행동 지침
-
-전문적이면서도 이해하기 쉬운 조언을 제공해주세요.`;
+\`\`\``;
 }
 
 // chat-prompts.ts 파일이 제거되었으므로 해당 export 제거

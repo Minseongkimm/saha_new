@@ -3,7 +3,7 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createOpenAIStream, transformToSSE } from '../_shared/openai-streaming.ts';
 import { handleCorsPreFlight, getStreamingHeaders } from '../_shared/cors.ts';
-import { createErrorResponse, validateRequest, validateEnvVars, StreamingError } from '../_shared/error-handler.ts';
+import { createErrorResponse, validateRequest, validateEnvVars, StreamingError as _StreamingError } from '../_shared/error-handler.ts';
 import { getTodayFortunePrompt } from '../_shared/prompts.ts';
 import { AI_CONFIG, getEnvVar, log } from '../_shared/config.ts';
 import { OpenAIMessage } from '../_shared/types.ts';
@@ -13,6 +13,34 @@ interface TodayFortuneStreamRequest {
   sajuData: Record<string, unknown>;
   todayDate: string;
 }
+
+type ToneLevel = 'very_bad' | 'bad' | 'neutral' | 'good' | 'very_good';
+
+interface TodayFortuneWithTone extends Record<string, unknown> {
+  totalScore?: number;
+  categoryScores?: {
+    career?: number;
+    love?: number;
+    wealth?: number;
+    relationship?: number;
+  };
+  toneLevels?: {
+    overall: ToneLevel;
+    career: ToneLevel;
+    love: ToneLevel;
+    wealth: ToneLevel;
+    relationship: ToneLevel;
+  };
+}
+
+const getToneLevel = (score: unknown): ToneLevel => {
+  const n = typeof score === 'number' ? score : 0;
+  if (n <= 20) return 'very_bad';
+  if (n <= 40) return 'bad';
+  if (n <= 60) return 'neutral';
+  if (n <= 80) return 'good';
+  return 'very_good';
+};
 
 serve(async (req: Request) => {
   // CORS 프리플라이트 처리
@@ -33,10 +61,33 @@ serve(async (req: Request) => {
     
     const { calculatedFortune, sajuData, todayDate } = body;
 
-    log('오늘의 운세 스트리밍 시작', { todayDate });
+    const fortuneWithTone: TodayFortuneWithTone = { ...calculatedFortune } as TodayFortuneWithTone;
+    try {
+      const totalScore = fortuneWithTone.totalScore ?? 0;
+      const careerScore = fortuneWithTone.categoryScores?.career ?? 0;
+      const loveScore = fortuneWithTone.categoryScores?.love ?? 0;
+      const wealthScore = fortuneWithTone.categoryScores?.wealth ?? 0;
+      const relationshipScore = fortuneWithTone.categoryScores?.relationship ?? 0;
 
-    // 프롬프트 생성
-    const promptText = getTodayFortunePrompt(calculatedFortune, sajuData, todayDate);
+      fortuneWithTone.toneLevels = {
+        overall: getToneLevel(totalScore),
+        career: getToneLevel(careerScore),
+        love: getToneLevel(loveScore),
+        wealth: getToneLevel(wealthScore),
+        relationship: getToneLevel(relationshipScore),
+      };
+    } catch {
+      // toneLevels 설정 실패시 조용히 무시하고 기본값(neutral)로 처리되게 둔다.
+    }
+
+    log('info', '오늘의 운세 스트리밍 시작', { todayDate });
+
+    // 프롬프트 생성 (toneLevels가 포함된 fortuneWithTone 사용)
+    const promptText = getTodayFortunePrompt(
+      fortuneWithTone as unknown as Record<string, unknown>,
+      sajuData,
+      todayDate,
+    );
     
     const messages: OpenAIMessage[] = [
       {
@@ -68,8 +119,9 @@ serve(async (req: Request) => {
       headers: getStreamingHeaders(),
     });
   } catch (error) {
-    log('오늘의 운세 스트리밍 오류', error);
+    log('error', '오늘의 운세 스트리밍 오류', error);
     return createErrorResponse(error);
   }
-});
+}
+);
 
