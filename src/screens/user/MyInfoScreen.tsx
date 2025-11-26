@@ -21,6 +21,7 @@ import {
 import ChargeBottomSheet from '../../components/bottomsheets/ChargeBottomSheet';
 import PaymentHistoryBottomSheet from '../../components/bottomsheets/PaymentHistoryBottomSheet';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import PaymentLoadingModal from '../../components/common/PaymentLoadingModal';
 import { fetchUserBalance as fetchUserBalanceUtil, refreshBalance as refreshBalanceUtil } from '../../utils/payments/balance';
 import { handleChargeFlow } from '../../utils/payments/chargeFlow';
 import { deleteUserAccount } from '../../utils/user/deleteAccount';
@@ -43,6 +44,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [deleteAccountModalVisible, setDeleteAccountModalVisible] = useState(false);
   const [deleteAccountConfirmVisible, setDeleteAccountConfirmVisible] = useState(false);
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
 
 
   // 사용자 정보 로드
@@ -164,6 +166,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
 
   const handleChargeSelect = async (amount: number) => {
     setShowChargeModal(false);
+    
     await handleChargeFlow(amount, {
       onSuccess: (newBalance) => {
         // 서버에서 반환된 잔액으로 즉시 업데이트 (서버가 이미 DB에서 조회한 정확한 값)
@@ -176,6 +179,9 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
           stack: error?.stack,
           code: (error as any)?.code,
         });
+      },
+      onLoading: (isLoading) => {
+        setIsPaymentLoading(isLoading);
       },
     });
   };
@@ -368,6 +374,12 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
       <PaymentHistoryBottomSheet
         visible={showHistoryModal}
         onClose={() => setShowHistoryModal(false)}
+      />
+
+      {/* 결제 로딩 모달 */}
+      <PaymentLoadingModal
+        visible={isPaymentLoading}
+        message="결제중입니다"
       />
 
       {/* 로그아웃 확인 모달 */}

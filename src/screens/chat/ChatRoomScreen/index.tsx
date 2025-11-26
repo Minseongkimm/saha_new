@@ -24,6 +24,7 @@ import InitialQuestions from './components/InitialQuestions';
 import FollowUpQuestions from './components/FollowUpQuestions';
 import InsufficientBalanceBottomSheet from '../../../components/bottomsheets/InsufficientBalanceBottomSheet';
 import ChargeBottomSheet from '../../../components/bottomsheets/ChargeBottomSheet';
+import PaymentLoadingModal from '../../../components/common/PaymentLoadingModal';
 import { handleChargeFlow } from '../../../utils/payments/chargeFlow';
 import { safeGoBack } from '../../../utils/navigation/safeGoBack';
 
@@ -44,6 +45,9 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   
   // 전환 중인지 추적 (첫 번째가 닫히는 동안 두 번째를 미리 준비)
   const [isTransitioning, setIsTransitioning] = useState(false);
+  
+  // 결제 로딩 상태
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
 
   // 커스텀 훅들
   const {
@@ -108,9 +112,13 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         onError: (error) => {
           console.error('[ChatRoomScreen] 충전 오류:', error);
         },
+        onLoading: (isLoading) => {
+          setIsPaymentLoading(isLoading);
+        },
       });
     } catch (error) {
       console.error('[ChatRoomScreen] handleChargeFlow 예외:', error);
+      setIsPaymentLoading(false);
     }
   };
 
@@ -250,6 +258,11 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
           setIsTransitioning(false);
         }}
         onSelectCharge={handleChargeSelect}
+      />
+
+      <PaymentLoadingModal
+        visible={isPaymentLoading}
+        message="결제중입니다"
       />
     </SafeAreaView>
   );
