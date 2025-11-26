@@ -8,6 +8,7 @@ import {
   Alert,
   Image,
   Platform,
+  ImageSourcePropType,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import {
@@ -17,6 +18,9 @@ import {
   performAppleLogin,
 } from '../../utils/auth/apple_login';
 import { KakaoLoginError, performKakaoLogin } from '../../utils/auth/kakao_login';
+
+const KAKAO_ICON: ImageSourcePropType = require('../../../assets/icons/kakao_icon.png');
+const LOGO_ICON: ImageSourcePropType = require('../../../assets/logo/logo_icon.png');
 
 interface LoginScreenProps {
   navigation: {
@@ -78,7 +82,8 @@ function LoginScreen({ navigation }: LoginScreenProps) {
         {/* 상단 이미지 */}
         <View style={styles.imageContainer}>
           <Image 
-            source={require('../../../assets/logo/logo_icon.png')} 
+            key="logo-icon"
+            source={LOGO_ICON} 
             style={styles.logoImage}
             resizeMode="contain"
           />
@@ -101,7 +106,8 @@ function LoginScreen({ navigation }: LoginScreenProps) {
           >
             <View style={styles.buttonContent}>
               <Image 
-                source={require('../../../assets/icons/kakao_icon.png')} 
+                key="kakao-icon"
+                source={KAKAO_ICON} 
                 style={styles.kakaoIcon}
                 resizeMode="contain"
               />
@@ -117,7 +123,7 @@ function LoginScreen({ navigation }: LoginScreenProps) {
               disabled={isLoading}
             >
               <View style={styles.buttonContent}>
-                <Icon name="apple" size={20} color="#000000" style={styles.appleIcon} />
+                <Icon name="apple" size={20} color="#FFFFFF" style={styles.appleIcon} />
                 <Text style={styles.appleButtonText}>
                   {isLoading ? '로그인 중' : 'Apple로 로그인'}
                 </Text>
@@ -221,12 +227,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   appleButton: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#BBBBBB',
-    borderWidth: 0.2,
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+    borderWidth: 1,
   },
   appleButtonText: {
-    color: '#000000',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
   },
