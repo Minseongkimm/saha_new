@@ -299,7 +299,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
             style={styles.menuItem}
             onPress={() => navigation.navigate('SajuInfo')}
           >
-            <Text style={styles.menuText}>사주 정보 / 생년월일 관리</Text>
+            <Text style={styles.menuText}>생년월일 관리</Text>
             <Text style={styles.arrowIcon}>›</Text>
           </TouchableOpacity>
         </View>

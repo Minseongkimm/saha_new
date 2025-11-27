@@ -18,7 +18,7 @@ export interface Expert {
 export const EXPERT_CATEGORIES = {
   comprehensive: {
     key: 'comprehensive',
-    label: '종합사주',
+    label: '종합',
     description: '전체적인 운세를 종합적으로 분석해드립니다'
   },
   love: {

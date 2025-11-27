@@ -254,7 +254,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           {/* AI 사주 도사 섹션 */}
           <View style={styles.expertSection}>
             <SectionHeader 
-              title="AI 사주 도사" 
+              title="AI 도사" 
               description="언제든 대화할 수 있는 나만의 사주 선생님"
             />
             

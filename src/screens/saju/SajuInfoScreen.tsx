@@ -469,9 +469,9 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
           {isEditing ? (
             <View style={styles.editContainer}>
               <View style={styles.editHeader}>
-                <Text style={styles.editTitle}>사주 정보 수정</Text>
+                <Text style={styles.editTitle}>정보 수정</Text>
                 <Text style={styles.editSubtitle}>
-                  정확한 사주 분석을 위해 이름과 생년월일을 입력 해주세요
+                  사바세계 탐험을 위해 정보를 입력 해주세요
                 </Text>
               </View>
               <BirthInfoForm
