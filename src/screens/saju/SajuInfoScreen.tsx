@@ -129,10 +129,10 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
             birthYear: parsedCache.year?.toString() || '',
             birthMonth: parsedCache.month?.toString() || '',
             birthDay: parsedCache.day?.toString() || '',
-            birthHour: parsedCache.hour?.toString() || '0',
-            birthMinute: parsedCache.minute?.toString() || '0',
-            gender: parsedCache.gender === 'male' ? '남성' : '여성',
-            calendarType: parsedCache.calendar_type === 'lunar' ? '음력' : '양력',
+            birthHour: parsedCache.hour?.toString() || '',
+            birthMinute: parsedCache.minute?.toString() || '',
+            gender: parsedCache.gender === 'male' ? '남성' : parsedCache.gender === 'female' ? '여성' : '',
+            calendarType: parsedCache.calendar_type === 'lunar' ? '음력' : parsedCache.calendar_type === 'solar' ? '양력' : '',
             isLeapMonth: parsedCache.is_leap_month || false,
             timeUnknown: parsedCache.is_time_unknown || false,
           };
@@ -180,10 +180,10 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
             birthYear: birthData.year?.toString() || '',
             birthMonth: birthData.month?.toString() || '',
             birthDay: birthData.day?.toString() || '',
-            birthHour: birthData.hour?.toString() || '0',
-            birthMinute: birthData.minute?.toString() || '0',
-            gender: birthData.gender === 'male' ? '남성' : '여성',
-            calendarType: birthData.calendar_type === 'lunar' ? '음력' : '양력',
+            birthHour: birthData.hour?.toString() || '',
+            birthMinute: birthData.minute?.toString() || '',
+            gender: birthData.gender === 'male' ? '남성' : birthData.gender === 'female' ? '여성' : '',
+            calendarType: birthData.calendar_type === 'lunar' ? '음력' : birthData.calendar_type === 'solar' ? '양력' : '',
             isLeapMonth: birthData.is_leap_month || false,
             timeUnknown: birthData.is_time_unknown || false,
           };
@@ -214,8 +214,8 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
             birthYear: '',
             birthMonth: '',
             birthDay: '',
-            birthHour: '0',
-            birthMinute: '0',
+            birthHour: '',
+            birthMinute: '',
             gender: '',
             calendarType: '',
             isLeapMonth: false,
@@ -266,15 +266,11 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
 
     if (!sajuInfo.name.trim()) {
       Alert.alert('오류', '이름을 입력해주세요.');
-      setSajuInfo(originalSajuInfo);
-      setIsEditing(false);
       return;
     }
 
     if (!sajuInfo.birthYear || !sajuInfo.birthMonth || !sajuInfo.birthDay) {
       Alert.alert('오류', '생년월일을 입력해주세요.');
-      setSajuInfo(originalSajuInfo);
-      setIsEditing(false);
       return;
     }
 
@@ -286,8 +282,8 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
         year: parseInt(sajuInfo.birthYear),
         month: parseInt(sajuInfo.birthMonth),
         day: parseInt(sajuInfo.birthDay),
-        hour: sajuInfo.timeUnknown ? 0 : parseInt(sajuInfo.birthHour),
-        minute: sajuInfo.timeUnknown ? 0 : parseInt(sajuInfo.birthMinute),
+        hour: sajuInfo.timeUnknown || !sajuInfo.birthHour ? 0 : parseInt(sajuInfo.birthHour),
+        minute: sajuInfo.timeUnknown || !sajuInfo.birthMinute ? 0 : parseInt(sajuInfo.birthMinute),
         isLunar: sajuInfo.calendarType === '음력',
         isLeapMonth: sajuInfo.isLeapMonth,
       });
@@ -298,12 +294,12 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
         year: parseInt(sajuInfo.birthYear),
         month: parseInt(sajuInfo.birthMonth),
         day: parseInt(sajuInfo.birthDay),
-        hour: sajuInfo.timeUnknown ? null : parseInt(sajuInfo.birthHour),
-        minute: sajuInfo.timeUnknown ? null : parseInt(sajuInfo.birthMinute),
+        hour: sajuInfo.timeUnknown || !sajuInfo.birthHour ? null : parseInt(sajuInfo.birthHour),
+        minute: sajuInfo.timeUnknown || !sajuInfo.birthMinute ? null : parseInt(sajuInfo.birthMinute),
         is_time_unknown: sajuInfo.timeUnknown,
-        calendar_type: sajuInfo.calendarType === '음력' ? 'lunar' : 'solar',
+        calendar_type: sajuInfo.calendarType === '음력' ? 'lunar' : sajuInfo.calendarType === '양력' ? 'solar' : null,
         is_leap_month: sajuInfo.isLeapMonth,
-        gender: sajuInfo.gender === '남성' ? 'male' : 'female',
+        gender: sajuInfo.gender === '남성' ? 'male' : sajuInfo.gender === '여성' ? 'female' : null,
       };
 
       // 기존 데이터 확인 후 업데이트 또는 삽입
@@ -393,8 +389,8 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
       setSajuInfo({
         ...sajuInfo, 
         timeUnknown: true,
-        birthHour: '0',
-        birthMinute: '0'
+        birthHour: '',
+        birthMinute: ''
       });
     } else {
       setSajuInfo({

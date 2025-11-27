@@ -37,19 +37,64 @@ interface BirthInfoScreenProps {
 function BirthInfoScreen({ navigation, route }: BirthInfoScreenProps) {
   const [userId, setUserId] = useState<string | null>(null);
 
-  // 현재 로그인한 사용자의 ID 가져오기
+  const [isNameEditable, setIsNameEditable] = useState<boolean>(true);
+
+  // 현재 로그인한 사용자의 ID 및 이름 정보 가져오기
   useEffect(() => {
-    const getUserId = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
+    const getUserData = async () => {
+      setIsLoading(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          navigation.replace('Login');
+          return;
+        }
+
         setUserId(user.id);
-      } else {
-        // 사용자 정보가 없으면 로그인 화면으로
-        navigation.replace('Login');
+
+        // 1. 기존 birth_info 확인
+        const { data: birthInfo } = await supabase
+          .from('birth_info')
+          .select('name')
+          .eq('user_id', user.id)
+          .single();
+
+        // 2. 이름 가져오기 우선순위: birth_info > user_metadata > 이메일 앞자리
+        let initialName = birthInfo?.name;
+
+        if (!initialName) {
+          initialName =
+            user.user_metadata?.name ||
+            user.user_metadata?.full_name ||
+            user.user_metadata?.preferred_username ||
+            user.user_metadata?.user_name ||
+            undefined;
+        }
+
+        const emailId = user.email?.split('@')[0];
+
+        // Apple/Kakao 등에서 받은 "진짜 이름" vs 이메일 아이디 기반 "임의 이름" 구분
+        const isGeneratedName =
+          (!!emailId && initialName === emailId) || !initialName;
+
+        const finalName = initialName || emailId || '';
+
+        setFormData(prev => ({
+          ...prev,
+          name: finalName,
+        }));
+
+        // 진짜 이름이면 수정 불가, 임의 이름/없음이면 수정 가능
+        setIsNameEditable(isGeneratedName);
+      } catch (error) {
+        console.error('사용자 정보 로드 실패:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
-    getUserId();
-  }, []);
+
+    getUserData();
+  }, [navigation]);
   const [formData, setFormData] = useState<BirthInfoFormData>({
     birthYear: '',
     birthMonth: '',
@@ -317,9 +362,11 @@ interface SajuResult {
             <BirthInfoForm
               data={formData}
               onChange={handleFormChange}
+              showName={true}
+              isNameEditable={isNameEditable}
               showTitle={true}
-              title="사주 정보 입력"
-              subtitle="사주 분석을 위해서만 활용됩니다."
+              title="정보 입력"
+              subtitle="분석을 위해서만 활용됩니다."
             />
 
             <TouchableOpacity 

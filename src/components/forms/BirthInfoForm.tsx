@@ -28,6 +28,7 @@ interface BirthInfoFormProps {
   showTitle?: boolean;
   title?: string;
   subtitle?: string;
+  isNameEditable?: boolean;
 }
 
 const BirthInfoForm: React.FC<BirthInfoFormProps> = ({
@@ -37,6 +38,7 @@ const BirthInfoForm: React.FC<BirthInfoFormProps> = ({
   showTitle = false,
   title,
   subtitle,
+  isNameEditable = true,
 }) => {
   const handleDateChange = (text: string) => {
     // 숫자만 허용
@@ -111,20 +113,26 @@ const BirthInfoForm: React.FC<BirthInfoFormProps> = ({
         </>
       )}
 
-      <View style={styles.inputContainer}>
-        <Text style={styles.label}>이름</Text>
-        <TextInput
-          style={styles.nameInput}
-          value={data.name || ''}
-          onChangeText={(text) => {
-            // 한글, 영문만 허용 (숫자, 특수문자 제거)
-            const filteredText = text.replace(/[^ㄱ-ㅎㅏ-ㅣ가-힣a-zA-Z\s]/g, '');
-            onChange('name', filteredText);
-          }}
-          placeholder="이름을 입력하세요"
-          maxLength={10}
-        />
-      </View>
+      {showName && (
+        <View style={styles.inputContainer}>
+          <Text style={styles.label}>이름</Text>
+          <TextInput
+            style={[
+              styles.nameInput,
+              !isNameEditable && styles.nameInputDisabled,
+            ]}
+            value={data.name || ''}
+            onChangeText={(text) => {
+              // 한글, 영문만 허용 (숫자, 특수문자 제거)
+              const filteredText = text.replace(/[^ㄱ-ㅎㅏ-ㅣ가-힣a-zA-Z\s]/g, '');
+              onChange('name', filteredText);
+            }}
+            placeholder="이름을 입력하세요"
+            maxLength={10}
+            editable={isNameEditable}
+          />
+        </View>
+      )}
 
       <View style={styles.inputContainer}>
         <Text style={styles.label}>생년월일</Text>
@@ -288,12 +296,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
     color: '#333',
+    flexShrink: 1,
+    paddingHorizontal: 16,
   },
   subtitle: {
     fontSize: 14,
     textAlign: 'center',
     marginBottom: 32,
     color: '#666',
+    flexShrink: 1,
+    paddingHorizontal: 16,
   },
   inputContainer: {
     marginBottom: 24,
@@ -310,6 +322,15 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     fontSize: 18,
     color: '#333',
+  },
+  nameInputDisabled: {
+    color: '#999',
+    borderBottomColor: '#eee',
+    backgroundColor: '#f5f5f5',
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   dateInputContainer: {
     position: 'relative',
