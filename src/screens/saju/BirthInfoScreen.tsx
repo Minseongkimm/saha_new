@@ -6,6 +6,11 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Alert,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { supabase } from '../../utils/database/supabaseClient';
 import { calculateSaju } from '../../utils/saju/ganji_local';
@@ -71,6 +76,9 @@ function BirthInfoScreen({ navigation, route }: BirthInfoScreenProps) {
   
 
   const handleSaveBirthInfo = async () => {
+    // 키보드 닫기
+    Keyboard.dismiss();
+    
     // 입력값 검증
     if (!formData.birthYear || !formData.birthMonth || !formData.birthDay) {
       Alert.alert('오류', '생년월일을 모두 입력해주세요.');
@@ -292,46 +300,61 @@ interface SajuResult {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <BirthInfoForm
-          data={formData}
-          onChange={handleFormChange}
-          showTitle={true}
-          title="사주 정보 입력"
-          subtitle="사주 분석을 위해서만 활용됩니다."
-        />
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            onScrollBeginDrag={Keyboard.dismiss}
+            showsVerticalScrollIndicator={false}
+          >
+            <BirthInfoForm
+              data={formData}
+              onChange={handleFormChange}
+              showTitle={true}
+              title="사주 정보 입력"
+              subtitle="사주 분석을 위해서만 활용됩니다."
+            />
 
-        <TouchableOpacity 
-          style={styles.saveButton}
-          onPress={handleSaveBirthInfo}
-          disabled={isLoading}
-        >
-          <Text style={styles.saveButtonText}>저장하기</Text>
-        </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.saveButton}
+              onPress={handleSaveBirthInfo}
+              disabled={isLoading}
+            >
+              <Text style={styles.saveButtonText}>저장하기</Text>
+            </TouchableOpacity>
 
-        {/* 로딩 오버레이 */}
-        {isLoading && (
-          <View style={styles.loadingOverlay}>
-            <View style={styles.loadingContainer}>
-              <SabaLoader size={60} message="" />
-            </View>
+            <TouchableOpacity 
+              style={styles.skipButton}
+              onPress={() => {
+                Keyboard.dismiss();
+                if (typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
+                  navigation.goBack();
+                  return;
+                }
+                navigation.replace('MainTabs');
+              }}
+            >
+              <Text style={styles.skipButtonText}>다음에 입력하기</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+
+      {/* 로딩 오버레이 */}
+      {isLoading && (
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingContainer}>
+            <SabaLoader size={60} message="" />
           </View>
-        )}
-
-        <TouchableOpacity 
-          style={styles.skipButton}
-          onPress={() => {
-            if (typeof navigation.canGoBack === 'function' && navigation.canGoBack()) {
-              navigation.goBack();
-              return;
-            }
-            navigation.replace('MainTabs');
-          }}
-        >
-          <Text style={styles.skipButtonText}>다음에 입력하기</Text>
-        </TouchableOpacity>
-      </View>
-
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -341,6 +364,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 25,
+    paddingBottom: 40,
   },
   content: {
     flex: 1,
