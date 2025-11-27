@@ -148,7 +148,212 @@ async function generateAppleJWT(): Promise<string> {
 }
 
 /**
+ * App Store Server API를 사용하여 transaction 정보 조회 (환경별)
+ */
+async function fetchTransactionFromApple(
+  transactionId: string,
+  jwtToken: string,
+  environment: 'production' | 'sandbox'
+): Promise<{
+  signedTransactionInfo: string;
+  environment: string;
+}> {
+  const baseUrl = environment === 'production'
+    ? 'https://api.storekit.itunes.apple.com'
+    : 'https://api.storekit-sandbox.itunes.apple.com';
+  
+  const apiUrl = `${baseUrl}/inApps/v1/transactions/${transactionId}`;
+  
+  // 타임아웃 설정 (업계 표준)
+  // - Production API: 5초 (404는 즉시 반환, 최대 3-5초)
+  // - Sandbox API: 10초 (네트워크 지연 고려)
+  const timeoutMs = environment === 'production' ? 5000 : 10000;
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${jwtToken}`,
+        'Content-Type': 'application/json',
+      },
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorData: { [key: string]: unknown } | null = null;
+      try {
+        errorData = JSON.parse(errorText) as { [key: string]: unknown };
+      } catch {
+        // JSON 파싱 실패 시 그대로 사용
+      }
+    
+      // 404 오류 또는 Sandbox receipt 에러가 발생하면 sandbox 영수증일 가능성
+      if (response.status === 404) {
+        throw new Error('TRANSACTION_NOT_FOUND');
+      }
+      
+      // "Sandbox receipt used in production" 에러 처리
+      // Apple이 요구: production에서 검증 실패 시 sandbox로 재시도
+      const errorMessage = errorText?.toLowerCase() || '';
+      const errorCode = errorData?.['errorCode'] || errorData?.['code'];
+      
+      if (
+        response.status === 400 && 
+        (errorMessage.includes('sandbox receipt') || 
+         errorMessage.includes('sandbox') ||
+         errorCode === 'SANDBOX_RECEIPT_USED_IN_PRODUCTION')
+      ) {
+        log('info', 'Production 환경에서 Sandbox receipt 감지, Sandbox 환경으로 재시도');
+        throw new Error('TRANSACTION_NOT_FOUND');
+      }
+    
+      log('error', `Apple ${environment} API 호출 실패`, { 
+        status: response.status, 
+        error: errorText,
+        errorData 
+      });
+      throw new Error(`Apple ${environment} API 호출 실패: ${response.status}`);
+    }
+
+    const apiData = await response.json();
+    
+    if (!apiData.signedTransactionInfo) {
+      throw new Error('Transaction info not found in API response');
+    }
+
+    return {
+      signedTransactionInfo: apiData.signedTransactionInfo,
+      environment,
+    };
+  } catch (error) {
+    clearTimeout(timeoutId);
+    
+    // 타임아웃 에러 처리
+    if (error instanceof Error && error.name === 'AbortError') {
+      log('error', `Apple ${environment} API 호출 타임아웃`, { 
+        timeoutMs,
+        transactionId 
+      });
+      // Production 타임아웃이면 Sandbox로 전환하도록 TRANSACTION_NOT_FOUND로 처리
+      if (environment === 'production') {
+        throw new Error('TRANSACTION_NOT_FOUND');
+      }
+      throw new Error(`Apple ${environment} API 호출 타임아웃`);
+    }
+    
+    // 다른 에러는 그대로 throw
+    throw error;
+  }
+}
+
+/**
+ * unknown 타입에서 string 추출 (타입 안전)
+ */
+function getStringValue(obj: { [key: string]: unknown }, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = obj[key];
+    if (typeof value === 'string' && value) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * unknown 타입에서 number 추출 (타입 안전)
+ */
+function getNumberValue(obj: { [key: string]: unknown }, ...keys: string[]): number | undefined {
+  for (const key of keys) {
+    const value = obj[key];
+    if (typeof value === 'number') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      const num = parseInt(value, 10);
+      if (!isNaN(num)) {
+        return num;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Transaction 정보에서 유효성 검증
+ */
+function validateTransactionInfo(
+  transactionPayload: { [key: string]: unknown },
+  payload: { [key: string]: unknown }
+): {
+  transactionId: string;
+  productId: string;
+  purchaseDate: number;
+  isValid: boolean;
+} {
+  // Transaction ID 추출
+  const transactionId = 
+    getStringValue(transactionPayload, 'transactionId', 'originalTransactionId') ||
+    getStringValue(payload, 'transactionId', 'originalTransactionId');
+  
+  if (!transactionId) {
+    throw new Error('Transaction ID not found');
+  }
+
+  // Product ID 추출
+  const productId = 
+    getStringValue(transactionPayload, 'productId') ||
+    getStringValue(payload, 'productId') ||
+    '';
+
+  // Purchase Date 추출
+  const purchaseDate = 
+    getNumberValue(transactionPayload, 'purchaseDate', 'originalPurchaseDate') ||
+    getNumberValue(payload, 'purchaseDate', 'originalPurchaseDate') ||
+    Date.now();
+
+  // Revocation Date 확인
+  const revocationDate = getNumberValue(transactionPayload, 'revocationDate');
+  
+  // Expires Date 확인
+  const expiresDate = getNumberValue(transactionPayload, 'expiresDate');
+
+  // 취소되었거나 만료된 경우
+  if (revocationDate) {
+    return {
+      transactionId,
+      productId,
+      purchaseDate,
+      isValid: false,
+    };
+  }
+
+  // 구독 상품인 경우 만료 확인 (소모품은 expiresDate 없음)
+  if (expiresDate && expiresDate < Date.now()) {
+    return {
+      transactionId,
+      productId,
+      purchaseDate,
+      isValid: false,
+    };
+  }
+
+  return {
+    transactionId,
+    productId,
+    purchaseDate,
+    isValid: true,
+  };
+}
+
+/**
  * Apple JWS 검증 (App Store Server API 사용)
+ * Production 환경에서 먼저 시도하고, 실패 시 Sandbox 환경으로 재시도
  */
 async function verifyAppleReceipt(jws: string): Promise<{
   transactionId: string;
@@ -174,12 +379,6 @@ async function verifyAppleReceipt(jws: string): Promise<{
       const baseTransactionId = payload.transactionId || payload.originalTransactionId || crypto.randomUUID();
       const simulatedTransactionId = crypto.randomUUID();
       const simulatedProductId = payload.productId || payload.productID || payload.productIdentifier || payload.product_id || '';
-
-      log('info', 'StoreKit Configuration 환경 감지, 원격 검증 건너뜀', {
-        baseTransactionId,
-        simulatedTransactionId,
-        productId: simulatedProductId,
-      });
       return {
         transactionId: simulatedTransactionId,
         productId: simulatedProductId,
@@ -196,29 +395,29 @@ async function verifyAppleReceipt(jws: string): Promise<{
       throw new Error('Transaction ID not found in JWS');
     }
 
-    // App Store Server API 호출하여 transaction 정보 조회
-    const apiUrl = `https://api.storekit.itunes.apple.com/inApps/v1/transactions/${transactionId}`;
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${jwtToken}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      log('error', 'Apple API 호출 실패', { status: response.status, error: errorText });
-      throw new Error(`Apple API 호출 실패: ${response.status}`);
+    // 1. 먼저 production 환경에서 검증 시도
+    let transactionData: { signedTransactionInfo: string; environment: string };
+    try {
+      transactionData = await fetchTransactionFromApple(transactionId, jwtToken, 'production');
+    } catch (error) {
+      // Production 검증 실패 시 Sandbox 환경으로 재시도
+      if (error instanceof Error && error.message === 'TRANSACTION_NOT_FOUND') {
+        try {
+          transactionData = await fetchTransactionFromApple(transactionId, jwtToken, 'sandbox');
+        } catch (sandboxError) {
+          log('error', 'Transaction 조회 실패 (Production 및 Sandbox 모두 실패)', {
+            transactionId,
+            error: sandboxError instanceof Error ? sandboxError.message : String(sandboxError)
+          });
+          throw new Error(`Transaction not found in both production and sandbox environments`);
+        }
+      } else {
+        throw error;
+      }
     }
 
-    const apiData = await response.json();
-    
     // Transaction 정보에서 상태 확인
-    const signedTransactionInfo = apiData.signedTransactionInfo;
-    if (!signedTransactionInfo) {
-      throw new Error('Transaction info not found in API response');
-    }
+    const signedTransactionInfo = transactionData.signedTransactionInfo;
 
     // JWS 디코딩하여 transaction 정보 확인
     const transactionParts = signedTransactionInfo.split('.');
@@ -232,38 +431,8 @@ async function verifyAppleReceipt(jws: string): Promise<{
       )
     );
 
-    // Transaction 상태 확인
-    const productId = transactionPayload.productId || payload.productId;
-    const purchaseDate = transactionPayload.purchaseDate || transactionPayload.originalPurchaseDate || Date.now();
-    const revocationDate = transactionPayload.revocationDate;
-    const expiresDate = transactionPayload.expiresDate;
-
-    // 취소되었거나 만료된 경우
-    if (revocationDate) {
-      return {
-        transactionId,
-        productId,
-        purchaseDate,
-        isValid: false,
-      };
-    }
-
-    // 구독 상품인 경우 만료 확인 (소모품은 expiresDate 없음)
-    if (expiresDate && expiresDate < Date.now()) {
-      return {
-        transactionId,
-        productId,
-        purchaseDate,
-        isValid: false,
-      };
-    }
-
-    return {
-      transactionId,
-      productId,
-      purchaseDate,
-      isValid: true,
-    };
+    // Transaction 유효성 검증
+    return validateTransactionInfo(transactionPayload, payload);
   } catch (error) {
     log('error', 'Apple JWS 검증 실패', error);
     throw new Error(`Apple 영수증 검증 실패: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -490,52 +659,26 @@ Deno.serve(async (req) => {
             const environment = typeof payload.environment === 'string' ? payload.environment.toLowerCase() : '';
             if (environment === 'xcode') {
               isDevelopmentMode = true;
-              log('info', '개발 환경 감지 (Xcode StoreKit) - 영수증 검증 건너뜀', {
-                userId: user.id,
-                productId,
-              });
             }
-          } catch (parseError) {
+          } catch (_parseError) {
             // JWS 파싱 실패 시 개발 환경일 가능성 (간단한 테스트 영수증)
             // receiptOrToken이 UUID 형식이거나 짧은 문자열이면 개발 환경으로 간주
             if (receiptOrToken.length < 100 && !receiptOrToken.includes('eyJ')) {
               isDevelopmentMode = true;
-              log('info', '개발 환경 감지 (간단한 영수증 형식) - 영수증 검증 건너뜀', {
-                userId: user.id,
-                productId,
-                receiptLength: receiptOrToken.length,
-              });
             }
           }
         } else {
           // JWS 형식이 아니면 개발 환경으로 간주
           isDevelopmentMode = true;
-          log('info', '개발 환경 감지 (JWS 형식 아님) - 영수증 검증 건너뜀', {
-            userId: user.id,
-            productId,
-            receiptLength: receiptOrToken.length,
-          });
         }
       } catch (e) {
         // 전체 파싱 실패 시 개발 환경으로 간주
         isDevelopmentMode = true;
-        log('info', '개발 환경 감지 (파싱 실패) - 영수증 검증 건너뜀', {
-          userId: user.id,
-          productId,
-          error: e instanceof Error ? e.message : String(e),
-        });
       }
 
       // 개발 환경이 아닐 때만 실제 검증 수행
       if (!isDevelopmentMode) {
         const verifyResult = await verifyAppleReceipt(receiptOrToken);
-        log('info', 'Apple 영수증 검증 결과', {
-          userId: user.id,
-          transactionId: verifyResult.transactionId,
-          productId: verifyResult.productId,
-          isValid: verifyResult.isValid,
-          purchaseDate: verifyResult.purchaseDate,
-        });
         if (!verifyResult.isValid) {
           return new Response(
             JSON.stringify({
@@ -572,12 +715,6 @@ Deno.serve(async (req) => {
       } else {
         // 개발 환경: 항상 새로운 UUID 생성 (DB의 UUID 타입 컬럼에 저장하기 위해)
         purchaseId = crypto.randomUUID();
-        log('info', '개발 환경 - 검증 건너뛰고 잔액 지급', {
-          userId: user.id,
-          productId,
-          purchaseId,
-          originalReceipt: receiptOrToken.substring(0, 50) + '...', // 로그용 (처음 50자만)
-        });
       }
     } else {
       // Google은 현재 미지원
@@ -634,13 +771,6 @@ Deno.serve(async (req) => {
       provider
     );
 
-    log('info', 'IAP 검증 완료', {
-      userId: user.id,
-      purchaseId,
-      productId,
-      totalSaha: productInfo.totalSaha,
-      newBalance,
-    });
 
     // 5. 성공 응답
     const response: VerifyResponse = {

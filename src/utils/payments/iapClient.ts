@@ -61,7 +61,9 @@ export async function getProductsFromStore(): Promise<Product[]> {
 
   try {
     const products = await fetchProducts({ skus: PRODUCT_IDS });
-    if (!products) {
+    
+    if (!products || products.length === 0) {
+      console.error('IAP 상품 조회 실패');
       return [];
     }
 
@@ -107,6 +109,14 @@ export async function startPurchase(productId: string): Promise<{ provider: Prov
   }
 
   try {
+    // 상품 존재 확인 (결제 전에 상품이 있는지 확인)
+    const availableProducts = await fetchProducts({ skus: [productId] });
+    const productCount = availableProducts?.length ?? 0;
+    
+    if (!availableProducts || productCount === 0) {
+      console.error('IAP 상품을 찾을 수 없음:', productId);
+      throw new Error(`상품을 찾을 수 없습니다: ${productId}`);
+    }
     // 결제 요청 (플랫폼별로 다른 파라미터 구조)
     await requestPurchase({
       type: 'in-app',
@@ -125,6 +135,8 @@ export async function startPurchase(productId: string): Promise<{ provider: Prov
 
     // 결제 완료 대기 (purchaseUpdatedListener에서 처리)
     return new Promise((resolve, reject) => {
+      let timeoutId: ReturnType<typeof setTimeout>;
+      
       const purchaseUpdateSubscription = purchaseUpdatedListener(
         async (purchase: Purchase) => {
           try {
@@ -136,13 +148,18 @@ export async function startPurchase(productId: string): Promise<{ provider: Prov
 
             // 구독 취소
             purchaseUpdateSubscription.remove();
+            purchaseErrorSubscription.remove();
+            if (timeoutId) clearTimeout(timeoutId);
 
             resolve({
               provider: Platform.OS === 'android' ? 'google' : 'apple',
               receiptOrToken,
             });
           } catch (error) {
+            console.error('IAP 결제 완료 처리 중 오류:', error);
             purchaseUpdateSubscription.remove();
+            purchaseErrorSubscription.remove();
+            if (timeoutId) clearTimeout(timeoutId);
             reject(error);
           }
         }
@@ -150,8 +167,12 @@ export async function startPurchase(productId: string): Promise<{ provider: Prov
 
       // 에러 리스너
       const purchaseErrorSubscription = purchaseErrorListener((error) => {
+        if (error.code !== ErrorCode.UserCancelled) {
+          console.error('IAP 결제 에러:', error.message);
+        }
         purchaseUpdateSubscription.remove();
         purchaseErrorSubscription.remove();
+        if (timeoutId) clearTimeout(timeoutId);
         
         if (error.code === ErrorCode.UserCancelled) {
           reject(new Error('사용자가 결제를 취소했습니다'));
@@ -160,8 +181,10 @@ export async function startPurchase(productId: string): Promise<{ provider: Prov
         }
       });
 
-      // 타임아웃 (30초)
-      setTimeout(() => {
+      // 타임아웃 (30초) - 업계 표준
+      // Apple 결제 UI 대기 시간 (사용자 인증 포함)
+      timeoutId = setTimeout(() => {
+        console.error('IAP 결제 타임아웃');
         purchaseUpdateSubscription.remove();
         purchaseErrorSubscription.remove();
         reject(new Error('결제 시간이 초과되었습니다'));
