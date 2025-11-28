@@ -26,6 +26,9 @@ import { PartnerBirthInfo, RelationshipStatus, RELATIONSHIP_STATUS_LABELS } from
 import { getPartnerList, deletePartnerFromDatabase } from '../../utils/partner/partnerDatabase';
 import { getPartnerListCache, isPartnerListFresh } from '../../utils/partner/partnerListCache';
 import SabaLoader from '../../components/common/SabaLoader';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface ExpertDetailScreenProps {
   navigation: any;
@@ -67,6 +70,11 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
   const [existingPartners, setExistingPartners] = useState<any[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedPartners, setSelectedPartners] = useState<Set<string>>(new Set());
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [deleteConfirmData, setDeleteConfirmData] = useState<{ type: 'selected' | 'single'; partnerId?: string; partnerName?: string } | null>(null);
+  const [showDeleteSuccessModal, setShowDeleteSuccessModal] = useState(false);
+  const [deleteSuccessMessage, setDeleteSuccessMessage] = useState('');
+  const [showDeleteErrorModal, setShowDeleteErrorModal] = useState(false);
   const [partnerInfo, setPartnerInfo] = useState<PartnerBirthInfo>({
     name: '',
     birthYear: '',
@@ -215,12 +223,13 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
   };
 
   const toggleEditMode = () => {
+    if (isEditMode && selectedPartners.size > 0) {
+      handleDeleteSelectedPartners();
+      return;
+    }
+
     setIsEditMode(!isEditMode);
     if (isEditMode) {
-      // 편집 모드 종료 시 선택된 항목들 삭제
-      if (selectedPartners.size > 0) {
-        handleDeleteSelectedPartners();
-      }
       setSelectedPartners(new Set());
     }
   };
@@ -237,72 +246,50 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
     });
   };
 
-  const handleDeleteSelectedPartners = async () => {
+  const handleDeleteSelectedPartners = () => {
     if (selectedPartners.size === 0) return;
-
-    const selectedNames = existingPartners
-      .filter(partner => selectedPartners.has(partner.id))
-      .map(partner => partner.partner_name);
-
-    Alert.alert(
-      '상대방 정보 삭제',
-      `선택된 ${selectedNames.length}명의 정보를 삭제하시겠습니까?\n${selectedNames.join(', ')}`,
-      [
-        {
-          text: '취소',
-          style: 'cancel',
-        },
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // 선택된 모든 상대방 삭제
-              for (const partnerId of selectedPartners) {
-                await deletePartnerFromDatabase(partnerId);
-              }
-              // 목록에서 제거
-              setExistingPartners(prev => 
-                prev.filter(partner => !selectedPartners.has(partner.id))
-              );
-              setSelectedPartners(new Set());
-              Alert.alert('삭제 완료', '선택된 상대방 정보가 삭제되었습니다.');
-            } catch (error) {
-              console.error('상대방 정보 삭제 오류:', error);
-              Alert.alert('오류', '상대방 정보 삭제에 실패했습니다.');
-            }
-          },
-        },
-      ]
-    );
+    setDeleteConfirmData({ type: 'selected' });
+    setShowDeleteConfirmModal(true);
   };
 
-  const handleDeletePartner = async (partnerId: string, partnerName: string) => {
-    Alert.alert(
-      '상대방 정보 삭제',
-      `${partnerName}님의 정보를 삭제하시겠습니까?`,
-      [
-        {
-          text: '취소',
-          style: 'cancel',
-        },
-        {
-          text: '삭제',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deletePartnerFromDatabase(partnerId);
-              // 목록에서 제거
-              setExistingPartners(prev => prev.filter(partner => partner.id !== partnerId));
-              Alert.alert('삭제 완료', '상대방 정보가 삭제되었습니다.');
-            } catch (error) {
-              console.error('상대방 정보 삭제 오류:', error);
-              Alert.alert('오류', '상대방 정보 삭제에 실패했습니다.');
-            }
-          },
-        },
-      ]
-    );
+  const executeDeleteSelectedPartners = async () => {
+    setShowDeleteConfirmModal(false);
+    try {
+      // 선택된 모든 상대방 삭제
+      for (const partnerId of selectedPartners) {
+        await deletePartnerFromDatabase(partnerId);
+      }
+      // 목록에서 제거
+      setExistingPartners(prev => 
+        prev.filter(partner => !selectedPartners.has(partner.id))
+      );
+      setSelectedPartners(new Set());
+      setIsEditMode(false); // 삭제 완료 후 편집 모드 종료
+      setDeleteSuccessMessage('선택된 상대방 정보가 삭제되었습니다.');
+      setShowDeleteSuccessModal(true);
+    } catch (error) {
+      console.error('상대방 정보 삭제 오류:', error);
+      setShowDeleteErrorModal(true);
+    }
+  };
+
+  const handleDeletePartner = (partnerId: string, partnerName: string) => {
+    setDeleteConfirmData({ type: 'single', partnerId, partnerName });
+    setShowDeleteConfirmModal(true);
+  };
+
+  const executeDeletePartner = async () => {
+    if (!deleteConfirmData?.partnerId) return;
+    setShowDeleteConfirmModal(false);
+    try {
+      await deletePartnerFromDatabase(deleteConfirmData.partnerId);
+      setExistingPartners(prev => prev.filter(partner => partner.id !== deleteConfirmData.partnerId));
+      setDeleteSuccessMessage('상대방 정보가 삭제되었습니다.');
+      setShowDeleteSuccessModal(true);
+    } catch (error) {
+      console.error('상대방 정보 삭제 오류:', error);
+      setShowDeleteErrorModal(true);
+    }
   };
 
   const handlePartnerInfoSave = async () => {
@@ -554,7 +541,7 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
               setSelectedPartners(new Set());
             }}
             rightComponent={
-              <TouchableOpacity onPress={toggleEditMode}>
+              <TouchableOpacity onPress={toggleEditMode} style={styles.editButtonContainer}>
                 <Text style={styles.editButtonText}>
                   {isEditMode ? (selectedPartners.size > 0 ? `삭제(${selectedPartners.size})` : '완료') : '편집'}
                 </Text>
@@ -635,6 +622,82 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
               </Text>
             </View>
           </ScrollView>
+
+          {/* 내부 오버레이 모달 (삭제 확인) */}
+          {showDeleteConfirmModal && (
+            <View style={styles.confirmOverlay}>
+              <View style={styles.confirmContent}>
+                <Text style={styles.confirmTitle}>상대방 정보 삭제</Text>
+                <Text style={styles.confirmMessage}>
+                  {deleteConfirmData?.type === 'selected'
+                    ? `선택된 ${selectedPartners.size}명의 정보를 삭제하시겠습니까?\n${existingPartners
+                        .filter(partner => selectedPartners.has(partner.id))
+                        .map(partner => partner.partner_name)
+                        .join(', ')}`
+                    : `${deleteConfirmData?.partnerName}님의 정보를 삭제하시겠습니까?`}
+                </Text>
+                <View style={styles.confirmActions}>
+                  <TouchableOpacity 
+                    style={styles.confirmButton} 
+                    onPress={() => {
+                      setShowDeleteConfirmModal(false);
+                      setDeleteConfirmData(null);
+                    }}
+                  >
+                    <Text style={styles.confirmCancelText}>취소</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.confirmButton, styles.confirmDeleteButton]}
+                    onPress={() => {
+                      if (deleteConfirmData?.type === 'selected') {
+                        executeDeleteSelectedPartners();
+                      } else {
+                        executeDeletePartner();
+                      }
+                    }}
+                  >
+                    <Text style={styles.confirmDeleteText}>삭제</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* 내부 오버레이 모달 (삭제 완료) */}
+          {showDeleteSuccessModal && (
+            <View style={styles.confirmOverlay}>
+              <View style={styles.confirmContent}>
+                <Text style={styles.confirmTitle}>삭제 완료</Text>
+                <Text style={styles.confirmMessage}>{deleteSuccessMessage}</Text>
+                <View style={styles.confirmActions}>
+                  <TouchableOpacity
+                    style={[styles.confirmButton, styles.confirmConfirmButton]}
+                    onPress={() => setShowDeleteSuccessModal(false)}
+                  >
+                    <Text style={styles.confirmConfirmText}>확인</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* 내부 오버레이 모달 (삭제 오류) */}
+          {showDeleteErrorModal && (
+            <View style={styles.confirmOverlay}>
+              <View style={styles.confirmContent}>
+                <Text style={styles.confirmTitle}>오류</Text>
+                <Text style={styles.confirmMessage}>상대방 정보 삭제에 실패했습니다.</Text>
+                <View style={styles.confirmActions}>
+                  <TouchableOpacity
+                    style={[styles.confirmButton, styles.confirmConfirmButton]}
+                    onPress={() => setShowDeleteErrorModal(false)}
+                  >
+                    <Text style={styles.confirmConfirmText}>확인</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
       </Modal>
     </View>
@@ -658,33 +721,36 @@ const styles = StyleSheet.create({
     paddingBottom: 100, // 하단 고정 버튼 공간 확보
   },
   expertImageContainer: {
-    height: 370,
-    margin: 10,
-    borderRadius: 15,
+    height: IS_IPAD ? 700 : 370,
+    width: '92%',
+    alignSelf: 'center',
+    margin: IS_IPAD ? 20 : 10,
+    borderRadius: IS_IPAD ? 24 : 15,
     overflow: 'hidden',
+    backgroundColor: '#f0f0f0', // 디버깅용 배경색
   },
   expertImage: {
     width: '100%',
     height: '100%',
   },
   content: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingHorizontal: IS_IPAD ? 30 : 20,
+    paddingVertical: IS_IPAD ? 24 : 16,
   },
   titleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: IS_IPAD ? 12 : 8,
   },
   title: {
-    fontSize: 20,
+    fontSize: IS_IPAD ? 28 : 20,
     fontWeight: 'bold',
     color: '#333',
     flex: 1,
   },
   hashtagText: {
-    fontSize: 12,
+    fontSize: IS_IPAD ? 18 : 12,
     fontWeight: '500',
     color: Colors.primaryColor,
     letterSpacing: -0.2,
@@ -693,20 +759,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    marginBottom: 16,
+    marginBottom: IS_IPAD ? 24 : 16,
   },
   specialtyTag: {
     backgroundColor: Colors.primaryColor + '0D',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    marginRight: 6,
+    paddingHorizontal: IS_IPAD ? 16 : 12,
+    paddingVertical: IS_IPAD ? 8 : 6,
+    borderRadius: IS_IPAD ? 20 : 14,
+    marginRight: IS_IPAD ? 10 : 6,
     marginBottom: 4,
     borderWidth: 0.3,
     borderColor: Colors.primaryColor + '30',
   },
   specialtyTagText: {
-    fontSize: 12,
+    fontSize: IS_IPAD ? 16 : 12,
     fontWeight: '500',
     color: Colors.primaryColor,
     letterSpacing: -0.2,
@@ -714,9 +780,9 @@ const styles = StyleSheet.create({
   quoteBorder: {
     borderWidth: 0.5,
     borderColor: Colors.primaryColor + '20',
-    borderRadius: 14,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    borderRadius: IS_IPAD ? 20 : 14,
+    paddingVertical: IS_IPAD ? 24 : 16,
+    paddingHorizontal: IS_IPAD ? 30 : 20,
     backgroundColor: Colors.primaryColor + '08',
     shadowColor: Colors.primaryColor,
     shadowOffset: {
@@ -728,57 +794,57 @@ const styles = StyleSheet.create({
     elevation: 0.3,
   },
   quoteBorderText: {
-    fontSize: 15,
+    fontSize: IS_IPAD ? 20 : 15,
     fontWeight: '500',
     color: '#555',
-    lineHeight: 24,
+    lineHeight: IS_IPAD ? 32 : 24,
     textAlign: 'center',
     letterSpacing: -0.2,
   },
   messageText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#000',
-    lineHeight: 22,
+    lineHeight: IS_IPAD ? 30 : 22,
     textAlign: 'left',
   },
   sectionContainer: {
-    paddingTop: 10,
-    paddingBottom: 24,
-    marginBottom: 10,
+    paddingTop: IS_IPAD ? 16 : 10,
+    paddingBottom: IS_IPAD ? 32 : 24,
+    marginBottom: IS_IPAD ? 16 : 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
   sectionHeader: {
-    marginBottom: 12,
+    marginBottom: IS_IPAD ? 16 : 12,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 22 : 16,
     fontWeight: 'bold',
     color: '#333',
   },
   introText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#444',
-    lineHeight: 24,
+    lineHeight: IS_IPAD ? 30 : 24,
   },
   topicsContainer: {
-    gap: 10,
+    gap: IS_IPAD ? 16 : 10,
   },
   topicItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
   topicBullet: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: Colors.primaryColor,
     marginRight: 8,
     fontWeight: 'bold',
   },
   topicText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#333',
     flex: 1,
-    lineHeight: 20,
+    lineHeight: IS_IPAD ? 28 : 20,
   },
   reviewItem: {
     backgroundColor: '#F8F9FA',
@@ -808,27 +874,27 @@ const styles = StyleSheet.create({
   },
   caseItem: {
     backgroundColor: '#F8F9FA',
-    padding: 14,
-    borderRadius: 10,
-    marginBottom: 12,
+    padding: IS_IPAD ? 20 : 14,
+    borderRadius: IS_IPAD ? 14 : 10,
+    marginBottom: IS_IPAD ? 16 : 12,
   },
   caseLabel: {
-    fontSize: 11,
+    fontSize: IS_IPAD ? 16 : 11,
     fontWeight: '600',
     color: '#999',
-    marginBottom: 4,
-    marginTop: 8,
+    marginBottom: IS_IPAD ? 6 : 4,
+    marginTop: IS_IPAD ? 12 : 8,
   },
   caseText: {
-    fontSize: 13,
+    fontSize: IS_IPAD ? 18 : 13,
     color: '#333',
-    lineHeight: 20,
+    lineHeight: IS_IPAD ? 28 : 20,
     marginBottom: 4,
   },
   caseResultText: {
-    fontSize: 13,
+    fontSize: IS_IPAD ? 18 : 13,
     color: Colors.primaryColor,
-    lineHeight: 20,
+    lineHeight: IS_IPAD ? 28 : 20,
     fontWeight: '500',
   },
   placeholderContainer: {
@@ -839,6 +905,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#e9ecef',
     borderStyle: 'dashed',
+  },
+  placeholderImage: {
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   placeholderText: {
     fontSize: 16,
@@ -886,69 +957,69 @@ const styles = StyleSheet.create({
   },
   // 상대방 선택 모달 스타일
   partnerSelectionContainer: {
-    padding: 20,
+    padding: IS_IPAD ? 30 : 20,
   },
   partnerSelectionTitle: {
-    fontSize: 20,
+    fontSize: IS_IPAD ? 26 : 15,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: 2
   },
   partnerSelectionSubtitle: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 13,
     color: '#666',
-    marginBottom: 24,
-    lineHeight: 20,
+    marginBottom: IS_IPAD ? 32 : 24,
+    lineHeight: IS_IPAD ? 28 : 20,
   },
   partnerItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#f8f9fa',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    padding: IS_IPAD ? 24 : 16,
+    borderRadius: IS_IPAD ? 16 : 12,
+    marginBottom: IS_IPAD ? 16 : 12,
   },
   partnerInfo: {
     flex: 1,
   },
   partnerName: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: IS_IPAD ? 6 : 4,
   },
   partnerStatus: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#666',
-    marginBottom: 2,
+    marginBottom: IS_IPAD ? 4 : 2,
   },
   partnerDate: {
-    fontSize: 12,
+    fontSize: IS_IPAD ? 16 : 12,
     color: '#999',
   },
   partnerArrow: {
-    fontSize: 18,
+    fontSize: IS_IPAD ? 24 : 18,
     color: '#666',
-    marginLeft: 12,
+    marginLeft: IS_IPAD ? 16 : 12,
   },
   addNewPartnerButton: {
     backgroundColor: Colors.primaryColor,
-    padding: 16,
-    borderRadius: 12,
+    padding: IS_IPAD ? 20 : 16,
+    borderRadius: IS_IPAD ? 16 : 12,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: IS_IPAD ? 12 : 8,
   },
   addNewPartnerText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 13,
     fontWeight: '600',
   },
   // 스와이프 삭제 관련 스타일
   swipeDeleteHint: {
-    fontSize: 12,
+    fontSize: IS_IPAD ? 16 : 10,
     color: '#999',
-    marginTop: 8,
+    marginTop: IS_IPAD ? 12 : 8,
     textAlign: 'center',
   },
   deleteAction: {
@@ -972,21 +1043,25 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   // 편집 모드 관련 스타일
+  editButtonContainer: {
+    minWidth: IS_IPAD ? 80 : 60,
+    alignItems: 'flex-end',
+  },
   editButtonText: {
     color: Colors.primaryColor,
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     fontWeight: '600',
   },
   // 체크박스 관련 스타일
   checkboxContainer: {
-    marginRight: 20,
+    marginRight: IS_IPAD ? 24 : 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
+    width: IS_IPAD ? 26 : 20,
+    height: IS_IPAD ? 26 : 20,
+    borderRadius: IS_IPAD ? 6 : 4,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'white',
@@ -999,7 +1074,7 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     color: 'white',
-    fontSize: 12,
+    fontSize: IS_IPAD ? 16 : 12,
     fontWeight: 'bold',
   },
   // 선택된 항목 스타일
@@ -1015,6 +1090,89 @@ const styles = StyleSheet.create({
   },
   partnerDateSelected: {
     color: Colors.primaryColor + 'AA',
+  },
+  // 커스텀 모달 스타일 (iOS 중첩 모달 문제 해결용)
+  confirmOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: IS_IPAD ? 40 : 24,
+    zIndex: 1000,
+  },
+  confirmContent: {
+    width: IS_IPAD ? '100%' : '85%',
+    maxWidth: IS_IPAD ? 500 : 340,
+    backgroundColor: 'white',
+    borderRadius: IS_IPAD ? 20 : 14,
+    paddingTop: IS_IPAD ? 40 : 24,
+    paddingBottom: IS_IPAD ? 32 : 20,
+    paddingHorizontal: IS_IPAD ? 40 : 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  confirmTitle: {
+    fontSize: IS_IPAD ? 28 : 18,
+    fontWeight: '800',
+    color: '#111',
+    marginBottom: IS_IPAD ? 20 : 12,
+    textAlign: 'center',
+  },
+  confirmMessage: {
+    fontSize: IS_IPAD ? 18 : 14,
+    color: '#555',
+    lineHeight: IS_IPAD ? 28 : 20,
+    marginBottom: IS_IPAD ? 30 : 20,
+    textAlign: 'center',
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginTop: IS_IPAD ? 16 : 8,
+  },
+  confirmButton: {
+    flex: 1,
+    paddingHorizontal: IS_IPAD ? 24 : 12,
+    paddingVertical: IS_IPAD ? 20 : 12,
+    borderRadius: IS_IPAD ? 14 : 8,
+    marginHorizontal: IS_IPAD ? 6 : 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f1f3f5',
+  },
+  confirmDeleteButton: {
+    backgroundColor: '#ff4444',
+  },
+  confirmConfirmButton: {
+    backgroundColor: Colors.primaryColor,
+  },
+  confirmCancelText: {
+    color: '#333',
+    fontSize: IS_IPAD ? 20 : 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  confirmDeleteText: {
+    color: 'white',
+    fontSize: IS_IPAD ? 20 : 14,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  confirmConfirmText: {
+    color: 'white',
+    fontSize: IS_IPAD ? 20 : 14,
+    fontWeight: '700',
+    textAlign: 'center',
   },
 });
 
