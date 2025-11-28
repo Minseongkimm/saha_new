@@ -10,6 +10,9 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../../constants/colors';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface CustomHeaderProps {
   title: string;
@@ -22,7 +25,9 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
   onBackPress,
   rightComponent,
 }) => {
-  const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 10 : 0;
+  const statusBarHeight = Platform.OS === 'android' 
+    ? (StatusBar.currentHeight || 0) + 10 
+    : (IS_IPAD ? 15 : 0);
   
   return (
     <>
@@ -34,7 +39,7 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({
             onPress={onBackPress}
             activeOpacity={0.7}
           >
-            <Icon name="arrow-back" size={24} color="#333" />
+            <Icon name="arrow-back" size={IS_IPAD ? 32 : 24} color="#333" />
           </TouchableOpacity>
           
           <Text style={styles.title} numberOfLines={1}>
@@ -55,12 +60,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
   },
   container: {
-    minHeight: 56,
+    minHeight: IS_IPAD ? 70 : 56,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'white',
     paddingHorizontal: 16,
-    paddingVertical: Platform.OS === 'android' ? 8 : 0,
+    paddingVertical: Platform.OS === 'android' ? 8 : (IS_IPAD ? 12 : 0),
     borderBottomWidth: 0.5,
     borderBottomColor: '#e0e0e0',
   },
@@ -73,7 +78,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    fontSize: 18,
+    fontSize: IS_IPAD ? 24 : 18,
     fontWeight: '700',
     color: '#333',
     textAlign: 'center',

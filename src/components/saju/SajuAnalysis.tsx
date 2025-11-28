@@ -2,6 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { formatBoldText } from '../../utils/text/textFormatUtils';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface SajuAnalysisProps {
   analysis: {
@@ -47,19 +50,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   section: {
-    marginBottom: 15,
-    paddingHorizontal: 10,
+    marginBottom: IS_IPAD ? 24 : 15,
+    paddingHorizontal: IS_IPAD ? 20 : 10,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 24 : 16,
     fontWeight: '600',
     color: '#000000',
-    marginBottom: 8,
-    marginTop: 8,
+    marginBottom: IS_IPAD ? 12 : 8,
+    marginTop: IS_IPAD ? 12 : 8,
   },
   sectionContent: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: IS_IPAD ? 20 : 14,
+    lineHeight: IS_IPAD ? 34 : 22,
     color: '#333',
   },
 });

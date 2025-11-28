@@ -3,6 +3,9 @@ import { Text, TextStyle, Platform, View } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { removeCommasFromMessage } from './removeCommas';
 import { removeBoldMarkup } from './removeBoldMarkup';
+import { isIPad } from '../platform';
+
+const IS_IPAD = isIPad();
 
 /**
  * **굵은 글씨** 마크다운을 파란색 볼드 텍스트로 변환
@@ -71,7 +74,7 @@ export const highlightTextStyle: TextStyle = {
   paddingHorizontal: 6,
   paddingVertical: 3,
   borderRadius: 5,
-  fontSize: 13,
+  fontSize: IS_IPAD ? 21 : 13,
   fontWeight: '600',
   color: '#000000',
 };

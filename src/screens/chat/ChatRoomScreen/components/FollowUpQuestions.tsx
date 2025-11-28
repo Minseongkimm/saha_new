@@ -4,6 +4,9 @@
  */
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { isIPad } from '../../../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface FollowUpQuestionsProps {
   messages: any[];
@@ -40,40 +43,40 @@ const FollowUpQuestions: React.FC<FollowUpQuestionsProps> = ({ messages, onSendM
 
 const styles = StyleSheet.create({
   followUpContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
+    paddingHorizontal: IS_IPAD ? 24 : 16,
+    paddingTop: IS_IPAD ? 12 : 8,
+    paddingBottom: IS_IPAD ? 12 : 8,
     backgroundColor: '#f8f9fa',
     borderTopWidth: 1,
     borderTopColor: '#e9ecef',
   },
   followUpTitle: {
-    fontSize: 10,
+    fontSize: IS_IPAD ? 14 : 10,
     color: '#999',
-    marginBottom: 6,
+    marginBottom: IS_IPAD ? 10 : 6,
     fontWeight: '500',
   },
   followUpButtonsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: IS_IPAD ? 12 : 8,
   },
   followUpButton: {
     backgroundColor: '#f0f0f5',
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: IS_IPAD ? 10 : 6,
+    paddingHorizontal: IS_IPAD ? 18 : 12,
+    paddingVertical: IS_IPAD ? 14 : 10,
     width: '48%',
-    minHeight: 36,
+    minHeight: IS_IPAD ? 50 : 36,
     justifyContent: 'center',
   },
   followUpButtonText: {
     color: '#1a1a1a',
-    fontSize: 11,
+    fontSize: IS_IPAD ? 15 : 11,
     textAlign: 'center',
     fontWeight: '500',
-    lineHeight: 16,
+    lineHeight: IS_IPAD ? 22 : 16,
   },
 });
 

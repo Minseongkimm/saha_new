@@ -27,6 +27,9 @@ import ChargeBottomSheet from '../../../components/bottomsheets/ChargeBottomShee
 import PaymentLoadingModal from '../../../components/common/PaymentLoadingModal';
 import { handleChargeFlow } from '../../../utils/payments/chargeFlow';
 import { safeGoBack } from '../../../utils/navigation/safeGoBack';
+import { isIPad } from '../../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface ChatRoomScreenProps {
   navigation: any;
@@ -143,19 +146,20 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   }, [messages]);
 
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0;
-  const headerContentHeight = Platform.OS === 'android' ? 70 : 56;
-  const leftWidth = 60;
-  const rightWidth = 120;
+  const headerContentHeight = Platform.OS === 'android' ? 70 : (IS_IPAD ? 70 : 56);
+  const headerTopPadding = statusBarHeight + (IS_IPAD ? 10 : 0);
+  const leftWidth = IS_IPAD ? 80 : 60;
+  const rightWidth = IS_IPAD ? 160 : 120;
   
   return (
     <SafeAreaView style={styles.container}>
-      <View style={[styles.header, { paddingTop: statusBarHeight, minHeight: statusBarHeight + headerContentHeight }]}>
+      <View style={[styles.header, { paddingTop: headerTopPadding, minHeight: headerTopPadding + headerContentHeight }]}>
         <View style={[styles.leftHeader, { width: leftWidth }]}>
           <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack(navigation)}>
-            <Icon name="arrow-back" size={19} color="#000000" />
+            <Icon name="arrow-back" size={IS_IPAD ? 28 : 19} color="#000000" />
           </TouchableOpacity>
         </View>
-        <View pointerEvents="none" style={[styles.headerTitleContainer, { top: statusBarHeight, height: headerContentHeight }]}>
+        <View pointerEvents="none" style={[styles.headerTitleContainer, { top: headerTopPadding, height: headerContentHeight }]}>
           <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">{expert.title}</Text>
         </View>
         <View style={[styles.rightHeader, { width: rightWidth }]}>
@@ -277,18 +281,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 10,
-    paddingHorizontal: 12,
+    paddingBottom: IS_IPAD ? 14 : 10,
+    paddingHorizontal: IS_IPAD ? 20 : 12,
     backgroundColor: 'white',
     position: 'relative',
   },
   leftHeader: {
-    width: 60,
+    width: IS_IPAD ? 80 : 60,
     alignItems: 'flex-start',
     zIndex: 2,
   },
   backButton: {
-    padding: 8,
+    padding: IS_IPAD ? 12 : 8,
   },
   headerTitleContainer: {
     position: 'absolute',
@@ -304,40 +308,40 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     textAlign: 'center',
-    fontSize: 18,
+    fontSize: IS_IPAD ? 24 : 18,
     fontWeight: 'bold',
     color: '#333',
     ...(Platform.OS === 'android' && { 
       includeFontPadding: false, 
       textAlignVertical: 'center',
-      lineHeight: 22,
+      lineHeight: IS_IPAD ? 28 : 22,
     }),
   },
   rightHeader: {
-    width: 120,
+    width: IS_IPAD ? 160 : 120,
     alignItems: 'flex-end',
     zIndex: 1,
   },
   balanceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    minWidth: 60,
+    minWidth: IS_IPAD ? 80 : 60,
     justifyContent: 'flex-end',
   },
   balanceIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 6,
+    width: IS_IPAD ? 28 : 20,
+    height: IS_IPAD ? 28 : 20,
+    marginRight: IS_IPAD ? 8 : 6,
   },
   balanceText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     fontWeight: '600',
     color: '#000000',
   },
   freeMessageText: {
-    fontSize: 10,
+    fontSize: IS_IPAD ? 14 : 10,
     color: '#666',
-    marginTop: 2,
+    marginTop: IS_IPAD ? 4 : 2,
   },
   keyboardAvoidingView: {
     flex: 1,

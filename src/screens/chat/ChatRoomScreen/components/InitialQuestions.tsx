@@ -5,6 +5,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { INITIAL_QUESTIONS, INITIAL_QUESTIONS_BY_EXPERT } from '../../../../services/chat/initialQuestions';
+import { isIPad } from '../../../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface InitialQuestionsProps {
   expert: any;
@@ -46,14 +49,14 @@ const InitialQuestions: React.FC<InitialQuestionsProps> = ({ expert, messages, o
 
 const styles = StyleSheet.create({
   initialQuestionsContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
+    paddingHorizontal: IS_IPAD ? 24 : 16,
+    paddingTop: IS_IPAD ? 24 : 16,
+    paddingBottom: IS_IPAD ? 18 : 12,
   },
   initialQuestionsTitle: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#333',
-    marginBottom: 12,
+    marginBottom: IS_IPAD ? 16 : 12,
     fontWeight: '600',
     textAlign: 'center',
   },
@@ -61,25 +64,25 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: IS_IPAD ? 12 : 8,
   },
   initialQuestionButton: {
     backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: IS_IPAD ? 12 : 8,
+    paddingHorizontal: IS_IPAD ? 18 : 12,
+    paddingVertical: IS_IPAD ? 16 : 10,
     width: '48%',
-    minHeight: 44,
+    minHeight: IS_IPAD ? 60 : 44,
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#e9ecef',
   },
   initialQuestionButtonText: {
     color: '#333',
-    fontSize: 12,
+    fontSize: IS_IPAD ? 16 : 12,
     textAlign: 'center',
     fontWeight: '500',
-    lineHeight: 16,
+    lineHeight: IS_IPAD ? 22 : 16,
   },
 });
 

@@ -6,11 +6,14 @@ import { Colors } from '../constants/colors';
 import HomeScreen from '../screens/saju/HomeScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
 import MyInfoScreen from '../screens/user/MyInfoScreen';
+import { isIPad } from '../utils/platform';
+
+const IS_IPAD = isIPad();
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IS_SMALL_DEVICE: boolean = SCREEN_HEIGHT < 700;
-const TAB_BAR_HEIGHT: number = IS_SMALL_DEVICE ? 62 : 82;
-const TAB_BAR_PADDING_TOP: number = 5;
+const TAB_BAR_HEIGHT: number = IS_IPAD ? 95 : (IS_SMALL_DEVICE ? 62 : 82);
+const TAB_BAR_PADDING_TOP: number = IS_IPAD ? 10 : 5;
 
 const Tab = createBottomTabNavigator();
 
@@ -26,10 +29,14 @@ const BottomTabNavigator: React.FC = () => {
           paddingTop: TAB_BAR_PADDING_TOP,
           height: TAB_BAR_HEIGHT,
         },
+        tabBarLabelPosition: 'below-icon',
+        tabBarIconStyle: {
+          marginBottom: IS_IPAD ? 8 : 0,
+        },
         tabBarActiveTintColor: Colors.primaryColor, 
         tabBarInactiveTintColor: '#757575', 
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: IS_IPAD ? 16 : 12,
           fontWeight: '600',
         },
       }}
@@ -40,7 +47,7 @@ const BottomTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: '홈',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="home" size={24} color={color} />
+            <Icon name="home" size={IS_IPAD ? 32 : 24} color={color} />
           ),
         }}
       />
@@ -50,7 +57,7 @@ const BottomTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: '대화',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="chatbox" size={24} color={color} />
+            <Icon name="chatbox" size={IS_IPAD ? 32 : 24} color={color} />
           ),
         }}
       />
@@ -60,7 +67,7 @@ const BottomTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: '내정보',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="person" size={24} color={color} />
+            <Icon name="person" size={IS_IPAD ? 32 : 24} color={color} />
           ),
         }}
       />

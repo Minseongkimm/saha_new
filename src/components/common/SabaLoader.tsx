@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
 import LottieView from 'lottie-react-native';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface SabaLoaderProps {
   message?: string;
@@ -16,7 +19,7 @@ const DEFAULT_ANIMATION = require('../../../assets/lottie/loading_lottie.json');
 
 const SabaLoader: React.FC<SabaLoaderProps> = ({
   message = DEFAULT_MESSAGE,
-  size = 90,
+  size = IS_IPAD ? 150 : 90,
   containerStyle,
   textStyle,
   animationSource = DEFAULT_ANIMATION,
@@ -45,11 +48,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   message: {
-    marginTop: 30,
-    fontSize: 16,
+    marginTop: IS_IPAD ? 40 : 30,
+    fontSize: IS_IPAD ? 24 : 16,
     color: '#666666',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: IS_IPAD ? 32 : 22,
   },
 });
 

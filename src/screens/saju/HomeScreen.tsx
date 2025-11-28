@@ -22,6 +22,9 @@ import { Expert, EXPERT_CATEGORIES } from '../../types/expert';
 import { getExpertListCache, setExpertListCache, isExpertListFresh } from '../../utils/expert/expertListCache';
 import { ensureBirthInfoOrNavigate } from '../../utils/user/birthInfoGuard';
 import { TestTools } from '../../components/common/TestTools';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface HomeScreenProps {
   navigation: any;
@@ -313,13 +316,14 @@ const styles = StyleSheet.create({
     minHeight: 200,
   },
   bannerSection: {
-    width: SCREEN_WIDTH - 30,
-    aspectRatio: IS_SMALL_DEVICE ? 2.8 : 3.2, // 비율로 높이 자동 조절 (작은 기종은 좀 더 높게)
+    width: IS_IPAD ? '92%' : SCREEN_WIDTH - 30,
+    alignSelf: 'center',
+    aspectRatio: IS_IPAD ? 3.3 : (IS_SMALL_DEVICE ? 2.8 : 3.2),
     position: 'relative',
-    marginTop: Platform.OS === 'android' ? 0 : 15,
-    marginLeft: 15,
-    marginRight: 15,
-    borderRadius: 15,
+    marginTop: Platform.OS === 'android' ? 0 : (IS_IPAD ? 20 : 15),
+    marginLeft: IS_IPAD ? 0 : 15,
+    marginRight: IS_IPAD ? 0 : 15,
+    borderRadius: IS_IPAD ? 20 : 15,
     overflow: 'hidden',
   },
   bannerImage: {
@@ -332,11 +336,11 @@ const styles = StyleSheet.create({
   },
   sajuCard: {
     backgroundColor: '#fefefe',
-    marginHorizontal: 3,
-    marginBottom: 15,
-    borderRadius: 16,
-    paddingVertical: 25,
-    paddingHorizontal: 18,
+    marginHorizontal: IS_IPAD ? 20 : 3,
+    marginBottom: IS_IPAD ? 30 : 15,
+    borderRadius: IS_IPAD ? 24 : 16,
+    paddingVertical: IS_IPAD ? 40 : 25,
+    paddingHorizontal: IS_IPAD ? 30 : 18,
     borderWidth: 0.5,
     borderColor: '#f5f5f5',
     shadowColor: Colors.primaryColor,
@@ -373,22 +377,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   menuIcon: {
-    width: 50,
-    height: 50,
+    width: IS_IPAD ? 80 : 50,
+    height: IS_IPAD ? 80 : 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 5,
+    marginBottom: IS_IPAD ? 12 : 5,
   },
   menuIconText: {
     fontSize: 20,
   },
   menuIconImage: {
-    width: 31,
-    height: 31,
+    width: IS_IPAD ? 48 : 31,
+    height: IS_IPAD ? 48 : 31,
     resizeMode: 'contain',
   },
   menuText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 20 : 14,
     fontWeight: '600',
     color: '#333',
     textAlign: 'center',

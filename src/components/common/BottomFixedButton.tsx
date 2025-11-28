@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Colors } from '../../constants/colors';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface BottomFixedButtonProps {
   onPress: () => void;
@@ -36,22 +39,22 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: 'white',
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-    paddingBottom: 30, // 하단 safe area 고려
+    paddingHorizontal: IS_IPAD ? 40 : 25,
+    paddingVertical: IS_IPAD ? 20 : 12,
+    paddingBottom: IS_IPAD ? 40 : 30, // 하단 safe area 고려
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
   },
   button: {
     backgroundColor: Colors.primaryColor,
-    borderRadius: 12,
-    paddingVertical: 13,
+    borderRadius: IS_IPAD ? 16 : 12,
+    paddingVertical: IS_IPAD ? 20 : 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: IS_IPAD ? 22 : 16,
     fontWeight: '600',
   },
 });

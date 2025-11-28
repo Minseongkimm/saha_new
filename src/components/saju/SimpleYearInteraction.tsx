@@ -5,6 +5,9 @@ import {
   FiveElementColors,
   FiveElementBackgroundColors
 } from '../../constants/fiveElements';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface SimpleYearInteractionProps {
   myDayGan: string;
@@ -172,10 +175,10 @@ const SimpleYearInteraction: React.FC<SimpleYearInteractionProps> = ({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fefefe',
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 20,
-    marginBottom: 20,
+    borderRadius: IS_IPAD ? 24 : 16,
+    padding: IS_IPAD ? 30 : 20,
+    marginTop: IS_IPAD ? 30 : 20,
+    marginBottom: IS_IPAD ? 30 : 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: Platform.OS === 'android' ? 0.1 : 0.08,
@@ -184,85 +187,85 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 15,
+    marginBottom: IS_IPAD ? 30 : 20,
+    paddingBottom: IS_IPAD ? 20 : 15,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
   userName: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#666',
   },
   userBirth: {
-    fontSize: 18,
+    fontSize: IS_IPAD ? 28 : 18,
     fontWeight: '700',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: IS_IPAD ? 8 : 4,
   },
   userBirthInfo: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 20 : 14,
     color: '#666',
   },
   mainCard: {
     backgroundColor: 'white',
-    padding: 10,
+    padding: IS_IPAD ? 20 : 10,
   },
   comparisonRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: IS_IPAD ? 30 : 20,
   },
   ganBox: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
+    padding: IS_IPAD ? 20 : 12,
+    borderRadius: IS_IPAD ? 12 : 8,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#f0f0f0',
   },
   ganLabel: {
-    fontSize: 12,
+    fontSize: IS_IPAD ? 18 : 12,
     color: '#666',
-    marginBottom: 8,
+    marginBottom: IS_IPAD ? 12 : 8,
     fontWeight: '600',
   },
   ganChar: {
-    fontSize: 36,
+    fontSize: IS_IPAD ? 60 : 36,
     fontWeight: '700',
-    marginBottom: 4,
+    marginBottom: IS_IPAD ? 8 : 4,
     color: '#333',
   },
   ganElement: {
-    fontSize: 13,
+    fontSize: IS_IPAD ? 20 : 13,
     color: '#666',
     fontWeight: '600',
   },
   relationContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 12,
+    marginHorizontal: IS_IPAD ? 16 : 12,
   },
   relationIcon: {
-    fontSize: 20,
+    fontSize: IS_IPAD ? 32 : 20,
     fontWeight: '700',
     color: '#666',
   },
   descriptionCard: {
-    paddingTop: 16,
+    paddingTop: IS_IPAD ? 24 : 16,
   },
   descriptionHeader: {
-    marginBottom: 8,
+    marginBottom: IS_IPAD ? 12 : 8,
   },
   descriptionTitle: {
-    fontSize: 15,
+    fontSize: IS_IPAD ? 22 : 15,
     fontWeight: '700',
     textAlign: 'center',
   },
   descriptionText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 20 : 14,
     color: '#333',
-    lineHeight: 22,
+    lineHeight: IS_IPAD ? 32 : 22,
     textAlign: 'center',
   },
 });

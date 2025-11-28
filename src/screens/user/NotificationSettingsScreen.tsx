@@ -17,6 +17,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import SabaLoader from '../../components/common/SabaLoader';
 import { safeGoBack } from '../../utils/navigation/safeGoBack';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface NotificationSettingsScreenProps {
   navigation: any;
@@ -104,7 +107,7 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
       <SafeAreaView style={styles.container}>
         <View style={[styles.header, { paddingTop: statusBarHeight }]}>
           <TouchableOpacity onPress={() => safeGoBack(navigation)} style={styles.backButton}>
-            <Icon name="arrow-back" size={24} color="#333" />
+            <Icon name="arrow-back" size={IS_IPAD ? 28 : 24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>알림 설정</Text>
           <View style={styles.headerRight} />
@@ -121,14 +124,14 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={[styles.header, { paddingTop: statusBarHeight }]}>
           <TouchableOpacity onPress={() => safeGoBack(navigation)} style={styles.backButton}>
-            <Icon name="arrow-back" size={24} color="#333" />
+            <Icon name="arrow-back" size={IS_IPAD ? 28 : 24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>알림 설정</Text>
           <View style={styles.headerRight} />
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>알림 설정</Text>
+          {/* <Text style={styles.sectionTitle}>알림 설정</Text> */}
           
           <View style={styles.settingItem}>
             <View style={styles.settingLeft}>
@@ -195,45 +198,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: IS_IPAD ? 30 : 20,
     paddingBottom: 0,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   backButton: {
-    width: 40,
-    height: 40,
+    width: IS_IPAD ? 48 : 40,
+    height: IS_IPAD ? 48 : 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
+    marginRight: IS_IPAD ? 12 : 8,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: IS_IPAD ? 22 : 18,
     fontWeight: '600',
     color: '#333',
   },
   headerRight: {
-    width: 40,
+    width: IS_IPAD ? 48 : 40,
   },
   section: {
     backgroundColor: 'white',
     marginBottom: 0,
-    paddingHorizontal: 20,
+    paddingHorizontal: IS_IPAD ? 30 : 20,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: IS_IPAD ? 22 : 18,
     fontWeight: '600',
     color: '#333',
-    paddingVertical: 20,
-    paddingTop: 20,
+    paddingVertical: IS_IPAD ? 28 : 20,
+    paddingTop: IS_IPAD ? 28 : 20,
     borderBottomColor: 'transparent',
   },
   settingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: IS_IPAD ? 22 : 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -242,28 +245,28 @@ const styles = StyleSheet.create({
   },
   settingLeft: {
     flex: 1,
-    marginRight: 16,
+    marginRight: IS_IPAD ? 20 : 16,
   },
   settingLabel: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     color: '#333',
     fontWeight: '500',
-    marginBottom: 4,
+    marginBottom: IS_IPAD ? 6 : 4,
   },
   settingDescription: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 16 : 14,
     color: '#666',
   },
   infoSection: {
     backgroundColor: 'white',
-    marginTop: 5,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    marginTop: IS_IPAD ? 10 : 5,
+    paddingHorizontal: IS_IPAD ? 30 : 20,
+    paddingVertical: IS_IPAD ? 16 : 10,
   },
   infoText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 16 : 14,
     color: '#666',
-    lineHeight: 20,
+    lineHeight: IS_IPAD ? 24 : 20,
   },
   loadingContainer: {
     flex: 1,

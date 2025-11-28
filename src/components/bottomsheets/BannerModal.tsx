@@ -11,6 +11,9 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Colors } from '../../constants/colors';
 import CustomHeader from '../common/CustomHeader';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface BannerModalProps {
   visible: boolean;
@@ -94,7 +97,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContainer: {
-    width: '85%',
+    width: IS_IPAD ? '68%' : '85%',
     backgroundColor: 'white',
     borderRadius: 15,
     overflow: 'hidden',
@@ -120,13 +123,13 @@ const styles = StyleSheet.create({
   closeButton: {
     flex: 1,
     backgroundColor: 'white',
-    paddingVertical: 12,
+    paddingVertical: IS_IPAD ? 20 : 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeButtonText: {
     color: '#333',
-    fontSize: 14,
+    fontSize: IS_IPAD ? 20 : 14,
     fontWeight: '500',
   },
   divider: {
@@ -136,13 +139,13 @@ const styles = StyleSheet.create({
   closeForTodayButton: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-    paddingVertical: 12,
+    paddingVertical: IS_IPAD ? 16 : 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeForTodayButtonText: {
     color: '#666',
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     fontWeight: '500',
   },
 });

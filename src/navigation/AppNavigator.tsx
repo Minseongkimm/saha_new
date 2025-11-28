@@ -23,6 +23,9 @@ import PartnerInputScreen from '../screens/partner/PartnerInputScreen';
 import TermsScreen from '../screens/user/TermsScreen';
 import { RootStackParamList } from '../types/navigation';
 import LoginScreen from '../screens/entry/LoginScreen';
+import { isIPad } from '../utils/platform';
+
+const IS_IPAD = isIPad();
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -91,7 +94,7 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session, initialAuthRouteNa
                   }}>
                     <Image
                       source={require('../../assets/logo/logo_icon.png')}
-                      style={{ width: 40, height: 40, resizeMode: 'contain' }}
+                      style={{ width: IS_IPAD ? 56 : 40, height: IS_IPAD ? 56 : 40, resizeMode: 'contain' }}
                     />
                   </View>
                 ),

@@ -5,6 +5,9 @@ import { RootStackParamList } from '../../types/navigation';
 import { Colors } from '../../constants/colors';
 import CustomHeader from '../../components/common/CustomHeader';
 import { safeGoBack } from '../../utils/navigation/safeGoBack';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 const SUPPORT_EMAIL: string = 'saha994959@gmail.com';
 const EMAIL_SUBJECT: string = '사바 고객 문의';
@@ -96,102 +99,102 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 32,
+    paddingHorizontal: IS_IPAD ? 30 : 20,
+    paddingTop: IS_IPAD ? 32 : 24,
+    paddingBottom: IS_IPAD ? 40 : 32,
   },
   hero: {
-    marginBottom: 24,
+    marginBottom: IS_IPAD ? 32 : 24,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#6B7280',
-    lineHeight: 20,
+    lineHeight: IS_IPAD ? 26 : 20,
   },
   title: {
-    fontSize: 22,
+    fontSize: IS_IPAD ? 28 : 22,
     fontWeight: '700',
     color: '#222222',
-    marginBottom: 5,
+    marginBottom: IS_IPAD ? 8 : 5,
   },
   description: {
-    fontSize: 15,
+    fontSize: IS_IPAD ? 19 : 15,
     color: '#555555',
-    lineHeight: 22,
+    lineHeight: IS_IPAD ? 28 : 22,
   },
   callout: {
-    paddingVertical: 24,
-    paddingHorizontal: 20,
+    paddingVertical: IS_IPAD ? 32 : 24,
+    paddingHorizontal: IS_IPAD ? 28 : 20,
     backgroundColor: '#F7F9FC',
-    borderRadius: 14,
+    borderRadius: IS_IPAD ? 18 : 14,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    marginBottom: 24,
+    marginBottom: IS_IPAD ? 32 : 24,
   },
   calloutTitle: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     fontWeight: '600',
     color: '#1E293B',
-    marginBottom: 16,
+    marginBottom: IS_IPAD ? 20 : 16,
   },
   bulletRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: IS_IPAD ? 16 : 12,
   },
   bulletRowLast: {
     marginBottom: 0,
   },
   bullet: {
-    width: 18,
-    fontSize: 16,
-    lineHeight: 22,
+    width: IS_IPAD ? 24 : 18,
+    fontSize: IS_IPAD ? 20 : 16,
+    lineHeight: IS_IPAD ? 28 : 22,
     color: '#1E293B',
   },
   bulletText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#475569',
-    lineHeight: 22,
+    lineHeight: IS_IPAD ? 28 : 22,
   },
   section: {
-    paddingVertical: 20,
+    paddingVertical: IS_IPAD ? 28 : 20,
     borderTopWidth: 1,
     borderTopColor: '#EDF2F7',
   },
   sectionTitle: {
-    fontSize: 15,
+    fontSize: IS_IPAD ? 19 : 15,
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 12,
+    marginBottom: IS_IPAD ? 16 : 12,
   },
   sectionBody: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#475569',
-    lineHeight: 22,
+    lineHeight: IS_IPAD ? 28 : 22,
   },
   footer: {
-    paddingHorizontal: 20,
-    paddingBottom: 32,
-    paddingTop: 16,
+    paddingHorizontal: IS_IPAD ? 30 : 20,
+    paddingBottom: IS_IPAD ? 40 : 32,
+    paddingTop: IS_IPAD ? 24 : 16,
     borderTopWidth: 1,
     borderTopColor: '#EEF2F6',
     backgroundColor: '#FFFFFF',
   },
   footerDescription: {
-    fontSize: 13,
+    fontSize: IS_IPAD ? 17 : 13,
     color: '#64748B',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: IS_IPAD ? 20 : 16,
   },
   emailButton: {
     backgroundColor: Colors.primaryColor,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: IS_IPAD ? 20 : 16,
+    borderRadius: IS_IPAD ? 16 : 12,
     alignItems: 'center',
   },
   emailButtonText: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     fontWeight: '600',
     color: '#FFFFFF',
   },

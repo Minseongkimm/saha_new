@@ -1,5 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface SectionHeaderProps {
   title: string;
@@ -24,18 +27,18 @@ const styles = StyleSheet.create({
   container: {
     marginTop: 5,
     marginBottom: 3,
-    paddingHorizontal: 10
+    paddingHorizontal: IS_IPAD ? 20 : 10
   },
   title: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 24 : 16,
     fontWeight: '700',
     color: '#000',
-    marginBottom: 1,
+    marginBottom: IS_IPAD ? 5 : 1,
   },
   description: {
-    fontSize: 12,
+    fontSize: IS_IPAD ? 16 : 12,
     color: '#666',
-    lineHeight: 20,
+    lineHeight: IS_IPAD ? 24 : 20,
   },
 });
 

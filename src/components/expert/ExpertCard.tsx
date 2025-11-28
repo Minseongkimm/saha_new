@@ -23,6 +23,9 @@ import {
 import { Expert } from '../../types/expert';
 import { Colors } from '../../constants/colors';
 import { getExpertImage } from '../../utils/expert/getExpertImage';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface ExpertCardProps {
   expert: Expert;
@@ -96,14 +99,17 @@ const ExpertCard: React.FC<ExpertCardProps> = ({ expert, onPress }) => {
 };
 
 // 카드 크기 및 간격 계산
-const cardWidth = (Dimensions.get('window').width - 50) / 2;
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const cardWidth = IS_IPAD 
+  ? (SCREEN_WIDTH - 80) / 2 // iPad: 여백 80, 2열
+  : (SCREEN_WIDTH - 50) / 2; // iPhone: 여백 50, 2열
 
 const styles = StyleSheet.create({
   card: {
     width: cardWidth,
     backgroundColor: 'white',
-    borderRadius: 15,
-    marginBottom: 20,
+    borderRadius: IS_IPAD ? 24 : 15,
+    marginBottom: IS_IPAD ? 30 : 20,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -143,11 +149,11 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
+    top: IS_IPAD ? 12 : 8,
+    right: IS_IPAD ? 12 : 8,
+    paddingHorizontal: IS_IPAD ? 12 : 8,
+    paddingVertical: IS_IPAD ? 6 : 4,
+    borderRadius: IS_IPAD ? 16 : 12,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -168,21 +174,21 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: 'white',
-    fontSize: 11,
+    fontSize: IS_IPAD ? 16 : 11,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
   content: {
-    paddingTop: 10,
-    paddingLeft:4,
-    paddingRight:3,
-    
+    paddingTop: IS_IPAD ? 16 : 10,
+    paddingLeft: IS_IPAD ? 8 : 4,
+    paddingRight: IS_IPAD ? 6 : 3,
+    paddingBottom: IS_IPAD ? 16 : 0,
   },
   title: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 22 : 16,
     fontWeight: '600',
     color: '#000',
-    marginBottom: 4,
+    marginBottom: IS_IPAD ? 6 : 4,
   },
   subtitle: {
     fontSize: 14,
@@ -199,31 +205,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
     marginTop: 3,
-    marginBottom: 3,
+    marginBottom: IS_IPAD ? 6 : 3,
   },
   specialtyTag: {
     backgroundColor: Colors.primaryColor + '0D',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 14,
-    marginRight: 6,
+    paddingHorizontal: IS_IPAD ? 14 : 10,
+    paddingVertical: IS_IPAD ? 8 : 5,
+    borderRadius: IS_IPAD ? 20 : 14,
+    marginRight: IS_IPAD ? 8 : 6,
     marginBottom: 4,
     borderWidth: 0.3,
     borderColor: Colors.primaryColor + '30',
   },
   specialtyTagText: {
-    fontSize: 11,
+    fontSize: IS_IPAD ? 16 : 11,
     fontWeight: '500',
     color: Colors.primaryColor,
     letterSpacing: -0.2,
   },
   quoteContainer: {
     backgroundColor: '#FAFAFA',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    marginTop: 6,
-    marginBottom: 6,
+    paddingVertical: IS_IPAD ? 12 : 8,
+    paddingHorizontal: IS_IPAD ? 16 : 12,
+    borderRadius: IS_IPAD ? 14 : 10,
+    marginTop: IS_IPAD ? 8 : 6,
+    marginBottom: IS_IPAD ? 8 : 6,
     borderWidth: 0.5,
     borderColor: '#E8E8E8',
     shadowColor: '#000',
@@ -235,14 +241,14 @@ const styles = StyleSheet.create({
     shadowRadius: 1,
   },
   quoteText: {
-    fontSize: 12,
+    fontSize: IS_IPAD ? 19 : 12,
     fontWeight: '500',
     color: '#4A4A4A',
-    lineHeight: 19,
+    lineHeight: IS_IPAD ? 24 : 19,
     letterSpacing: -0.1,
   },
   signatureText: {
-    fontSize: 11,
+    fontSize: IS_IPAD ? 17 : 11,
     color: '#888',
     marginTop: 1,
     ...(Platform.OS === 'android' && {

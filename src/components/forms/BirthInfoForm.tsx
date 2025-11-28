@@ -7,6 +7,9 @@ import {
   TextInput,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 export interface BirthInfoFormData {
   name?: string;
@@ -256,6 +259,7 @@ const BirthInfoForm: React.FC<BirthInfoFormProps> = ({
             keyboardType="number-pad"
             maxLength={5}
             editable={!data.isTimeUnknown}
+            pointerEvents={data.isTimeUnknown ? 'none' : 'auto'}
           />
           {!data.isTimeUnknown && timeValue && (
             <TouchableOpacity
@@ -274,7 +278,11 @@ const BirthInfoForm: React.FC<BirthInfoFormProps> = ({
       <View style={styles.inputContainer}>
         <TouchableOpacity
           style={styles.checkboxContainer}
-          onPress={() => onChange('isTimeUnknown', !data.isTimeUnknown)}
+          onPress={() => {
+            const newValue = !data.isTimeUnknown;
+            onChange('isTimeUnknown', newValue);
+          }}
+          activeOpacity={0.7}
         >
           <View style={[styles.checkbox, data.isTimeUnknown && styles.checkboxSelected]}>
             {data.isTimeUnknown && <Text style={styles.checkmark}>✓</Text>}
@@ -291,50 +299,51 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   title: {
-    fontSize: 24,
+    fontSize: IS_IPAD ? 32 : 24,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: IS_IPAD ? 12 : 8,
     color: '#333',
     flexShrink: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: IS_IPAD ? 20 : 16,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     textAlign: 'center',
-    marginBottom: 32,
+    marginBottom: IS_IPAD ? 40 : 32,
     color: '#666',
     flexShrink: 1,
-    paddingHorizontal: 16,
+    paddingHorizontal: IS_IPAD ? 20 : 16,
+    lineHeight: IS_IPAD ? 26 : 20,
   },
   inputContainer: {
-    marginBottom: 24,
+    marginBottom: IS_IPAD ? 30 : 24,
   },
   label: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     fontWeight: '600',
-    marginBottom: 6,
+    marginBottom: IS_IPAD ? 10 : 6,
     color: '#333',
   },
   nameInput: {
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
-    paddingVertical: 6,
-    fontSize: 18,
+    paddingVertical: IS_IPAD ? 10 : 6,
+    fontSize: IS_IPAD ? 22 : 18,
     color: '#333',
   },
   nameInputDisabled: {
     color: '#999',
     borderBottomColor: '#eee',
     backgroundColor: '#f5f5f5',
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderTopLeftRadius: IS_IPAD ? 12 : 8,
+    borderTopRightRadius: IS_IPAD ? 12 : 8,
+    paddingHorizontal: IS_IPAD ? 16 : 12,
+    paddingVertical: IS_IPAD ? 12 : 8,
   },
   dateInputContainer: {
     position: 'relative',
-    marginBottom: 20,
+    marginBottom: IS_IPAD ? 28 : 20,
   },
   timeInputContainer: {
     position: 'relative',
@@ -343,48 +352,50 @@ const styles = StyleSheet.create({
   dateInput: {
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
-    paddingVertical: 6,
-    paddingRight: 30,
-    fontSize: 18,
+    paddingVertical: IS_IPAD ? 10 : 6,
+    paddingRight: IS_IPAD ? 40 : 30,
+    fontSize: IS_IPAD ? 22 : 18,
     color: '#333',
   },
   timeInput: {
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
-    paddingVertical: 5,
-    paddingRight: 30,
-    fontSize: 18,
+    paddingVertical: IS_IPAD ? 8 : 5,
+    paddingRight: IS_IPAD ? 40 : 30,
+    fontSize: IS_IPAD ? 22 : 18,
     color: '#333',
   },
   clearButton: {
     position: 'absolute',
     right: 0,
     top: '50%',
-    transform: [{ translateY: -12 }],
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    transform: [{ translateY: IS_IPAD ? -14 : -12 }],
+    width: IS_IPAD ? 32 : 24,
+    height: IS_IPAD ? 32 : 24,
+    borderRadius: IS_IPAD ? 16 : 12,
     backgroundColor: '#E8E8E8',
     justifyContent: 'center',
     alignItems: 'center',
   },
   clearButtonText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#666',
   },
   calendarTypeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 10,
+    marginTop: IS_IPAD ? 14 : 10,
+    gap: IS_IPAD ? 16 : 12,
   },
   calendarTypeButton: {
-    padding: 10,
-    borderRadius: 20,
+    flex: 1,
+    paddingVertical: IS_IPAD ? 14 : 10,
+    paddingHorizontal: IS_IPAD ? 16 : 12,
+    borderRadius: IS_IPAD ? 24 : 20,
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: 'white',
-    minWidth: 140,
-    minHeight: 40,
+    height: IS_IPAD ? 54 : 40,
     alignItems: 'center',
   },
   calendarTypeButtonSelected: {
@@ -392,7 +403,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   calendarTypeText: {
-    fontSize: 15,
+    fontSize: IS_IPAD ? 19 : 15,
     color: '#333',
   },
   calendarTypeTextSelected: {
@@ -414,24 +425,27 @@ const styles = StyleSheet.create({
   radioContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: 10,
+    marginTop: IS_IPAD ? 14 : 10,
+    gap: IS_IPAD ? 16 : 12,
   },
   radioButton: {
-    padding: 10,
-    borderRadius: 20,
+    flex: 1,
+    paddingVertical: IS_IPAD ? 14 : 10,
+    paddingHorizontal: IS_IPAD ? 16 : 12,
+    borderRadius: IS_IPAD ? 24 : 20,
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: 'white',
-    minWidth: 140,
-    minHeight: 40,
+    height: IS_IPAD ? 54 : 40,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   radioButtonSelected: {
     backgroundColor: Colors.primaryColor,
     borderColor: Colors.primaryColor,
   },
   radioText: {
-    fontSize: 15,
+    fontSize: IS_IPAD ? 19 : 15,
     color: '#333',
   },
   radioTextSelected: {
@@ -444,12 +458,12 @@ const styles = StyleSheet.create({
     marginTop: -18,
   },
   checkbox: {
-    width: 16,
-    height: 16,
+    width: IS_IPAD ? 22 : 16,
+    height: IS_IPAD ? 22 : 16,
     borderWidth: 1.5,
     borderColor: '#ddd',
-    borderRadius: 3,
-    marginRight: 6,
+    borderRadius: IS_IPAD ? 4 : 3,
+    marginRight: IS_IPAD ? 10 : 6,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'white',
@@ -460,11 +474,11 @@ const styles = StyleSheet.create({
   },
   checkmark: {
     color: 'white',
-    fontSize: 12,
+    fontSize: IS_IPAD ? 16 : 12,
     fontWeight: 'bold',
   },
   checkboxLabel: {
-    fontSize: 13,
+    fontSize: IS_IPAD ? 19 : 15,
     color: '#333',
   },
 });

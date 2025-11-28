@@ -23,6 +23,9 @@ import { getCurrentUserSafely } from '../../utils/user/authUtils';
 import { removeBoldMarkup } from '../../utils/text/removeBoldMarkup';
 import SabaLoader from '../../components/common/SabaLoader';
 import ConfirmModal from '../../components/common/ConfirmModal';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface ChatListScreenProps {
   navigation: any;
@@ -324,7 +327,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
           accessibilityState={{ checked: isSelected(item.id) }}
         >
           {isSelected(item.id) && (
-            <Icon name="checkmark" size={14} color={'white'} />
+            <Icon name="checkmark" size={IS_IPAD ? 20 : 14} color={'white'} />
           )}
         </View>
       )}
@@ -364,15 +367,15 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
           {selectionMode ? (
             <View style={styles.headerActions}>
               <TouchableOpacity style={styles.headerIconBtn} onPress={toggleSelectionMode}>
-                <Icon name="close" size={20} color={'#333'} />
+                <Icon name="close" size={IS_IPAD ? 28 : 20} color={'#333'} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.headerIconBtn} onPress={() => setDeleteModalVisible(true)} disabled={selectedCount === 0}>
-                <Icon name="trash" size={20} color={selectedCount === 0 ? '#bbb' : Colors.primaryColor} />
+                <Icon name="trash" size={IS_IPAD ? 28 : 20} color={selectedCount === 0 ? '#bbb' : Colors.primaryColor} />
               </TouchableOpacity>
             </View>
           ) : (
             <TouchableOpacity style={styles.headerIconBtn} onPress={toggleSelectionMode}>
-              <Icon name="settings-outline" size={20} color={'#333'} />
+              <Icon name="settings-outline" size={IS_IPAD ? 28 : 20} color={'#333'} />
             </TouchableOpacity>
           )}
         </View>
@@ -436,8 +439,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: IS_IPAD ? 20 : 16,
+    paddingHorizontal: IS_IPAD ? 30 : 20,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
@@ -465,7 +468,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: IS_IPAD ? 26 : 24,
     fontWeight: 'bold',
     color: '#333',
   },
@@ -493,8 +496,8 @@ const styles = StyleSheet.create({
   chatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 15,
+    paddingHorizontal: IS_IPAD ? 20 : 10,
+    paddingVertical: IS_IPAD ? 20 : 15,
     backgroundColor: 'white',
     marginHorizontal: 0,
     marginVertical: 0,
@@ -504,13 +507,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f6f8ff',
   },
   checkboxBase: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
+    width: IS_IPAD ? 28 : 22,
+    height: IS_IPAD ? 28 : 22,
+    borderRadius: IS_IPAD ? 8 : 6,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: IS_IPAD ? 16 : 12,
   },
   checkboxSelected: {
     backgroundColor: Colors.primaryColor,
@@ -521,10 +524,10 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
   },
   profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 16,
+    width: IS_IPAD ? 70 : 50,
+    height: IS_IPAD ? 70 : 50,
+    borderRadius: IS_IPAD ? 35 : 25,
+    marginRight: IS_IPAD ? 20 : 16,
   },
   chatInfo: {
     flex: 1,
@@ -533,15 +536,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: IS_IPAD ? 8 : 6,
   },
   chatName: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 22 : 16,
     fontWeight: '600',
     color: '#333',
   },
   chatTimestamp: {
-    fontSize: 12,
+    fontSize: IS_IPAD ? 16 : 12,
     color: '#999',
   },
   chatFooter: {
@@ -550,10 +553,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   lastMessage: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#666',
     flex: 1,
-    marginRight: 12,
+    marginRight: IS_IPAD ? 16 : 12,
   },
   chatFooterRight: {
     flexDirection: 'row',
@@ -561,16 +564,16 @@ const styles = StyleSheet.create({
   },
   unreadBadge: {
     backgroundColor: '#ff4757',
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    marginRight: 8,
-    minWidth: 20,
+    borderRadius: IS_IPAD ? 14 : 10,
+    paddingHorizontal: IS_IPAD ? 12 : 8,
+    paddingVertical: IS_IPAD ? 6 : 4,
+    marginRight: IS_IPAD ? 12 : 8,
+    minWidth: IS_IPAD ? 28 : 20,
     alignItems: 'center',
   },
   unreadCount: {
     color: 'white',
-    fontSize: 12,
+    fontSize: IS_IPAD ? 16 : 12,
     fontWeight: '600',
   },
   readIcon: {
@@ -579,34 +582,34 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 40,
-    paddingVertical: 80,
+    padding: IS_IPAD ? 60 : 40,
+    paddingVertical: IS_IPAD ? 120 : 80,
   },
   emptyImage: {
-    width: 120,
-    height: 120,
-    marginBottom: 24,
+    width: IS_IPAD ? 160 : 120,
+    height: IS_IPAD ? 160 : 120,
+    marginBottom: IS_IPAD ? 32 : 24,
     opacity: 0.7,
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: IS_IPAD ? 28 : 20,
     fontWeight: '600',
     color: '#333',
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: IS_IPAD ? 16 : 12,
   },
   emptySubtitle: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 22 : 16,
     color: '#666',
     textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
+    lineHeight: IS_IPAD ? 32 : 24,
+    marginBottom: IS_IPAD ? 40 : 32,
   },
   startChatButton: {
     backgroundColor: Colors.primaryColor,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingHorizontal: IS_IPAD ? 32 : 24,
+    paddingVertical: IS_IPAD ? 16 : 12,
+    borderRadius: IS_IPAD ? 28 : 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -615,7 +618,7 @@ const styles = StyleSheet.create({
   },
   startChatButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     fontWeight: '600',
   },
   emptyText: {

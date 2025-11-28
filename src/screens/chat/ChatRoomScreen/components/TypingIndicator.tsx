@@ -3,7 +3,10 @@
  * AI가 응답 중일 때 표시되는 애니메이션 점들
  */
 import React, { useEffect, useRef } from 'react';
-import { View, Animated, Easing } from 'react-native';
+import { View, Animated, Easing, StyleSheet } from 'react-native';
+import { isIPad } from '../../../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 const TypingIndicator: React.FC = () => {
   const dot1Opacity = useRef(new Animated.Value(0)).current;
@@ -46,23 +49,23 @@ const TypingIndicator: React.FC = () => {
   return (
     <View style={styles.typingRow}>
       <Animated.View style={[styles.dot, { opacity: dot1Opacity }]} />
-      <Animated.View style={[styles.dot, { opacity: dot2Opacity, marginLeft: 6 }]} />
-      <Animated.View style={[styles.dot, { opacity: dot3Opacity, marginLeft: 6 }]} />
+      <Animated.View style={[styles.dot, { opacity: dot2Opacity, marginLeft: IS_IPAD ? 10 : 6 }]} />
+      <Animated.View style={[styles.dot, { opacity: dot3Opacity, marginLeft: IS_IPAD ? 10 : 6 }]} />
     </View>
   );
 };
 
-const styles = {
+const styles = StyleSheet.create({
   typingRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: IS_IPAD ? 10 : 6,
+    height: IS_IPAD ? 10 : 6,
+    borderRadius: IS_IPAD ? 5 : 3,
     backgroundColor: '#bbb',
   },
-};
+});
 
 export default TypingIndicator;

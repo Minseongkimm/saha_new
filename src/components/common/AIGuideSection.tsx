@@ -1,5 +1,8 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface AIGuideSectionProps {
   title: string;
@@ -33,7 +36,7 @@ const AIGuideSection: React.FC<AIGuideSectionProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginTop: 10,
-    paddingHorizontal: 20,
+    paddingHorizontal: IS_IPAD ? 25 : 20,
     paddingVertical: 20,
     backgroundColor: 'white',
     borderRadius: 16,
@@ -52,31 +55,31 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: IS_IPAD ? 14 : 12,
     justifyContent: 'center',
   },
   icon: {
-    width: 32,
-    height: 32,
+    width: IS_IPAD ? 48 : 32,
+    height: IS_IPAD ? 48 : 32,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 2,
+    marginRight: IS_IPAD ? 4 : 2,
   },
   logo: {
-    width: 20,
-    height: 20,
+    width: IS_IPAD ? 32 : 20,
+    height: IS_IPAD ? 32 : 20,
   },
   title: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 22 : 16,
     fontWeight: '700',
     color: '#2c3e50',
     textAlign: 'center',
   },
   description: {
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: IS_IPAD ? 18 : 14,
+    lineHeight: IS_IPAD ? 30 : 22,
     color: '#5a6c7d',
-    marginBottom: 16,
+    marginBottom: IS_IPAD ? 20 : 16,
     textAlign: 'center',
   },
 });

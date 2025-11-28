@@ -12,6 +12,9 @@ import {
   Platform,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface ChatStartBottomSheetProps {
   visible: boolean;
@@ -205,10 +208,10 @@ const styles = StyleSheet.create({
   },
   bottomSheetContainer: {
     backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: Platform.OS === 'android' ? 0 : 15, // 안드로이드 하단 여백 줄임
-    maxHeight: height * 0.53, // 화면 높이의 60%로 제한
+    borderTopLeftRadius: IS_IPAD ? 24 : 20,
+    borderTopRightRadius: IS_IPAD ? 24 : 20,
+    paddingBottom: Platform.OS === 'android' ? 0 : (IS_IPAD ? 30 : 15),
+    maxHeight: height * (IS_IPAD ? 0.6 : 0.53),
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -221,112 +224,112 @@ const styles = StyleSheet.create({
   bottomSheetHeader: {
     position: 'relative',
     alignItems: 'center',
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingTop: IS_IPAD ? 20 : 12,
+    paddingBottom: IS_IPAD ? 16 : 8,
   },
   dragHandle: {
-    width: 40,
+    width: IS_IPAD ? 60 : 40,
     height: 4,
     backgroundColor: '#e0e0e0',
     borderRadius: 2,
   },
   closeButton: {
     position: 'absolute',
-    top: 20,
-    right: 16,
-    width: 24,
-    height: 24,
+    top: IS_IPAD ? 24 : 20,
+    right: IS_IPAD ? 24 : 16,
+    width: IS_IPAD ? 32 : 24,
+    height: IS_IPAD ? 32 : 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeButtonText: {
-    fontSize: 13,
+    fontSize: IS_IPAD ? 18 : 13,
     color: '#888',
     fontWeight: 'bold',
   },
   bottomSheetContent: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
   },
   headerSection: {
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: IS_IPAD ? 20 : 10,
   },
   logo: {
-    width: 40,
-    height: 40,
-    marginBottom: 15,
+    width: IS_IPAD ? 56 : 40,
+    height: IS_IPAD ? 56 : 40,
+    marginBottom: IS_IPAD ? 20 : 15,
   },
   title: {
-    fontSize: 20,
+    fontSize: IS_IPAD ? 26 : 20,
     fontWeight: '700',
     color: '#2c3e50',
     textAlign: 'center',
   },
   description: {
-    fontSize: 14,
-    lineHeight: 20,
+    fontSize: IS_IPAD ? 18 : 14,
+    lineHeight: IS_IPAD ? 28 : 20,
     color: '#5a6c7d',
     textAlign: 'center',
     marginTop: 5,
-    marginBottom: 20,
+    marginBottom: IS_IPAD ? 30 : 20,
   },
   bottomSheetFooter: {
-    paddingHorizontal: 20,
+    paddingHorizontal: IS_IPAD ? 40 : 20,
     paddingTop: 0,
   },
   startButton: {
     backgroundColor: Colors.primaryColor,
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: IS_IPAD ? 16 : 12,
+    paddingVertical: IS_IPAD ? 24 : 16,
     alignItems: 'center',
     justifyContent: 'center',
     ...(Platform.OS === 'ios' && { marginBottom: 10 }),
   },
   startButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: IS_IPAD ? 22 : 16,
     fontWeight: '600',
   },
   // 연애 도사용 스타일
   loveExpertContent: {
-    paddingHorizontal: 3,
+    paddingHorizontal: IS_IPAD ? 20 : 3,
     paddingBottom: 10,
   },
   loveExpertTitle: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 22 : 16,
     fontWeight: '600',
     color: '#333',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: IS_IPAD ? 30 : 20,
   },
   optionCard: {
     backgroundColor: 'transparent',
-    padding: 16,
-    marginBottom: 12,
+    padding: IS_IPAD ? 20 : 16,
+    marginBottom: IS_IPAD ? 20 : 12,
   },
   optionTitle: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: IS_IPAD ? 8 : 4,
   },
   optionDescription: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#666',
-    marginBottom: 12,
-    lineHeight: 20,
+    marginBottom: IS_IPAD ? 20 : 12,
+    lineHeight: IS_IPAD ? 26 : 20,
   },
   optionButton: {
     backgroundColor: Colors.primaryColor,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    paddingVertical: IS_IPAD ? 20 : 12,
+    paddingHorizontal: IS_IPAD ? 24 : 16,
+    borderRadius: IS_IPAD ? 12 : 8,
     alignItems: 'center',
   },
   optionButtonText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     fontWeight: '600',
   },
 });

@@ -27,6 +27,9 @@ import { handleChargeFlow } from '../../utils/payments/chargeFlow';
 import { deleteUserAccount } from '../../utils/user/deleteAccount';
 import { handleLogout as handleLogoutUtil, getCurrentUserSafely } from '../../utils/user/authUtils';
 import SabaLoader from '../../components/common/SabaLoader';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface MyInfoScreenProps {
   navigation: any;
@@ -250,7 +253,7 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
             { backgroundColor: hasBirthInfo && dayGan !== '?' ? getElementBackgroundColor(dayGan) : '#f0f0f0' }
           ]}>
             <Text style={{
-              fontSize: 36,
+              fontSize: IS_IPAD ? 52 : 36,
               fontWeight: 'bold',
               color: hasBirthInfo && dayGan !== '?' ? getElementColor(dayGan) : '#999'
             }}>{dayGan}</Text>
@@ -426,35 +429,35 @@ const styles = StyleSheet.create({
   },
   profileHeader: {
     alignItems: 'center',
-    paddingVertical: Platform.OS === 'android' ? 20 : 28,
+    paddingVertical: Platform.OS === 'android' ? (IS_IPAD ? 30 : 20) : (IS_IPAD ? 40 : 28),
     backgroundColor: 'white',
     marginBottom: -3,
   },
   profileImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: IS_IPAD ? 120 : 80,
+    height: IS_IPAD ? 120 : 80,
+    borderRadius: IS_IPAD ? 60 : 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 18,
+    marginBottom: IS_IPAD ? 24 : 18,
   },
   buttonGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: IS_IPAD ? 14 : 10,
   },
   historyButton: {
     backgroundColor: 'white',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: IS_IPAD ? 22 : 15,
+    paddingVertical: IS_IPAD ? 14 : 10,
+    borderRadius: IS_IPAD ? 24 : 20,
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
   historyButtonText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#666',
     fontWeight: '600',
   },
@@ -462,21 +465,21 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryColor,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 15,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: IS_IPAD ? 22 : 15,
+    paddingVertical: IS_IPAD ? 14 : 10,
+    borderRadius: IS_IPAD ? 24 : 20,
   },
   chargeButtonText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: 'white',
     marginRight: 0,
     fontWeight: '600',
   },
   paymentCard: {
     backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 8,
+    borderRadius: IS_IPAD ? 16 : 12,
+    padding: IS_IPAD ? 24 : 16,
+    marginTop: IS_IPAD ? 12 : 8,
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
@@ -484,7 +487,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingBottom: 5,
+    paddingBottom: IS_IPAD ? 8 : 5,
   },
   balanceLeft: {
     flexDirection: 'row',
@@ -494,59 +497,59 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: IS_IPAD ? 14 : 10,
   },
   coinImage: {
-    width: 25,
-    height: 25,
+    width: IS_IPAD ? 36 : 25,
+    height: IS_IPAD ? 36 : 25,
   },
   balanceAmount: {
-    fontSize: 22,
+    fontSize: IS_IPAD ? 32 : 22,
     fontWeight: 'bold',
     color: 'black',
   },
   userName: {
-    fontSize: 24,
+    fontSize: IS_IPAD ? 32 : 24,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 8,
+    marginBottom: IS_IPAD ? 12 : 8,
   },
   birthDate: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#999',
     fontWeight: '600',
   },
   section: {
     backgroundColor: 'white',
     marginBottom: 0,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
+    paddingHorizontal: IS_IPAD ? 30 : 20,
+    paddingBottom: IS_IPAD ? 12 : 8,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: IS_IPAD ? 24 : 18,
     fontWeight: '600',
     color: '#333',
-    paddingTop: 20,
+    paddingTop: IS_IPAD ? 28 : 20,
     borderBottomColor: 'transparent',
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: IS_IPAD ? 20 : 15,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
   menuText: {
     flex: 1,
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     color: '#333',
     marginLeft: 1,
   },
   smallMenuText: {
-    fontSize: 15,
+    fontSize: IS_IPAD ? 19 : 15,
   },
   versionText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#999',
   },
   logoutButton: {
@@ -562,36 +565,36 @@ const styles = StyleSheet.create({
   developerInfo: {
     marginTop: 0,
     alignItems: 'flex-start',
-    paddingVertical: 15,
-    paddingHorizontal: 20,
-    paddingTop: 15,
-    paddingBottom: 20,
+    paddingVertical: IS_IPAD ? 20 : 15,
+    paddingHorizontal: IS_IPAD ? 30 : 20,
+    paddingTop: IS_IPAD ? 20 : 15,
+    paddingBottom: IS_IPAD ? 28 : 20,
     backgroundColor: 'white',
   },
   legalRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 5,
+    marginTop: IS_IPAD ? 8 : 5,
   },
   legalLink: {
-    marginRight: 8,
+    marginRight: IS_IPAD ? 12 : 8,
   },
   legalText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#999',
   },
   separator: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#ccc',
-    marginRight: 8,
+    marginRight: IS_IPAD ? 12 : 8,
   },
   developerText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#999',
     marginBottom: 1,
   },
   arrowIcon: {
-    fontSize: 18,
+    fontSize: IS_IPAD ? 24 : 18,
     color: '#ccc',
     fontWeight: 'bold',
   },
@@ -599,7 +602,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 50,
+    paddingVertical: IS_IPAD ? 70 : 50,
   },
 });
 

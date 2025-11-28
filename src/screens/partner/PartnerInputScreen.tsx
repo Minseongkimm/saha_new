@@ -23,6 +23,9 @@ import { SajuCalculator } from '../../utils/saju-calculator/core/SajuCalculator'
 import { SajuInfo } from '../../utils/saju-calculator/types';
 import { supabase } from '../../utils/database/supabaseClient';
 import { calculateSaju, SajuResult } from '../../utils/saju/ganji_local';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 type PartnerInputScreenProps = StackScreenProps<RootStackParamList, 'PartnerInput'>;
 
@@ -174,16 +177,16 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: IS_IPAD ? 30 : 18,
   },
   buttonContainer: {
-    padding: 18,
+    padding: IS_IPAD ? 24 : 18,
     paddingBottom: 0, // Safe area
   },
   saveButton: {
     backgroundColor: Colors.primaryColor,
-    paddingVertical: 16,
-    borderRadius: 8,
+    paddingVertical: IS_IPAD ? 20 : 15,
+    borderRadius: IS_IPAD ? 12 : 8,
     alignItems: 'center',
   },
   saveButtonDisabled: {
@@ -191,7 +194,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 14,
     fontWeight: '600',
   },
 });

@@ -25,6 +25,9 @@ import { clearAllNewYearFortuneCache } from '../../utils/new-year-fortune/newYea
 import { convertSajuResultToDbFormat } from '../../utils/saju/calculatedSajuUtils';
 import { getCurrentUserSafely } from '../../utils/user/authUtils';
 import { safeGoBack } from '../../utils/navigation/safeGoBack';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface SajuInfoScreenProps {
   navigation: any;
@@ -420,13 +423,14 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
   };
 
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 24 : 0;
+  const headerTopPadding = statusBarHeight + (IS_IPAD ? 10 : 0);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={[styles.header, { paddingTop: statusBarHeight }]}>
+        <View style={[styles.header, { paddingTop: headerTopPadding }]}>
           <TouchableOpacity onPress={() => safeGoBack(navigation)} style={styles.backButton}>
-            <Icon name="arrow-back" size={24} color="#333" />
+            <Icon name="arrow-back" size={IS_IPAD ? 28 : 24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>사주 정보 관리</Text>
           <View style={styles.headerRight} />
@@ -441,9 +445,9 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        <View style={[styles.header, { paddingTop: statusBarHeight }]}>
+        <View style={[styles.header, { paddingTop: headerTopPadding }]}>
           <TouchableOpacity onPress={() => safeGoBack(navigation)} style={styles.backButton}>
-            <Icon name="arrow-back" size={24} color="#333" />
+            <Icon name="arrow-back" size={IS_IPAD ? 28 : 24} color="#333" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>정보 관리</Text>
           <View style={styles.headerRight} />
@@ -464,30 +468,34 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
 
           {isEditing ? (
             <View style={styles.editContainer}>
-              <View style={styles.editHeader}>
-                <Text style={styles.editTitle}>정보 수정</Text>
-                <Text style={styles.editSubtitle}>
-                  사바세계 탐험을 위해 정보를 입력 해주세요
-                </Text>
+              <View style={styles.editContent}>
+                <View style={styles.editHeader}>
+                  <Text style={styles.editTitle}>정보 수정</Text>
+                  <Text style={styles.editSubtitle}>
+                    사바세계 탐험을 위해 정보를 입력 해주세요
+                  </Text>
+                </View>
+                <BirthInfoForm
+                  data={{
+                    name: sajuInfo.name,
+                    birthYear: sajuInfo.birthYear,
+                    birthMonth: sajuInfo.birthMonth,
+                    birthDay: sajuInfo.birthDay,
+                    birthHour: sajuInfo.birthHour,
+                    birthMinute: sajuInfo.birthMinute,
+                    gender: sajuInfo.gender as '남성' | '여성' | '',
+                    calendarType: sajuInfo.calendarType as '양력' | '음력' | '',
+                    isLeapMonth: sajuInfo.isLeapMonth,
+                    isTimeUnknown: sajuInfo.timeUnknown,
+                  }}
+                  onChange={(field, value) => {
+                    // 필드명 매핑: isTimeUnknown -> timeUnknown
+                    const mappedField = field === 'isTimeUnknown' ? 'timeUnknown' : field;
+                    setSajuInfo(prev => ({ ...prev, [mappedField]: value }));
+                  }}
+                  showName={true}
+                />
               </View>
-              <BirthInfoForm
-                data={{
-                  name: sajuInfo.name,
-                  birthYear: sajuInfo.birthYear,
-                  birthMonth: sajuInfo.birthMonth,
-                  birthDay: sajuInfo.birthDay,
-                  birthHour: sajuInfo.birthHour,
-                  birthMinute: sajuInfo.birthMinute,
-                  gender: sajuInfo.gender as '남성' | '여성' | '',
-                  calendarType: sajuInfo.calendarType as '양력' | '음력' | '',
-                  isLeapMonth: sajuInfo.isLeapMonth,
-                  isTimeUnknown: sajuInfo.timeUnknown,
-                }}
-                onChange={(field, value) => {
-                  setSajuInfo(prev => ({ ...prev, [field]: value }));
-                }}
-                showName={true}
-              />
               <View style={styles.buttonContainer}>
                 <TouchableOpacity onPress={handleCancel} style={styles.cancelButton}>
                   <Text style={styles.cancelButtonText}>취소</Text>
@@ -771,81 +779,86 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingHorizontal: IS_IPAD ? 30 : 20,
+    paddingBottom: IS_IPAD ? 20 : 16,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
   backButton: {
-    padding: 8,
+    padding: IS_IPAD ? 12 : 8,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: IS_IPAD ? 24 : 18,
     fontWeight: '600',
     color: '#333',
   },
   headerRight: {
-    width: 40,
+    width: IS_IPAD ? 56 : 40,
   },
   infoCard: {
-    padding: 20,
-    paddingHorizontal: 25,
+    padding: IS_IPAD ? 30 : 20,
+    paddingHorizontal: IS_IPAD ? 40 : 25,
   },
   editContainer: {
     paddingTop: 0,
+    minHeight: IS_IPAD ? 900 : 600,
+    justifyContent: 'space-between',
+  },
+  editContent: {
+    flexGrow: 1,
   },
   editHeader: {
     marginTop: 4,
-    marginBottom: 28,
+    marginBottom: IS_IPAD ? 36 : 28,
     alignItems: 'center',
   },
   editTitle: {
-    fontSize: 20,
+    fontSize: IS_IPAD ? 28 : 20,
     fontWeight: '700',
     color: '#111827',
-    marginBottom: 4,
+    marginBottom: IS_IPAD ? 8 : 4,
     textAlign: 'center',
   },
   editSubtitle: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#6b7280',
-    lineHeight: 20,
+    lineHeight: IS_IPAD ? 28 : 20,
     textAlign: 'center',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: IS_IPAD ? 28 : 20,
   },
   cardTitle: {
-    fontSize: 18,
+    fontSize: IS_IPAD ? 24 : 18,
     fontWeight: '600',
     color: '#333',
   },
   editButton: {
     backgroundColor: Colors.primaryColor,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: IS_IPAD ? 24 : 16,
+    paddingVertical: IS_IPAD ? 12 : 8,
+    borderRadius: IS_IPAD ? 24 : 20,
   },
   editButtonText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     fontWeight: '600',
   },
   infoListContainer: {
-    gap: 10,
+    gap: IS_IPAD ? 14 : 10,
   },
   infoCardItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#ffffff',
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    borderRadius: 16,
+    paddingHorizontal: IS_IPAD ? 26 : 18,
+    paddingVertical: IS_IPAD ? 22 : 16,
+    borderRadius: IS_IPAD ? 20 : 16,
     borderWidth: 1,
     borderColor: '#f0f0f0',
     shadowColor: '#000',
@@ -860,18 +873,18 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: IS_IPAD ? 16 : 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
   infoLabel: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#8e8e93',
     fontWeight: '500',
     letterSpacing: -0.2,
   },
   infoValue: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     color: '#1d1d1f',
     fontWeight: '400',
     letterSpacing: -0.3,
@@ -1039,32 +1052,33 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
-    gap: 12,
+    marginTop: IS_IPAD ? 60 : 50,
+    gap: IS_IPAD ? 16 : 12,
+    paddingBottom: IS_IPAD ? 40 : 30,
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: IS_IPAD ? 18 : 12,
+    borderRadius: IS_IPAD ? 12 : 8,
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: 'white',
     alignItems: 'center',
   },
   cancelButtonText: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     color: '#666',
     fontWeight: '600',
   },
   saveButton: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: IS_IPAD ? 18 : 12,
+    borderRadius: IS_IPAD ? 12 : 8,
     backgroundColor: Colors.primaryColor,
     alignItems: 'center',
   },
   saveButtonText: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     color: 'white',
     fontWeight: '600',
   },
@@ -1076,68 +1090,69 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     backgroundColor: 'white',
-    borderRadius: 16,
-    padding: 20,
-    width: '90%',
+    borderRadius: IS_IPAD ? 24 : 16,
+    padding: IS_IPAD ? 30 : 20,
+    width: IS_IPAD ? '70%' : '90%',
+    maxWidth: IS_IPAD ? 600 : '90%',
     maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: IS_IPAD ? 28 : 20,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: IS_IPAD ? 24 : 18,
     fontWeight: '600',
     color: '#333',
     flex: 1,
   },
   closeButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: IS_IPAD ? 40 : 32,
+    height: IS_IPAD ? 40 : 32,
+    borderRadius: IS_IPAD ? 20 : 16,
     backgroundColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
   },
   closeButtonText: {
-    fontSize: 18,
+    fontSize: IS_IPAD ? 24 : 18,
     color: '#666',
     fontWeight: 'bold',
   },
   pickerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 20,
+    marginBottom: IS_IPAD ? 28 : 20,
   },
   pickerColumn: {
     alignItems: 'center',
     flex: 1,
   },
   pickerLabel: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     fontWeight: '600',
     color: '#666',
-    marginBottom: 10,
+    marginBottom: IS_IPAD ? 14 : 10,
   },
   pickerScroll: {
-    maxHeight: 200,
+    maxHeight: IS_IPAD ? 280 : 200,
   },
   pickerItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginVertical: 4,
-    minWidth: 60,
+    paddingVertical: IS_IPAD ? 16 : 12,
+    paddingHorizontal: IS_IPAD ? 20 : 16,
+    borderRadius: IS_IPAD ? 12 : 8,
+    marginVertical: IS_IPAD ? 6 : 4,
+    minWidth: IS_IPAD ? 80 : 60,
     alignItems: 'center',
-    height: 48,
+    height: IS_IPAD ? 64 : 48,
   },
   pickerItemSelected: {
     backgroundColor: Colors.primaryColor,
   },
   pickerItemText: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     color: '#333',
   },
   pickerItemTextSelected: {
@@ -1146,13 +1161,13 @@ const styles = StyleSheet.create({
   },
   modalButton: {
     backgroundColor: Colors.primaryColor,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: IS_IPAD ? 18 : 12,
+    borderRadius: IS_IPAD ? 12 : 8,
     alignItems: 'center',
   },
   modalButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     fontWeight: '600',
   },
   timeContainer: {

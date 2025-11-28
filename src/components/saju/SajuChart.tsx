@@ -11,6 +11,9 @@ import {
   getElementFromStem,
 } from '../../constants/fiveElements';
 import PillarCell from './PillarCell';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface SajuData {
   name: string;
@@ -274,10 +277,10 @@ const SajuChart: React.FC<SajuChartProps> = ({ sajuData }) => {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fefefe',
-    borderRadius: 16,
-    padding: 20,
-    marginTop: 15,
-    marginBottom: 20,
+    borderRadius: IS_IPAD ? 24 : 16,
+    padding: IS_IPAD ? 30 : 20,
+    marginTop: IS_IPAD ? 20 : 15,
+    marginBottom: IS_IPAD ? 30 : 20,
     borderWidth: 0.5,
     borderColor: '#f5f5f5',
     shadowColor: Colors.primaryColor,
@@ -287,24 +290,24 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 15,
+    marginBottom: IS_IPAD ? 30 : 20,
+    paddingBottom: IS_IPAD ? 20 : 15,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
   userName: {
-    fontSize: 20,
+    fontSize: IS_IPAD ? 28 : 20,
     fontWeight: '700',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: IS_IPAD ? 8 : 4,
   },
   userBirth: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#666',
   },
   chartContainer: {
     backgroundColor: 'white',
-    borderRadius: 12,
+    borderRadius: IS_IPAD ? 16 : 12,
     overflow: 'hidden',
   },
   headerRow: {
@@ -316,7 +319,7 @@ const styles = StyleSheet.create({
   },
   headerCell: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: IS_IPAD ? 20 : 12,
     paddingHorizontal: 8,
     alignItems: 'center',
     borderRightWidth: 0.5,
@@ -326,7 +329,7 @@ const styles = StyleSheet.create({
   },
   cell: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: IS_IPAD ? 20 : 12,
     paddingHorizontal: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -336,24 +339,24 @@ const styles = StyleSheet.create({
     borderRightColor: '#e0e0e0',
     borderLeftColor: '#e0e0e0',
     borderBottomColor: '#e0e0e0',
-    minHeight: 50,
+    minHeight: IS_IPAD ? 70 : 50,
   },
   headerText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     fontWeight: '700',
     color: '#333',
   },
   tenGodText: {
-    fontSize: 12,
+    fontSize: IS_IPAD ? 16 : 12,
     color: '#666',
   },
   amjanganText: {
-    fontSize: 10,
+    fontSize: IS_IPAD ? 14 : 10,
     color: '#888',
     textAlign: 'center',
   },
   sibunText: {
-    fontSize: 12,
+    fontSize: IS_IPAD ? 16 : 12,
     color: '#666',
     textAlign: 'center',
   },

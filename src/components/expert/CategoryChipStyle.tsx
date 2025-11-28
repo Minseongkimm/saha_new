@@ -8,6 +8,9 @@ import {
 } from 'react-native';
 import { EXPERT_CATEGORIES } from '../../types/expert';
 import { Colors } from '../../constants/colors';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface CategoryChipStyleProps {
   selectedCategory: string;
@@ -56,21 +59,21 @@ const CategoryChipStyle: React.FC<CategoryChipStyleProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginTop: 10,
-    marginBottom: 15,
-    paddingHorizontal: 10,
+    marginTop: IS_IPAD ? 20 : 10,
+    marginBottom: IS_IPAD ? 25 : 15,
+    paddingHorizontal: IS_IPAD ? 20 : 10,
   },
   chipContainer: {
     flexDirection: 'row',
     flexWrap: 'nowrap',
     justifyContent: 'space-between',
-    gap: 6,
+    gap: IS_IPAD ? 12 : 6,
   },
   chip: {
     flex: 1,
-    paddingHorizontal: 10,
-    paddingVertical: Platform.OS === 'android' ? 7 : 8,
-    borderRadius: 8,
+    paddingHorizontal: IS_IPAD ? 16 : 10,
+    paddingVertical: Platform.OS === 'android' ? 7 : (IS_IPAD ? 16 : 8),
+    borderRadius: IS_IPAD ? 16 : 8,
     backgroundColor: '#f8f9fa',
     borderWidth: 0,
     alignItems: 'center',
@@ -93,7 +96,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
   },
   chipText: {
-    fontSize: 11,
+    fontSize: IS_IPAD ? 18 : 11,
     fontWeight: '600',
     color: '#6b7280',
     textAlign: 'center',

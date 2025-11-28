@@ -6,6 +6,9 @@ import { PaymentTransaction } from '../../utils/payments/types';
 import { Colors } from '../../constants/colors';
 import { formatPaymentDate } from '../../utils/text/dateFormat';
 import SabaLoader from '../../components/common/SabaLoader';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface PaymentHistoryBottomSheetProps {
   visible: boolean;
@@ -146,59 +149,59 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 14,
+    paddingHorizontal: IS_IPAD ? 30 : 20,
+    paddingTop: IS_IPAD ? 28 : 20,
+    paddingBottom: IS_IPAD ? 20 : 14,
   },
   titleContainer: {
     flex: 1,
   },
   bottomSheetTitle: {
-    fontSize: 17,
+    fontSize: IS_IPAD ? 24 : 17,
     fontWeight: '600',
     color: '#333',
   },
   descriptionText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#666',
-    marginTop: 0,
-    lineHeight: 20,
+    marginTop: IS_IPAD ? 4 : 0,
+    lineHeight: IS_IPAD ? 28 : 20,
   },
   closeButton: {
-    width: 30,
-    height: 30,
+    width: IS_IPAD ? 38 : 30,
+    height: IS_IPAD ? 38 : 30,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -5,
+    marginTop: IS_IPAD ? -8 : -5,
   },
   closeButtonText: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 22 : 16,
     color: '#666',
   },
   loadingContainer: {
-    padding: 40,
+    padding: IS_IPAD ? 60 : 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyContainer: {
-    padding: 40,
+    padding: IS_IPAD ? 60 : 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
   emptyText: {
-    lineHeight: 22,
-    fontSize: 16,
+    lineHeight: IS_IPAD ? 32 : 22,
+    fontSize: IS_IPAD ? 20 : 16,
     color: '#999',
   },
   transactionList: {
-    paddingHorizontal: 20,
-    paddingTop: 3,
+    paddingHorizontal: IS_IPAD ? 30 : 20,
+    paddingTop: IS_IPAD ? 6 : 3,
   },
   transactionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: IS_IPAD ? 16 : 10,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -206,20 +209,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   transactionDescription: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     fontWeight: '500',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: IS_IPAD ? 6 : 4,
   },
   transactionDate: {
-    fontSize: 13,
+    fontSize: IS_IPAD ? 16 : 13,
     color: '#999',
   },
   transactionRight: {
     alignItems: 'flex-end',
   },
   transactionAmount: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 20 : 16,
     fontWeight: '600',
   },
   chargeAmount: {
@@ -230,22 +233,22 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
-    paddingVertical: 3,
-    gap: 10,
+    paddingHorizontal: IS_IPAD ? 30 : 16,
+    paddingVertical: IS_IPAD ? 6 : 3,
+    gap: IS_IPAD ? 14 : 10,
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: IS_IPAD ? 18 : 10,
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: IS_IPAD ? 12 : 8,
     backgroundColor: '#f5f5f5',
   },
   activeTab: {
     backgroundColor: Colors.primaryColor,
   },
   tabText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     fontWeight: '600',
     color: '#666',
   },
@@ -256,7 +259,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: IS_IPAD ? 60 : 40,
   },
 });
 

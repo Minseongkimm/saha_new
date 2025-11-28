@@ -22,6 +22,9 @@ import SectionHeader from '../common/SectionHeader';
 import { Expert, EXPERT_CATEGORIES } from '../../types/expert';
 import { Colors } from '../../constants/colors';
 import SabaLoader from '../common/SabaLoader';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface CategoryExpertSectionProps {
   category: string; // 표시할 카테고리 키 (예: 'comprehensive', 'love')
@@ -98,11 +101,11 @@ const CategoryExpertSection: React.FC<CategoryExpertSectionProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 8,
+    marginBottom: IS_IPAD ? 24 : 8,
   },
   header: {
-    marginBottom: 15,
-    paddingHorizontal: 10,
+    marginBottom: IS_IPAD ? 30 : 15,
+    paddingHorizontal: IS_IPAD ? 20 : 10,
   },
   cardsGrid: {
     flexDirection: 'row',

@@ -20,6 +20,9 @@ import { startChatWithExpert, getExpertByCategory } from '../../utils/chat/chatU
 import { useTraditionalSaju } from '../../hooks/useTraditionalSaju';
 import SabaLoader from '../../components/common/SabaLoader';
 import SajuAnalysisLoader from '../../components/common/SajuAnalysisLoader';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 
 interface TraditionalSajuScreenProps {
@@ -246,19 +249,19 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
   content: {
-    padding: 20,
+    padding: IS_IPAD ? 30 : 20,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: IS_IPAD ? 40 : 20,
     minHeight: 500,
   },
   loadingContainer: {
     backgroundColor: '#fefefe',
     borderRadius: 16,
-    padding: 40,
+    padding: IS_IPAD ? 60 : 40,
     marginTop: 20,
     marginBottom: 20,
     borderWidth: 0.5,
@@ -270,27 +273,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   noDataTitle: {
-    fontSize: 18,
+    fontSize: IS_IPAD ? 26 : 18,
     fontWeight: '700',
     color: '#333',
     marginBottom: 8,
   },
   noDataDescription: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 20 : 14,
     color: '#666',
     textAlign: 'center',
     marginBottom: 20,
-    lineHeight: 20,
+    lineHeight: IS_IPAD ? 28 : 20,
   },
   inputButton: {
     backgroundColor: Colors.primaryColor,
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
+    borderRadius: IS_IPAD ? 12 : 8,
+    paddingVertical: IS_IPAD ? 16 : 12,
+    paddingHorizontal: IS_IPAD ? 32 : 24,
   },
   inputButtonText: {
     color: 'white',
-    fontSize: 14,
+    fontSize: IS_IPAD ? 20 : 14,
     fontWeight: '600',
   },
   analysisSection: {
@@ -300,26 +303,26 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   analysisSectionTitle: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 24 : 16,
     fontWeight: '700',
     color: Colors.primaryColor,
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: IS_IPAD ? 24 : 16,
+    marginBottom: IS_IPAD ? 12 : 8,
   },
   analysisSectionText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 20 : 14,
     color: '#666',
-    lineHeight: 20,
+    lineHeight: IS_IPAD ? 30 : 20,
   },
   streamingIndicatorContainer: {
     backgroundColor: '#f0f7ff',
     borderRadius: 8,
-    padding: 12,
+    padding: IS_IPAD ? 16 : 12,
     marginBottom: 16,
     alignItems: 'center',
   },
   streamingIndicator: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     fontWeight: '600',
     color: Colors.primaryColor,
   },
@@ -330,7 +333,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   errorText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#c33',
     textAlign: 'center',
   },

@@ -18,6 +18,7 @@ import {
   performAppleLogin,
 } from '../../utils/auth/apple_login';
 import { KakaoLoginError, performKakaoLogin } from '../../utils/auth/kakao_login';
+import { isIPad } from '../../utils/platform';
 
 const KAKAO_ICON: ImageSourcePropType = require('../../../assets/icons/kakao_icon.png');
 const LOGO_ICON: ImageSourcePropType = require('../../../assets/logo/logo_icon.png');
@@ -30,8 +31,11 @@ interface LoginScreenProps {
   };
 }
 
+const IS_IPAD = isIPad();
+
 function LoginScreen({ navigation }: LoginScreenProps) {
   const [isLoading, setIsLoading] = useState(false);
+  
 
   const handleAppleLogin = async (): Promise<void> => {
     if (!isAppleSignInSupported()) {
@@ -123,7 +127,7 @@ function LoginScreen({ navigation }: LoginScreenProps) {
               disabled={isLoading}
             >
               <View style={styles.buttonContent}>
-                <Icon name="apple" size={20} color="#FFFFFF" style={styles.appleIcon} />
+                <Icon name="apple" size={IS_IPAD ? 24 : 20} color="#FFFFFF" style={styles.appleIcon} />
                 <Text style={styles.appleButtonText}>
                   {isLoading ? '로그인 중' : 'Apple로 로그인'}
                 </Text>
@@ -168,43 +172,50 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 25,
+    paddingHorizontal: IS_IPAD ? 120 : 25,
+    width: '100%',
   },
   imageContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: IS_IPAD ? 40 : 20,
   },
   logoImage: {
-    width: 190,
-    height: 190,
+    width: IS_IPAD ? 300 : 190,
+    height: IS_IPAD ? 300 : 190,
   },
   textContainer: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: IS_IPAD ? 50 : 40,
   },
   title: {
-    fontSize: 24,
+    fontSize: IS_IPAD ? 42 : 24,
     color: 'black',
-    marginBottom: 8,
+    marginBottom: IS_IPAD ? 20 : 8,
     fontWeight: 'bold',
     textAlign: 'center',
     fontFamily: 'System', // 기본 시스템 폰트
+    flexShrink: 1,
+    paddingHorizontal: 16,
   },
   description: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 24 : 14,
     color: '#666666',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: IS_IPAD ? 36 : 20,
+    flexShrink: 1,
+    paddingHorizontal: 16,
   },
   loginContainer: {
-    paddingBottom: 20,
+    paddingBottom: IS_IPAD ? 40 : 20,
+    width: '100%',
   },
   loginButton: {
-    borderRadius: 12,
-    paddingVertical: 16,
+    borderRadius: IS_IPAD ? 20 : 12,
+    paddingVertical: IS_IPAD ? 24 : 16,
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: IS_IPAD ? 24 : 14,
     borderWidth: 1,
+    width: '100%',
   },
   buttonContent: {
     flexDirection: 'row',
@@ -212,9 +223,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   kakaoIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 8,
+    width: IS_IPAD ? 24 : 20,
+    height: IS_IPAD ? 24 : 20,
+    marginRight: IS_IPAD ? 16 : 8,
     borderRadius: 6,
   },
   kakaoButton: {
@@ -223,7 +234,7 @@ const styles = StyleSheet.create({
   },
   kakaoButtonText: {
     color: '#000000',
-    fontSize: 16,
+    fontSize: IS_IPAD ? 22 : 16,
     fontWeight: '600',
   },
   appleButton: {
@@ -233,28 +244,28 @@ const styles = StyleSheet.create({
   },
   appleButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: IS_IPAD ? 22 : 16,
     fontWeight: '600',
   },
   appleIcon: {
-    marginRight: 8,
+    marginRight: IS_IPAD ? 16 : 8,
   },
   termsContainer: {
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: IS_IPAD ? 20 : 8,
     paddingHorizontal: 20,
   },
   termsNoticeText: {
-    fontSize: 11,
+    fontSize: IS_IPAD ? 18 : 11,
     color: '#999999',
     textAlign: 'center',
-    lineHeight: 16,
+    lineHeight: IS_IPAD ? 24 : 16,
   },
   ageNoticeText: {
-    fontSize: 11,
+    fontSize: IS_IPAD ? 18 : 11,
     color: '#999999',
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: IS_IPAD ? 6 : 4,
   },
   termsLink: {
     color: '#666666',

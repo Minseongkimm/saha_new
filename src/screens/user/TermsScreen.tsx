@@ -2,6 +2,9 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView } from 'react-native';
 import CustomHeader from '../../components/common/CustomHeader';
 import { safeGoBack } from '../../utils/navigation/safeGoBack';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface TermsScreenProps {
   navigation: any;
@@ -308,8 +311,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   content: {
-    fontSize: 14,
-    lineHeight: 24,
+    fontSize: IS_IPAD ? 21 : 14,
+    lineHeight: IS_IPAD ? 32 : 24,
     color: '#333',
   },
 });

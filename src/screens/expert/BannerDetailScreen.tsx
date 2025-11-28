@@ -11,6 +11,9 @@ import { Colors } from '../../constants/colors';
 import CustomHeader from '../../components/common/CustomHeader';
 import { renderHighlight } from '../../utils/text/textFormatUtils';
 import { safeGoBack } from '../../utils/navigation/safeGoBack';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface BannerDetailScreenProps {
   navigation: any;
@@ -150,7 +153,7 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     width: '100%',
-    height: 200,
+    height: IS_IPAD ? 300 : 200,
     marginTop: 0,
     overflow: 'hidden',
   },
@@ -160,14 +163,14 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   sectionImageContainer: {
-    height: 660,
+    height: IS_IPAD ? 1000 : 660,
     marginHorizontal: 20,
     marginTop: 0,
     marginBottom: 15,
     overflow: 'hidden',
     borderRadius: 12,
     alignSelf: 'center',
-    width: '95%',
+    width: IS_IPAD ? '80%' : '95%',
   },
   sectionImage: {
     width: '100%',
@@ -182,20 +185,20 @@ const styles = StyleSheet.create({
     marginBottom: 13,
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: IS_IPAD ? 24 : 17,
     fontWeight: '600',
     color: '#000000',
-    marginBottom: 5,
+    marginBottom: IS_IPAD ? 10 : 5,
     textAlign: 'left',
   },
   processItem: {
-    marginBottom: 9,
+    marginBottom: IS_IPAD ? 15 : 9,
     paddingVertical: 2,
   },
   processText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 21 : 14,
     color: '#000000',
-    lineHeight: 23,
+    lineHeight: IS_IPAD ? 33 : 23,
     fontWeight: '400',
     textAlign: 'left',
   },
@@ -205,14 +208,14 @@ const styles = StyleSheet.create({
   },
   startButton: {
     backgroundColor: Colors.primaryColor,
-    paddingVertical: 15,
+    paddingVertical: IS_IPAD ? 20 : 15,
     paddingHorizontal: 30,
     borderRadius: 25,
     alignItems: 'center',
   },
   startButtonText: {
     color: 'white',
-    fontSize: 16,
+    fontSize: IS_IPAD ? 22 : 16,
     fontWeight: '600',
   },
 });

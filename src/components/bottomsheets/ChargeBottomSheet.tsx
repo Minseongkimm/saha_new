@@ -3,6 +3,9 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import AnimatedBottomSheet from './AnimatedBottomSheet';
 import { Colors } from '../../constants/colors';
 import { CHARGE_OPTIONS } from '../../constants/payments';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface ChargeBottomSheetProps {
   visible: boolean;
@@ -78,11 +81,6 @@ const ChargeBottomSheet: React.FC<ChargeBottomSheetProps> = ({
             <Text style={styles.refundText}>
               청약 철회는 구매일로부터 7일 이내 미사용 사바만 가능합니다.
             </Text>
-            <View style={styles.refundSecondLine}>
-              <TouchableOpacity onPress={() => {}}>
-                <Text style={styles.inquiryText}>문의하기</Text>
-              </TouchableOpacity>
-            </View>
           </View>
     </AnimatedBottomSheet>
   );
@@ -114,8 +112,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingHorizontal: IS_IPAD ? 26 : 20,
+    paddingVertical: IS_IPAD ? 22 : 18,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -123,100 +121,102 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bottomSheetTitle: {
-    fontSize: 17,
+    fontSize: IS_IPAD ? 24 : 17,
     fontWeight: '600',
     color: '#333',
   },
   closeButton: {
-    width: 30,
-    height: 30,
+    width: IS_IPAD ? 38 : 30,
+    height: IS_IPAD ? 38 : 30,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: -5,
+    marginTop: IS_IPAD ? -8 : -5,
   },
   closeButtonText: {
-    fontSize: 16,
+    fontSize: IS_IPAD ? 22 : 16,
     color: '#666',
   },
   descriptionText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     color: '#666',
-    marginTop: 1,
-    lineHeight: 20,
+    marginTop: IS_IPAD ? 4 : 1,
+    lineHeight: IS_IPAD ? 28 : 20,
   },
   chargeOptions: {
-    paddingHorizontal: 11,
-    paddingTop: 9,
-    paddingBottom: 17,
+    paddingHorizontal: IS_IPAD ? 18 : 11,
+    paddingTop: IS_IPAD ? 14 : 9,
+    paddingBottom: IS_IPAD ? 20 : 17,
   },
   chargeOption: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 11,
-    paddingHorizontal: 15,
+    paddingVertical: IS_IPAD ? 16 : 11,
+    paddingHorizontal: IS_IPAD ? 22 : 15,
   },
   chargeOptionLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   sahaMoneyIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 8,
+    width: IS_IPAD ? 36 : 20,
+    height: IS_IPAD ? 36 : 20,
+    marginRight: IS_IPAD ? 14 : 8,
   },
   chargeOptionTitle: {
-    marginRight: 2,
-    fontSize: 16,
+    marginRight: IS_IPAD ? 4 : 2,
+    fontSize: IS_IPAD ? 24 : 16,
     fontWeight: '700',
     color: '#333',
   },
   serviceAmountText: {
-    fontSize: 12,
+    fontSize: IS_IPAD ? 18 : 12,
     fontWeight: '600',
     color: Colors.debitColor,
-    marginLeft: 4,
+    marginLeft: IS_IPAD ? 8 : 4,
   },
   priceButton: {
     backgroundColor: Colors.primaryColor,
-    paddingVertical: 8,
-    borderRadius: 6,
-    minWidth: 100,
+    paddingVertical: IS_IPAD ? 12 : 8,
+    paddingHorizontal: IS_IPAD ? 20 : 16,
+    borderRadius: IS_IPAD ? 10 : 6,
+    minWidth: IS_IPAD ? 140 : 100,
     alignItems: 'center',
     justifyContent: 'center',
   },
   priceButtonText: {
-    fontSize: 14,
+    fontSize: IS_IPAD ? 18 : 14,
     fontWeight: 'bold',
     color: 'white',
   },
   refundContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: IS_IPAD ? 26 : 20,
+    paddingBottom: IS_IPAD ? 24 : 20,
     alignItems: 'flex-start',
   },
   refundText: {
-    fontSize: 12,
+    fontSize: IS_IPAD ? 16 : 12,
     color: '#999',
     textAlign: 'left',
-    lineHeight: 14,
-    marginBottom: 4,
+    lineHeight: IS_IPAD ? 24 : 14,
+    marginBottom: IS_IPAD ? 6 : 4,
+    marginLeft: IS_IPAD ? 16 : 5,
   },
   refundSecondLine: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   inquiryText: {
-    fontSize: 12,
+    fontSize: IS_IPAD ? 16 : 12,
     color: '#999',
     textDecorationLine: 'underline',
     marginLeft: 0,
   },
   chip: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 6,
+    paddingHorizontal: IS_IPAD ? 10 : 6,
+    paddingVertical: IS_IPAD ? 4 : 2,
+    borderRadius: IS_IPAD ? 6 : 4,
+    marginLeft: IS_IPAD ? 10 : 6,
   },
   hotChip: {
     backgroundColor: Colors.debitColor,
@@ -225,7 +225,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.debitColor,
   },
   chipText: {
-    fontSize: 10,
+    fontSize: IS_IPAD ? 14 : 10,
     color: 'white',
     fontWeight: 'bold',
   },
