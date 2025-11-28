@@ -86,6 +86,18 @@ export const performKakaoLogin = async (): Promise<void> => {
       throw error;
     }
 
+    // AsyncStorage 디렉토리 오류는 무시 (세션은 이미 생성됨)
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('folder') && errorMessage.includes("doesn't exist")) {
+      console.warn('⚠️ AsyncStorage 디렉토리 오류 (무시됨):', errorMessage);
+      // 세션이 생성되었는지 확인
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        // 세션이 있으면 로그인 성공으로 처리
+        return;
+      }
+    }
+
     console.error('❌ === 카카오 로그인 에러 ===', error);
     throw new KakaoLoginError(
       KakaoLoginErrorCode.Unknown,

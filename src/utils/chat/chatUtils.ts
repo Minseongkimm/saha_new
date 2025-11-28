@@ -3,6 +3,7 @@ import { markChatListNeedsRefresh } from './chatListCache';
 import { Alert } from 'react-native';
 import { ensureBirthInfoOrNavigate } from '../user/birthInfoGuard';
 import { getCurrentUserSafely } from '../user/authUtils';
+import { withSupabaseRetry } from '../network/retry';
 
 /**
  * 카테고리로 전문가 조회
@@ -56,11 +57,13 @@ export const startChatWithExpert = async (
 
   try {
     // 1. 전문가 정보 가져오기 (ID로 조회)
-    const { data: expert, error: expertError } = await supabase
-      .from('experts')
-      .select('*')
-      .eq('id', expertId)
-      .single();
+    const { data: expert, error: expertError } = await withSupabaseRetry<any>(async () => {
+      return await supabase
+        .from('experts')
+        .select('*')
+        .eq('id', expertId)
+        .single();
+    });
 
     if (expertError || !expert) {
       Alert.alert('오류', '전문가 정보를 찾을 수 없습니다.');
@@ -90,31 +93,35 @@ export const startChatWithExpert = async (
       roomQuery = roomQuery.is('partner_saju_id', null);
     }
 
-    const { data: existingRoom, error: roomLookupError } = await roomQuery.maybeSingle();
+    const { data: existingRoom, error: roomLookupError } = await withSupabaseRetry<{ id: string; expert_name: string } | null>(async () => {
+      return await roomQuery.maybeSingle();
+    });
 
     if (roomLookupError) {
       console.error('Chat room lookup error:', roomLookupError);
     }
 
-    let chatRoomId;
+    let chatRoomId: string;
 
     if (existingRoom) {
       chatRoomId = existingRoom.id;
     } else {
       // 3. 새 채팅방 생성
-      const { data: newRoom, error } = await supabase
-        .from('chat_rooms')
-        .insert({
-          user_id: user.id,
-          expert_id: expert.id,
-          expert_name: expert.name,
-          chat_context: chatContext,
-          partner_saju_id: partnerSajuId,
-        })
-        .select()
-        .single();
+      const { data: newRoom, error } = await withSupabaseRetry<any>(async () => {
+        return await supabase
+          .from('chat_rooms')
+          .insert({
+            user_id: user.id,
+            expert_id: expert.id,
+            expert_name: expert.name,
+            chat_context: chatContext,
+            partner_saju_id: partnerSajuId,
+          })
+          .select()
+          .single();
+      });
 
-      if (error) throw error;
+      if (error || !newRoom) throw error || new Error('Failed to create chat room');
       chatRoomId = newRoom.id;
       markChatListNeedsRefresh();
     }

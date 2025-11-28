@@ -3,6 +3,7 @@
 // - getFreeMessagePolicy: 무료 대화 정책 조회
 import { supabase } from '../database/supabaseClient';
 import { getKoreanDateString } from '../date/koreanDate';
+import { withSupabaseRetry } from '../network/retry';
 
 export interface FreeMessagePolicy {
   daily_free_count: number;
@@ -33,7 +34,7 @@ export async function getFreeMessagePolicy(): Promise<FreeMessagePolicy | null> 
       .limit(1)
       .single();
     
-    if (error) {
+    if (error || !data) {
       console.error('무료 대화 정책 조회 오류:', error);
       // 기본값 반환
       const fallback = { daily_free_count: 1, enabled: true };
@@ -72,13 +73,19 @@ export async function checkFreeMessageAvailable(userId: string): Promise<FreeMes
       return { available: false, usedCount: 0, dailyLimit: 0 };
     }
     
-    // 오늘 사용한 무료 대화 수 조회 (한국 시간 기준)
+    // 오늘 사용한 무료 대화 수 조회 (한국 시간 기준, 재시도 로직 포함)
     const today = getKoreanDateString();
-    const { data, error } = await supabase
-      .from('free_messages')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('used_date', today);
+    const { data, error } = await withSupabaseRetry<{ id: any }[]>(
+      async () => {
+        return await supabase
+          .from('free_messages')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('used_date', today);
+      },
+      3,   // MAX_RETRIES = 3
+      500  // RETRY_DELAY_MS = 500 (첫 재시도: 0.5초, 두 번째: 1초, 세 번째: 1.5초)
+    );
     
     if (error) {
       console.error('무료 대화 사용 내역 조회 오류:', error);

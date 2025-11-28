@@ -1,34 +1,6 @@
 import { supabase } from '../database/supabaseClient';
 import { PaymentTransaction } from './types';
-
-/**
- * 네트워크 에러 재시도 헬퍼
- */
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries = 2,
-  delayMs = 500
-): Promise<T> {
-  let lastError: any;
-  for (let i = 0; i <= maxRetries; i++) {
-    try {
-      return await fn();
-    } catch (error: any) {
-      lastError = error;
-      const isNetworkError = 
-        error?.message?.includes('Network request failed') ||
-        error?.message?.includes('Failed to fetch') ||
-        error?.code === 'ECONNREFUSED';
-      
-      if (isNetworkError && i < maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-        continue;
-      }
-      throw error;
-    }
-  }
-  throw lastError;
-}
+import { withSupabaseRetry } from '../network/retry';
 
 /**
  * 충전 내역 조회
@@ -46,32 +18,14 @@ export async function fetchChargeTransactions(): Promise<PaymentTransaction[]> {
     }
 
     // purchases 테이블에서 직접 조회 (재시도 로직 포함)
-    let result;
-    try {
-      result = await withRetry(async () => {
-        const queryResult = await supabase
-          .from('purchases')
-          .select('id, saha_amount, bonus_saha, status, created_at, completed_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(100);
-        
-        if (queryResult.error) {
-          // 네트워크 에러인 경우 throw하여 재시도
-          const errorMessage = queryResult.error.message || '';
-          if (errorMessage.includes('Network request failed') || errorMessage.includes('Failed to fetch')) {
-            throw queryResult.error;
-          }
-        }
-        return queryResult;
-      });
-    } catch (err: any) {
-      // 재시도 실패한 경우
-      const errorMessage = err?.message || 'Unknown error';
-      return [];
-    }
-
-    const { data, error } = result;
+    const { data, error } = await withSupabaseRetry<any[]>(async () => {
+      return await supabase
+        .from('purchases')
+        .select('id, saha_amount, bonus_saha, status, created_at, completed_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+    });
     if (error) {
       console.error('fetchChargeTransactions error:', error);
       return [];
@@ -119,31 +73,14 @@ export async function fetchUsageTransactions(): Promise<PaymentTransaction[]> {
     }
 
     // usages 테이블에서 직접 조회 (재시도 로직 포함)
-    let result;
-    try {
-      result = await withRetry(async () => {
-        const queryResult = await supabase
-          .from('usages')
-          .select('id, delta, reason, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(100);
-        
-        if (queryResult.error) {
-          // 네트워크 에러인 경우 throw하여 재시도
-          const errorMessage = queryResult.error.message || '';
-          if (errorMessage.includes('Network request failed') || errorMessage.includes('Failed to fetch')) {
-            throw queryResult.error;
-          }
-        }
-        return queryResult;
-      });
-    } catch (err: any) {
-      // 재시도 실패한 경우
-      return [];
-    }
-
-    const { data, error } = result;
+    const { data, error } = await withSupabaseRetry<any[]>(async () => {
+      return await supabase
+        .from('usages')
+        .select('id, delta, reason, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(100);
+    });
     if (error) {
       console.error('fetchUsageTransactions error:', error);
       return [];

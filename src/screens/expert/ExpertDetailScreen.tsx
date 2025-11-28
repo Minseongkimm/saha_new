@@ -27,6 +27,7 @@ import { getPartnerList, deletePartnerFromDatabase } from '../../utils/partner/p
 import { getPartnerListCache, isPartnerListFresh } from '../../utils/partner/partnerListCache';
 import SabaLoader from '../../components/common/SabaLoader';
 import { isIPad } from '../../utils/platform';
+import { withSupabaseRetry } from '../../utils/network/retry';
 
 const IS_IPAD = isIPad();
 
@@ -308,14 +309,16 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
 
   const fetchExpertDetails = async (swr: boolean) => {
     try {
-      const { data, error } = await supabase
-        .from('experts')
-        .select(`
-          *,
-          expert_details(*)
-        `)
-        .eq('id', expertId)
-        .single();
+      const { data, error } = await withSupabaseRetry<any>(async () => {
+        return await supabase
+          .from('experts')
+          .select(`
+            *,
+            expert_details(*)
+          `)
+          .eq('id', expertId)
+          .single();
+      });
 
       if (error) throw error;
       
