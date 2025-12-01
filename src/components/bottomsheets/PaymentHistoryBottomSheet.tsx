@@ -22,28 +22,50 @@ const PaymentHistoryBottomSheet: React.FC<PaymentHistoryBottomSheetProps> = ({
   onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('charge');
-  const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [chargeTransactions, setChargeTransactions] = useState<PaymentTransaction[]>([]);
+  const [usageTransactions, setUsageTransactions] = useState<PaymentTransaction[]>([]);
+  const [loading, setLoading] = useState<{ charge: boolean; use: boolean }>({ charge: true, use: true });
 
+  // 모달이 열릴 때 현재 활성 탭의 데이터를 새로고침 (실시간 반영)
   useEffect(() => {
     if (visible) {
-      fetchTransactions();
+      fetchTransactions(activeTab);
     }
-  }, [visible, activeTab]);
+  }, [visible]);
 
-  const fetchTransactions = async () => {
+  // 탭 변경 시 해당 탭의 데이터를 새로고침 (실시간 반영)
+  useEffect(() => {
+    if (visible) {
+      fetchTransactions(activeTab);
+    }
+  }, [activeTab]);
+
+  const fetchTransactions = async (tab: TabType) => {
     try {
-      setLoading(true);
-      const data = activeTab === 'charge' 
+      // 기존 데이터가 없을 때만 로딩 상태 표시 (깜빡임 방지)
+      const hasExistingData = tab === 'charge' ? chargeTransactions.length > 0 : usageTransactions.length > 0;
+      if (!hasExistingData) {
+        setLoading(prev => ({ ...prev, [tab]: true }));
+      }
+      
+      const data = tab === 'charge' 
         ? await fetchChargeTransactions() 
         : await fetchUsageTransactions();
-      setTransactions(data);
+      
+      if (tab === 'charge') {
+        setChargeTransactions(data);
+      } else {
+        setUsageTransactions(data);
+      }
     } catch (error) {
       console.error('거래 내역 조회 오류:', error);
     } finally {
-      setLoading(false);
+      setLoading(prev => ({ ...prev, [tab]: false }));
     }
   };
+
+  const currentTransactions = activeTab === 'charge' ? chargeTransactions : usageTransactions;
+  const isLoading = activeTab === 'charge' ? loading.charge : loading.use;
 
 
   const renderTransaction = ({ item }: { item: PaymentTransaction }) => (
@@ -98,17 +120,17 @@ const PaymentHistoryBottomSheet: React.FC<PaymentHistoryBottomSheetProps> = ({
             </TouchableOpacity>
           </View>
           
-          {loading ? (
+          {isLoading && currentTransactions.length === 0 ? (
             <View style={styles.loadingWrapper}>
               <SabaLoader size={64} message="" />
             </View>
-          ) : transactions.length === 0 ? (
+          ) : currentTransactions.length === 0 ? (
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>내역이 없습니다</Text>
             </View>
           ) : (
             <FlatList
-              data={transactions}
+              data={currentTransactions}
               renderItem={renderTransaction}
               keyExtractor={(item) => item.id}
               style={styles.transactionList}
