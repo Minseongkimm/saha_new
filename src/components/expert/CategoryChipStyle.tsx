@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import { EXPERT_CATEGORIES } from '../../types/expert';
+import { EXPERT_CATEGORIES, getExpertCategoryLabel } from '../../types/expert';
 import { Colors } from '../../constants/colors';
 import { isIPad } from '../../utils/platform';
+import { useAppConfig } from '../../contexts/AppConfigContext';
 
 const IS_IPAD = isIPad();
 
@@ -21,6 +22,7 @@ const CategoryChipStyle: React.FC<CategoryChipStyleProps> = ({
   selectedCategory,
   onCategoryPress,
 }) => {
+  const { useMindfulnessTerms } = useAppConfig();
   const categories = Object.values(EXPERT_CATEGORIES).filter(category => 
     !['traditional_saju', 'today_fortune', 'newyear_fortune'].includes(category.key)
   );
@@ -47,7 +49,7 @@ const CategoryChipStyle: React.FC<CategoryChipStyleProps> = ({
                 ]}
                 numberOfLines={1}
               >
-                {category.label}
+                {getExpertCategoryLabel(category.key, useMindfulnessTerms)}
               </Text>
             </TouchableOpacity>
           );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import { getExpertListCache, setExpertListCache, isExpertListFresh } from '../..
 import { ensureBirthInfoOrNavigate } from '../../utils/user/birthInfoGuard';
 import { TestTools } from '../../components/common/TestTools';
 import { isIPad } from '../../utils/platform';
+import { useAppConfig } from '../../contexts/AppConfigContext';
 
 const IS_IPAD = isIPad();
 
@@ -36,8 +37,64 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [showCacheInfo, setShowCacheInfo] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('comprehensive');
   const [showBannerModal, setShowBannerModal] = useState(false);
+  const { useMindfulnessTerms } = useAppConfig();
   const scrollViewRef = useRef<ScrollView>(null);
   const categoryRefs = useRef<{ [key: string]: View | null }>({});
+
+  const fetchExperts = useCallback(async () => {
+    try {
+      if (useMindfulnessTerms) {
+        // experts_mindfulness 테이블 조회
+        const { data: expertsData, error: expertsError } = await supabase
+          .from('experts_mindfulness')
+          .select('*')
+          .order('created_at', { ascending: true });
+
+        if (expertsError) throw expertsError;
+
+        // expert_details_mindfulness 별도 조회
+        const expertIds = (expertsData || []).map((e: any) => e.expert_id);
+        const { data: detailsData, error: detailsError } = await supabase
+          .from('expert_details_mindfulness')
+          .select('*')
+          .in('expert_id', expertIds);
+
+        if (detailsError) throw detailsError;
+
+        // 데이터 매핑
+        const detailsMap = new Map((detailsData || []).map((d: any) => [d.expert_id, d]));
+        const list = (expertsData || []).map((item: any) => ({
+          ...item,
+          id: item.expert_id, // expert_id를 id로 매핑
+          expert_quote_mindfulness: item.expert_quote, // expert_quote를 expert_quote_mindfulness로 매핑
+          signature_phrase_mindfulness: item.signature_phrase, // signature_phrase를 signature_phrase_mindfulness로 매핑
+          expert_details: detailsMap.get(item.expert_id) || null,
+        }));
+        
+        setExperts(list);
+        setExpertListCache(list);
+      } else {
+        const { data, error } = await supabase
+          .from('experts')
+          .select(`
+            *,
+            expert_details(*)
+          `)
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+        const list = data || [];
+        
+        setExperts(list);
+        setExpertListCache(list);
+      }
+    } catch (error) {
+      console.error('Error fetching experts:', error);
+      Alert.alert('오류', '전문가 목록을 불러오는데 실패했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  }, [useMindfulnessTerms]);
 
   useEffect(() => {
     const FRESH_MS = 24 * 60 * 60 * 1000; // 24시간
@@ -81,7 +138,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     
     // 앱 시작 시 배너 모달 표시 확인
     checkAndShowBannerModal();
-  }, []);
+  }, [fetchExperts]);
 
   const checkAndShowBannerModal = async () => {
     try {
@@ -97,29 +154,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Error checking banner close date:', error);
-    }
-  };
-
-  const fetchExperts = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('experts')
-        .select(`
-          *,
-          expert_details(*)
-        `)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      const list = data || [];
-      
-      setExperts(list);
-      setExpertListCache(list);
-    } catch (error) {
-      console.error('Error fetching experts:', error);
-      Alert.alert('오류', '전문가 목록을 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -179,7 +213,10 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           activeOpacity={0.9}
         >
           <Image
-            source={require('../../../assets/banner/home_banner2.jpg')}
+            source={useMindfulnessTerms 
+              ? require('../../../assets/banner/home_banner_fake.png')
+              : require('../../../assets/banner/home_banner.png')
+            }
             style={styles.bannerImage}
             resizeMode="cover" // 비율에 맞춰 꽉 채움
           />
@@ -187,69 +224,70 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           
         {/* 사주 메뉴 섹션 */}
         <View style={styles.content}>
-          {/* 3개 사주 메뉴 그리드 */}
-          <View style={styles.sajuCard}>
-            <SectionHeader 
-              title="사주 풀이" 
-              description="숨겨진 운명의 실마리를 찾아보세요"
-              style={styles.sajuCardHeader}
-            />
-            <View style={styles.menuGrid}>
-            <TouchableOpacity 
-              style={styles.menuItem} 
-              activeOpacity={0.8}
-              onPress={async () => {
-                const ok = await ensureBirthInfoOrNavigate(navigation, 'JeongtongSaju');
-                if (!ok) return;
-                navigation.navigate('JeongtongSaju');
-              }}
-            >
-              <View style={styles.menuIcon}>
-                <Image
-                  source={require('../../../assets/saju/jeongtong_saju.png')}
-                  style={styles.menuIconImage}
-                />
-              </View>
-              <Text style={styles.menuText}>정통사주</Text>
-            </TouchableOpacity>
+          {!useMindfulnessTerms && (
+            <View style={styles.sajuCard}>
+              <SectionHeader 
+                title="사주 풀이" 
+                description="숨겨진 운명의 실마리를 찾아보세요"
+                style={styles.sajuCardHeader}
+              />
+              <View style={styles.menuGrid}>
+                <TouchableOpacity 
+                  style={styles.menuItem} 
+                  activeOpacity={0.8}
+                  onPress={async () => {
+                    const ok = await ensureBirthInfoOrNavigate(navigation, 'JeongtongSaju');
+                    if (!ok) return;
+                    navigation.navigate('JeongtongSaju');
+                  }}
+                >
+                  <View style={styles.menuIcon}>
+                    <Image
+                      source={require('../../../assets/saju/jeongtong_saju.png')}
+                      style={styles.menuIconImage}
+                    />
+                  </View>
+                  <Text style={styles.menuText}>정통사주</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.menuItem} 
-              activeOpacity={0.8}
-              onPress={async () => {
-                const ok = await ensureBirthInfoOrNavigate(navigation, 'TodayFortune');
-                if (!ok) return;
-                navigation.navigate('TodayFortune');
-              }}
-            >
-              <View style={styles.menuIcon}>
-                <Image
-                  source={require('../../../assets/saju/calendar_saju.png')}
-                  style={styles.menuIconImage}
-                />
-              </View>
-              <Text style={styles.menuText}>오늘의 운세</Text>
-            </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.menuItem} 
+                  activeOpacity={0.8}
+                  onPress={async () => {
+                    const ok = await ensureBirthInfoOrNavigate(navigation, 'TodayFortune');
+                    if (!ok) return;
+                    navigation.navigate('TodayFortune');
+                  }}
+                >
+                  <View style={styles.menuIcon}>
+                    <Image
+                      source={require('../../../assets/saju/calendar_saju.png')}
+                      style={styles.menuIconImage}
+                    />
+                  </View>
+                  <Text style={styles.menuText}>오늘의 운세</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.menuItem} 
-              activeOpacity={0.8}
-              onPress={async () => {
-                const ok = await ensureBirthInfoOrNavigate(navigation, 'NewYearFortune');
-                if (!ok) return;
-                navigation.navigate('NewYearFortune');
-              }}
-            >
-              <View style={styles.menuIcon}>
-                <Image
-                  source={require('../../../assets/saju/newyear_saju.png')}
-                  style={styles.menuIconImage}
-                />
+                <TouchableOpacity 
+                  style={styles.menuItem} 
+                  activeOpacity={0.8}
+                  onPress={async () => {
+                    const ok = await ensureBirthInfoOrNavigate(navigation, 'NewYearFortune');
+                    if (!ok) return;
+                    navigation.navigate('NewYearFortune');
+                  }}
+                >
+                  <View style={styles.menuIcon}>
+                    <Image
+                      source={require('../../../assets/saju/newyear_saju.png')}
+                      style={styles.menuIconImage}
+                    />
+                  </View>
+                  <Text style={styles.menuText}>신년 운세</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={styles.menuText}>신년 운세</Text>
-            </TouchableOpacity>
             </View>
-          </View>
+          )}
 
           {/* 테스트 도구 (캐시 및 DB 삭제) - 필요할 때만 주석 해제 */}
           {/* <TestTools /> */}
@@ -257,8 +295,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           {/* AI 사주 도사 섹션 */}
           <View style={styles.expertSection}>
             <SectionHeader 
-              title="AI 도사" 
-              description="언제든 대화할 수 있는 나만의 사주 선생님"
+              title={useMindfulnessTerms ? "AI 상담사" : "AI 도사"} 
+              description={useMindfulnessTerms ? "불안이 아닌 확신으로 인생을 끌갈수있는 상담" : "언제든 대화할 수 있는 나만의 사주 선생님"}
             />
             
             {/* 카테고리 선택기 */}
@@ -316,13 +354,14 @@ const styles = StyleSheet.create({
     minHeight: 200,
   },
   bannerSection: {
-    width: IS_IPAD ? '92%' : SCREEN_WIDTH - 30,
+    width: IS_IPAD ? '93%' : SCREEN_WIDTH - 30,
     alignSelf: 'center',
     aspectRatio: IS_IPAD ? 3.3 : (IS_SMALL_DEVICE ? 2.8 : 3.2),
     position: 'relative',
     marginTop: Platform.OS === 'android' ? 0 : (IS_IPAD ? 20 : 15),
     marginLeft: IS_IPAD ? 0 : 15,
     marginRight: IS_IPAD ? 0 : 15,
+    marginBottom: IS_IPAD ? 10 : 0,
     borderRadius: IS_IPAD ? 20 : 15,
     overflow: 'hidden',
   },
