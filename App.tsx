@@ -14,6 +14,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { supabase } from './src/utils/database/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { initIAP } from './src/utils/payments/iapClient';
+import { AppConfigProvider } from './src/contexts/AppConfigContext';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -93,11 +94,13 @@ function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar 
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
-        backgroundColor="#007AFF"
-      />
-      <AppNavigator session={session} initialAuthRouteName={initialAuthRouteName} />
+      <AppConfigProvider>
+        <StatusBar 
+          barStyle={isDarkMode ? 'light-content' : 'dark-content'} 
+          backgroundColor="#007AFF"
+        />
+        <AppNavigator session={session} initialAuthRouteName={initialAuthRouteName} />
+      </AppConfigProvider>
     </SafeAreaProvider>
   );
 }

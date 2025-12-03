@@ -12,6 +12,7 @@ import CustomHeader from '../../components/common/CustomHeader';
 import { renderHighlight } from '../../utils/text/textFormatUtils';
 import { safeGoBack } from '../../utils/navigation/safeGoBack';
 import { isIPad } from '../../utils/platform';
+import { useAppConfig } from '../../contexts/AppConfigContext';
 
 const IS_IPAD = isIPad();
 
@@ -20,6 +21,8 @@ interface BannerDetailScreenProps {
 }
 
 const BannerDetailScreen: React.FC<BannerDetailScreenProps> = ({ navigation }) => {
+  const { useMindfulnessTerms } = useAppConfig();
+
   const handleClose = () => {
     safeGoBack(navigation);
   };
@@ -67,7 +70,10 @@ const BannerDetailScreen: React.FC<BannerDetailScreenProps> = ({ navigation }) =
             
             <View style={styles.processItem}>
               <Text style={styles.processText}>
-                명리학의 지혜와 AI의 통찰이 만나 당신의 사주 데이터를 기반으로 성향, 흐름, 인생의 방향을 함께 읽어드립니다.
+                {useMindfulnessTerms 
+                  ? '상담사의 지혜와 AI의 통찰이 만나 당신의 이야기를 기반으로 성향, 흐름, 인생의 방향을 함께 읽어드립니다.'
+                  : '명리학의 지혜와 AI의 통찰이 만나 당신의 사주 데이터를 기반으로 성향, 흐름, 인생의 방향을 함께 읽어드립니다.'
+                }
               </Text>
               <Text style={styles.processText}>
                  사바가 전하고 싶은 건 단순한 결과가 아니라{renderHighlight(' 당신 자신을 이해하는 과정')}이에요.
@@ -111,27 +117,30 @@ const BannerDetailScreen: React.FC<BannerDetailScreenProps> = ({ navigation }) =
             <Text style={styles.sectionTitle}>사바 활용법</Text>
               <View style={styles.processItem}>
                 <Text style={styles.processText}>
-                  1. 연애 일 인생 등 {renderHighlight('궁금한 주제의 도사를 선택')}하세요.
+                  1. 연애 일 인생 등 {renderHighlight('궁금한 주제의 상담사를 선택')}하세요.
                 </Text>
                 <Text style={styles.processText}>
                   2. {renderHighlight('나를 알아가는 과정')}에서 궁금한 부분을 디테일하게 물어보세요.
                 </Text>
+                {/* <Text style={styles.processText}>
+                  3. {useMindfulnessTerms 
+                    ? `AI 상담사가 당신의${renderHighlight(' 이야기를 함께 듣고 방향을 제안')}합니다.`
+                    : `AI 도사가 당신의${renderHighlight('사주 흐름을 함께 읽고 방향을 제안')}합니다.`
+                  }
+                </Text> */}
                 <Text style={styles.processText}>
-                  3. AI 도사가 당신의{renderHighlight(' 사주 흐름을 함께 읽고 방향을 제안')}합니다.
-                </Text>
-                <Text style={styles.processText}>
-                  4. {renderHighlight('당신의 삶이 조금 더 명확해지는 순간')} 사바는 그곳에 있습니다.
+                  3. {renderHighlight('당신의 삶이 조금 더 명확해지는 순간')} 사바는 그곳에 있습니다.
                 </Text>
               </View>
           </View>
 
-          <View style={styles.sectionImageContainer}>
+          {/* <View style={styles.sectionImageContainer}>
               <Image
                 source={require('../../../assets/guide/conversation_example.png')}
               style={styles.sectionImage}
               resizeMode="cover"
             />
-        </View>
+        </View> */}
 
           <TouchableOpacity style={styles.startButton} onPress={handleStart}>
             <Text style={styles.startButtonText}>나의 운명지도 열기</Text>
