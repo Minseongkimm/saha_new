@@ -17,10 +17,14 @@
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="AppIcon" translatesAutoresizingMaskIntoConstraints="NO" id="launch-icon">
-                                <rect key="frame" x="137.5" y="283.5" width="100" height="100"/>
+                                <rect key="frame" x="87.5" y="233.5" width="200" height="200"/>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="100" id="icon-width"/>
-                                    <constraint firstAttribute="height" constant="100" id="icon-height"/>
+                                    <constraint firstAttribute="width" constant="200" id="icon-width">
+                                        <variation key="widthClass=regular" constant="300"/>
+                                    </constraint>
+                                    <constraint firstAttribute="height" constant="200" id="icon-height">
+                                        <variation key="widthClass=regular" constant="300"/>
+                                    </constraint>
                                 </constraints>
                             </imageView>
                         </subviews>

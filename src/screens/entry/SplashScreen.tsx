@@ -7,6 +7,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
+import { isIPad } from '../../utils/platform';
+
+const IS_IPAD = isIPad();
 
 interface SplashScreenProps {
   onFinish: () => void;
@@ -95,8 +98,8 @@ const styles = StyleSheet.create({
     marginBottom: 90,
   },
   logoImage: {
-    width: 200,
-    height: 200,
+    width: IS_IPAD ? 300 : 200,
+    height: IS_IPAD ? 300 : 200,
   },
   spinnerContainer: {
     position: 'absolute',
