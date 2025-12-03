@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import { ensureBirthInfoOrNavigate } from '../user/birthInfoGuard';
 import { getCurrentUserSafely } from '../user/authUtils';
 import { withSupabaseRetry } from '../network/retry';
+import { shouldUseMindfulnessTerms } from '../config/appConfig';
 
 /**
  * 카테고리로 전문가 조회
@@ -12,18 +13,38 @@ import { withSupabaseRetry } from '../network/retry';
  */
 export const getExpertByCategory = async (category: string): Promise<{ id: string; name: string } | null> => {
   try {
-    const { data: expert, error } = await supabase
-      .from('experts')
-      .select('id, name')
-      .eq('category', category)
-      .single();
+    const useMindfulnessTerms = await shouldUseMindfulnessTerms();
+    
+    if (useMindfulnessTerms) {
+      const { data: expert, error } = await supabase
+        .from('experts_mindfulness')
+        .select('expert_id, name')
+        .eq('category', category)
+        .maybeSingle();
 
-    if (error || !expert) {
-      console.error('Expert lookup error:', error, 'Category:', category);
-      return null;
+      if (error || !expert) {
+        console.error('Expert lookup error:', error, 'Category:', category);
+        return null;
+      }
+
+      return {
+        id: expert.expert_id,
+        name: expert.name,
+      };
+    } else {
+      const { data: expert, error } = await supabase
+        .from('experts')
+        .select('id, name')
+        .eq('category', category)
+        .single();
+
+      if (error || !expert) {
+        console.error('Expert lookup error:', error, 'Category:', category);
+        return null;
+      }
+
+      return expert;
     }
-
-    return expert;
   } catch (error) {
     console.error('Error in getExpertByCategory:', error);
     return null;
