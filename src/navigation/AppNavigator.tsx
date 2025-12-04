@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { Image, View, Platform, ActivityIndicator, Dimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Session } from '@supabase/supabase-js';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -45,6 +46,9 @@ interface AppNavigatorProps {
 
 const AppNavigator: React.FC<AppNavigatorProps> = ({ session, initialAuthRouteName = 'MainTabs' }) => {
   const [isLoading, setIsLoading] = useState(true);
+  const insets = useSafeAreaInsets();
+  // Android 3버튼 네비게이션 바 높이만큼 하단 패딩 추가
+  const bottomPadding = Platform.OS === 'android' ? insets.bottom : 0;
 
   const handleSplashFinish = () => {
     setIsLoading(false);
@@ -55,8 +59,9 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session, initialAuthRouteNa
   }
 
   return (
-    <NavigationContainer key={session ? `auth-${initialAuthRouteName}` : 'guest'}>
-      <Stack.Navigator
+    <View style={{ flex: 1, paddingBottom: bottomPadding - 18, backgroundColor: '#fff' }}>
+      <NavigationContainer key={session ? `auth-${initialAuthRouteName}` : 'guest'}>
+        <Stack.Navigator
         screenOptions={{
           headerStyle: {
             backgroundColor: '#FFFFFFFF',
@@ -210,7 +215,8 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session, initialAuthRouteNa
           </>
         )}
       </Stack.Navigator>
-    </NavigationContainer>
+      </NavigationContainer>
+    </View>
   );
 };
 

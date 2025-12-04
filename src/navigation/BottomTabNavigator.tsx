@@ -12,7 +12,7 @@ const IS_IPAD = isIPad();
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IS_SMALL_DEVICE: boolean = SCREEN_HEIGHT < 700;
-const TAB_BAR_HEIGHT: number = IS_IPAD ? 95 : (IS_SMALL_DEVICE ? 62 : 82);
+const BASE_TAB_BAR_HEIGHT: number = IS_IPAD ? 95 : (IS_SMALL_DEVICE ? 62 : 82);
 const TAB_BAR_PADDING_TOP: number = IS_IPAD ? 10 : 5;
 
 const Tab = createBottomTabNavigator();
@@ -27,7 +27,7 @@ const BottomTabNavigator: React.FC = () => {
           borderTopWidth: 1,
           borderTopColor: '#E0E0E0',
           paddingTop: TAB_BAR_PADDING_TOP,
-          height: TAB_BAR_HEIGHT,
+          height: BASE_TAB_BAR_HEIGHT,
         },
         tabBarLabelPosition: 'below-icon',
         tabBarIconStyle: {
