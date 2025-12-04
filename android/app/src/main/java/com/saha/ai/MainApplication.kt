@@ -1,4 +1,4 @@
-package com.saha
+package com.saha.ai
 
 import android.app.Application
 import com.facebook.react.PackageList
