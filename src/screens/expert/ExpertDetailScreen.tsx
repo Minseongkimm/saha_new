@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  Platform,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
 import CustomHeader from '../../components/common/CustomHeader';
@@ -868,15 +869,16 @@ const styles = StyleSheet.create({
     borderRadius: IS_IPAD ? 20 : 14,
     paddingVertical: IS_IPAD ? 24 : 16,
     paddingHorizontal: IS_IPAD ? 30 : 20,
-    backgroundColor: Colors.primaryColor + '08',
-    shadowColor: Colors.primaryColor,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 0.3,
+    backgroundColor: Platform.OS === 'android' ? '#F5F6FF' : Colors.primaryColor + '08',
+    ...(Platform.OS === 'ios' ? {
+      shadowColor: Colors.primaryColor,
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+    } : {}),
   },
   quoteBorderText: {
     fontSize: IS_IPAD ? 20 : 15,
