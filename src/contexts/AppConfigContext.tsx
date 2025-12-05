@@ -27,6 +27,13 @@ export const AppConfigProvider: React.FC<AppConfigProviderProps> = ({ children }
   const [isLoading, setIsLoading] = useState(true);
 
   const loadConfig = async (forceRefresh: boolean = false) => {
+    // 안드로이드에서는 mindfulness 분기 사용 안 함
+    if (Platform.OS === 'android') {
+      setUseMindfulnessTerms(false);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const shouldUse = await shouldUseMindfulnessTerms(forceRefresh);
       setUseMindfulnessTerms(shouldUse);
@@ -65,6 +72,10 @@ export const AppConfigProvider: React.FC<AppConfigProviderProps> = ({ children }
   }, []);
 
   const refreshConfig = async () => {
+    // 안드로이드에서는 설정 새로고침 불필요
+    if (Platform.OS === 'android') {
+      return;
+    }
     setIsLoading(true);
     await loadConfig(true);
   };
