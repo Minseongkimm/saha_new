@@ -30,18 +30,19 @@ export interface ProductInfo {
  * 충전 옵션 목록 (UI 표시용)
  */
 export const CHARGE_OPTIONS: ChargeOption[] = [
-  { id: 1100, sahaAmount: 10, bonusSaha: 2, priceMinor: 1100, productId: 'com.saha.ai.coin_10', chip: null },
-  { id: 3300, sahaAmount: 30, bonusSaha: 5, priceMinor: 3300, productId: 'com.saha.ai.coin_30', chip: 'hot' },
-  { id: 5500, sahaAmount: 50, bonusSaha: 10, priceMinor: 5500, productId: 'com.saha.ai.coin_50', chip: null },
-  { id: 11000, sahaAmount: 100, bonusSaha: 15, priceMinor: 11000, productId: 'com.saha.ai.coin_100', chip: 'best' },
+  { id: 1100, sahaAmount: 10, bonusSaha: 2, priceMinor: 1100, productId: 'com.saha.ai.coin_10_v1', chip: null },
+  { id: 3300, sahaAmount: 30, bonusSaha: 6, priceMinor: 3300, productId: 'com.saha.ai.coin_30_v1', chip: 'hot' },
+  { id: 5500, sahaAmount: 50, bonusSaha: 12, priceMinor: 5500, productId: 'com.saha.ai.coin_50_v1', chip: null },
+  { id: 11000, sahaAmount: 100, bonusSaha: 25, priceMinor: 11000, productId: 'com.saha.ai.coin_100_v1', chip: 'best' },
+  { id: 33000, sahaAmount: 300, bonusSaha: 100, priceMinor: 33000, productId: 'com.saha.ai.coin_300_v1', chip: 'best' },
 ];
 
 /**
  * 상품 ID별 상세 정보
  */
 export const PRODUCT_INFO_MAP: Record<string, ProductInfo> = {
-  'com.saha.ai.coin_10': {
-    productId: 'com.saha.ai.coin_10',
+  'com.saha.ai.coin_10_v1': {
+    productId: 'com.saha.ai.coin_10_v1',
     productName: '10 사바 + 2 보너스',
     sahaAmount: 10,
     bonusSaha: 2,
@@ -49,31 +50,40 @@ export const PRODUCT_INFO_MAP: Record<string, ProductInfo> = {
     priceMinor: 1100,
     currency: 'KRW',
   },
-  'com.saha.ai.coin_30': {
-    productId: 'com.saha.ai.coin_30',
-    productName: '30 사바 + 5 보너스',
+  'com.saha.ai.coin_30_v1': {
+    productId: 'com.saha.ai.coin_30_v1',
+    productName: '30 사바 + 6 보너스',
     sahaAmount: 30,
-    bonusSaha: 5,
-    totalSaha: 35,
+    bonusSaha: 6,
+    totalSaha: 36,
     priceMinor: 3300,
     currency: 'KRW',
   },
-  'com.saha.ai.coin_50': {
-    productId: 'com.saha.ai.coin_50',
-    productName: '50 사바 + 10 보너스',
+  'com.saha.ai.coin_50_v1': {
+    productId: 'com.saha.ai.coin_50_v1',
+    productName: '50 사바 + 12 보너스',
     sahaAmount: 50,
-    bonusSaha: 10,
-    totalSaha: 60,
+    bonusSaha: 12,
+    totalSaha: 62,
     priceMinor: 5500,
     currency: 'KRW',
   },
-  'com.saha.ai.coin_100': {
-    productId: 'com.saha.ai.coin_100',
-    productName: '100 사바 + 15 보너스',
+  'com.saha.ai.coin_100_v1': {
+    productId: 'com.saha.ai.coin_100_v1',
+    productName: '100 사바 + 25 보너스',
     sahaAmount: 100,
-    bonusSaha: 15,
-    totalSaha: 115,
+    bonusSaha: 25,
+    totalSaha: 125,
     priceMinor: 11000,
+    currency: 'KRW',
+  },
+  'com.saha.ai.coin_300_v1': {
+    productId: 'com.saha.ai.coin_300_v1',
+    productName: '300 사바 + 100 보너스',
+    sahaAmount: 300,
+    bonusSaha: 100,
+    totalSaha: 400,
+    priceMinor: 33000,
     currency: 'KRW',
   },
 };
@@ -82,20 +92,22 @@ export const PRODUCT_INFO_MAP: Record<string, ProductInfo> = {
  * 금액(원)을 상품 ID로 변환
  */
 export const AMOUNT_TO_PRODUCT_ID: Record<number, string> = {
-  1100: 'com.saha.ai.coin_10',
-  3300: 'com.saha.ai.coin_30',
-  5500: 'com.saha.ai.coin_50',
-  11000: 'com.saha.ai.coin_100',
+  1100: 'com.saha.ai.coin_10_v1',
+  3300: 'com.saha.ai.coin_30_v1',
+  5500: 'com.saha.ai.coin_50_v1',
+  11000: 'com.saha.ai.coin_100_v1',
+  33000: 'com.saha.ai.coin_300_v1',
 };
 
 /**
  * 모든 상품 ID 목록
  */
 export const PRODUCT_IDS: string[] = [
-  'com.saha.ai.coin_10',
-  'com.saha.ai.coin_30',
-  'com.saha.ai.coin_50',
-  'com.saha.ai.coin_100',
+  'com.saha.ai.coin_10_v1',
+  'com.saha.ai.coin_30_v1',
+  'com.saha.ai.coin_50_v1',
+  'com.saha.ai.coin_100_v1',
+  'com.saha.ai.coin_300_v1',
 ];
 
 /**

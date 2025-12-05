@@ -12,8 +12,8 @@ import { log, getEnvVar } from '../_shared/config.ts';
  * 상품 정보 변경 시 src/constants/payments.ts를 먼저 수정하고 여기도 동일하게 반영
  */
 const PRODUCT_INFO_MAP: Record<string, { productId: string; productName: string; sahaAmount: number; bonusSaha: number; totalSaha: number; priceMinor: number; currency: string }> = {
-  'com.saha.ai.coin_10': {
-    productId: 'com.saha.ai.coin_10',
+  'com.saha.ai.coin_10_v1': {
+    productId: 'com.saha.ai.coin_10_v1',
     productName: '10 사바 + 2 보너스',
     sahaAmount: 10,
     bonusSaha: 2,
@@ -21,31 +21,40 @@ const PRODUCT_INFO_MAP: Record<string, { productId: string; productName: string;
     priceMinor: 1100,
     currency: 'KRW',
   },
-  'com.saha.ai.coin_30': {
-    productId: 'com.saha.ai.coin_30',
-    productName: '30 사바 + 5 보너스',
+  'com.saha.ai.coin_30_v1': {
+    productId: 'com.saha.ai.coin_30_v1',
+    productName: '30 사바 + 6 보너스',
     sahaAmount: 30,
-    bonusSaha: 5,
-    totalSaha: 35,
+    bonusSaha: 6,
+    totalSaha: 36,
     priceMinor: 3300,
     currency: 'KRW',
   },
-  'com.saha.ai.coin_50': {
-    productId: 'com.saha.ai.coin_50',
-    productName: '50 사바 + 10 보너스',
+  'com.saha.ai.coin_50_v1': {
+    productId: 'com.saha.ai.coin_50_v1',
+    productName: '50 사바 + 12 보너스',
     sahaAmount: 50,
-    bonusSaha: 10,
-    totalSaha: 60,
+    bonusSaha: 12,
+    totalSaha: 62,
     priceMinor: 5500,
     currency: 'KRW',
   },
-  'com.saha.ai.coin_100': {
-    productId: 'com.saha.ai.coin_100',
-    productName: '100 사바 + 15 보너스',
+  'com.saha.ai.coin_100_v1': {
+    productId: 'com.saha.ai.coin_100_v1',
+    productName: '100 사바 + 25 보너스',
     sahaAmount: 100,
-    bonusSaha: 15,
-    totalSaha: 115,
+    bonusSaha: 25,
+    totalSaha: 125,
     priceMinor: 11000,
+    currency: 'KRW',
+  },
+  'com.saha.ai.coin_300_v1': {
+    productId: 'com.saha.ai.coin_300_v1',
+    productName: '300 사바 + 100 보너스',
+    sahaAmount: 300,
+    bonusSaha: 100,
+    totalSaha: 400,
+    priceMinor: 33000,
     currency: 'KRW',
   },
 };
@@ -461,6 +470,239 @@ function base64UrlDecode(str: string): Uint8Array {
   return bytes;
 }
 
+/**
+ * Google 서비스 계정 JWT 토큰 생성 (Google Play Developer API 인증용)
+ */
+async function generateGoogleJWT(): Promise<string> {
+  // 환경 변수에서 서비스 계정 정보 가져오기
+  const serviceAccountJson = getEnvVar('GOOGLE_SERVICE_ACCOUNT_JSON', true);
+  
+  let serviceAccount: {
+    project_id: string;
+    private_key: string;
+    client_email: string;
+  };
+  
+  try {
+    serviceAccount = JSON.parse(serviceAccountJson);
+  } catch (error) {
+    // 개별 환경 변수로 시도
+    const projectId = getEnvVar('GOOGLE_PROJECT_ID', false);
+    const privateKey = getEnvVar('GOOGLE_PRIVATE_KEY', false);
+    const clientEmail = getEnvVar('GOOGLE_CLIENT_EMAIL', false);
+    
+    if (!projectId || !privateKey || !clientEmail) {
+      throw new Error('Google 서비스 계정 정보가 없습니다. GOOGLE_SERVICE_ACCOUNT_JSON 또는 개별 환경 변수를 설정하세요.');
+    }
+    
+    serviceAccount = {
+      project_id: projectId,
+      private_key: privateKey,
+      client_email: clientEmail,
+    };
+  }
+
+  // JWT Header
+  const header = {
+    alg: 'RS256',
+    typ: 'JWT',
+  };
+
+  // JWT Payload
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    iss: serviceAccount.client_email,
+    scope: 'https://www.googleapis.com/auth/androidpublisher',
+    aud: 'https://oauth2.googleapis.com/token',
+    exp: now + 3600, // 1시간 유효
+    iat: now,
+  };
+
+  // JWT 서명 생성
+  const headerBase64 = btoa(JSON.stringify(header)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const payloadBase64 = btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const message = `${headerBase64}.${payloadBase64}`;
+
+  // PEM 형식의 Private Key를 CryptoKey로 변환
+  const pemHeader = '-----BEGIN PRIVATE KEY-----';
+  const pemFooter = '-----END PRIVATE KEY-----';
+  const pemContents = serviceAccount.private_key
+    .replace(pemHeader, '')
+    .replace(pemFooter, '')
+    .replace(/\s/g, '');
+  
+  const keyData = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8',
+    keyData,
+    {
+      name: 'RSASSA-PKCS1-v1_5',
+      hash: 'SHA-256',
+    },
+    false,
+    ['sign']
+  );
+
+  // RSA 서명
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    cryptoKey,
+    new TextEncoder().encode(message)
+  );
+
+  // Base64 URL 인코딩
+  const signatureBase64 = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+
+  return `${message}.${signatureBase64}`;
+}
+
+/**
+ * Google OAuth2 액세스 토큰 획득
+ */
+async function getGoogleAccessToken(): Promise<string> {
+  const jwt = await generateGoogleJWT();
+  
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    log('error', 'Google OAuth2 토큰 획득 실패', { status: response.status, error: errorText });
+    throw new Error(`Google OAuth2 토큰 획득 실패: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.access_token;
+}
+
+/**
+ * Google Play 구매 정보 조회
+ */
+async function fetchGooglePurchase(
+  packageName: string,
+  productId: string,
+  purchaseToken: string,
+  accessToken: string
+): Promise<{
+  purchaseId: string;
+  productId: string;
+  purchaseTime: number;
+  purchaseState: number;
+  consumptionState: number;
+}> {
+  const apiUrl = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${packageName}/purchases/products/${productId}/tokens/${purchaseToken}`;
+  
+  const response = await fetch(apiUrl, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    log('error', 'Google Play 구매 정보 조회 실패', { 
+      status: response.status, 
+      error: errorText,
+      packageName,
+      productId,
+      purchaseToken: maskToken(purchaseToken)
+    });
+    
+    if (response.status === 410) {
+      throw new Error('구매가 이미 소비되었거나 취소되었습니다');
+    }
+    
+    throw new Error(`Google Play 구매 정보 조회 실패: ${response.status}`);
+  }
+
+  const purchaseData = await response.json();
+  
+  return {
+    purchaseId: purchaseToken, // Google Play는 purchaseToken을 ID로 사용
+    productId: purchaseData.productId || productId,
+    purchaseTime: parseInt(purchaseData.purchaseTimeMillis || '0', 10),
+    purchaseState: purchaseData.purchaseState || 0, // 0: 구매됨, 1: 취소됨
+    consumptionState: purchaseData.consumptionState || 0, // 0: 소비 안됨, 1: 소비됨
+  };
+}
+
+/**
+ * Google Play 구매 검증
+ */
+async function verifyGooglePurchase(
+  purchaseToken: string,
+  productId: string
+): Promise<{
+  transactionId: string;
+  productId: string;
+  purchaseDate: number;
+  isValid: boolean;
+}> {
+  try {
+    // 앱 패키지 이름 (Android applicationId)
+    const packageName = 'com.saha.ai';
+    
+    // OAuth2 액세스 토큰 획득
+    const accessToken = await getGoogleAccessToken();
+    
+    // 구매 정보 조회
+    const purchaseData = await fetchGooglePurchase(
+      packageName,
+      productId,
+      purchaseToken,
+      accessToken
+    );
+    
+    // 구매 상태 확인
+    // purchaseState: 0 = 구매됨, 1 = 취소됨
+    if (purchaseData.purchaseState !== 0) {
+      return {
+        transactionId: purchaseData.purchaseId,
+        productId: purchaseData.productId,
+        purchaseDate: purchaseData.purchaseTime,
+        isValid: false,
+      };
+    }
+    
+    // 소비 상태 확인 (소모품의 경우)
+    // consumptionState: 0 = 소비 안됨, 1 = 소비됨
+    // 소비된 구매는 재사용 불가
+    if (purchaseData.consumptionState === 1) {
+      log('warn', '이미 소비된 구매', { purchaseToken: maskToken(purchaseToken) });
+      return {
+        transactionId: purchaseData.purchaseId,
+        productId: purchaseData.productId,
+        purchaseDate: purchaseData.purchaseTime,
+        isValid: false,
+      };
+    }
+    
+    return {
+      transactionId: purchaseData.purchaseId,
+      productId: purchaseData.productId,
+      purchaseDate: purchaseData.purchaseTime,
+      isValid: true,
+    };
+  } catch (error) {
+    log('error', 'Google Play 구매 검증 실패', error);
+    throw new Error(`Google Play 구매 검증 실패: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
 
 /**
  * 중복 결제 체크
@@ -601,11 +843,12 @@ Deno.serve(async (req) => {
     // 환경 변수 검증
     const requiredVars = ['SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'];
     
-    // Apple 검증을 위한 환경 변수 (provider가 apple인 경우에만 필수)
+    // Provider별 환경 변수 확인 (provider가 특정 값인 경우에만 필수)
     const body = await req.json().catch(() => null);
     if (body?.provider === 'apple') {
       requiredVars.push('APPLE_KEY_ID', 'APPLE_ISSUER_ID', 'APPLE_PRIVATE_KEY');
     }
+    // Google은 나중에 generateGoogleJWT에서 확인 (JSON 또는 개별 필드 모두 가능)
     
     validateEnvVars(requiredVars);
 
@@ -716,14 +959,65 @@ Deno.serve(async (req) => {
         // 개발 환경: 항상 새로운 UUID 생성 (DB의 UUID 타입 컬럼에 저장하기 위해)
         purchaseId = crypto.randomUUID();
       }
+    } else if (provider === 'google') {
+      // Google Play 구매 검증
+      try {
+        const verifyResult = await verifyGooglePurchase(receiptOrToken, productId);
+        if (!verifyResult.isValid) {
+          return new Response(
+            JSON.stringify({
+              status: 'failed',
+              currentBalance: 0,
+              message: 'Google Play 구매 검증 실패 (취소되었거나 이미 소비됨)',
+            }),
+            {
+              status: 400,
+              headers: getJsonHeaders(),
+            }
+          );
+        }
+        purchaseId = verifyResult.transactionId;
+        
+        // productId 일치 확인
+        if (verifyResult.productId !== productId) {
+          log('warn', 'Product ID 불일치', {
+            expected: productId,
+            actual: verifyResult.productId,
+          });
+          return new Response(
+            JSON.stringify({
+              status: 'failed',
+              currentBalance: 0,
+              message: '상품 ID가 일치하지 않습니다',
+            }),
+            {
+              status: 400,
+              headers: getJsonHeaders(),
+            }
+          );
+        }
+      } catch (error) {
+        log('error', 'Google Play 구매 검증 오류', error);
+        return new Response(
+          JSON.stringify({
+            status: 'failed',
+            currentBalance: 0,
+            message: `Google Play 구매 검증 실패: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          }),
+          {
+            status: 400,
+            headers: getJsonHeaders(),
+          }
+        );
+      }
     } else {
-      // Google은 현재 미지원
+      // 지원하지 않는 제공자
       log('warn', '지원하지 않는 결제 제공자 요청', { userId: user.id, provider });
       return new Response(
         JSON.stringify({
           status: 'failed',
           currentBalance: 0,
-          message: 'Google 결제는 현재 지원하지 않습니다',
+          message: `지원하지 않는 결제 제공자: ${provider}`,
         }),
         {
           status: 400,
