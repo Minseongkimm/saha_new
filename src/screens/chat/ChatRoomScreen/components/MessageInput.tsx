@@ -35,6 +35,10 @@ const MessageInput: React.FC<MessageInputProps> = ({ isAiResponding, onSendMessa
         multiline
         editable={!isAiResponding}
         maxLength={150}
+        keyboardType="default"
+        autoCapitalize="none"
+        autoCorrect={false}
+        textContentType="none"
       />
       <TouchableOpacity 
         style={[

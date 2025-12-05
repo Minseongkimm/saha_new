@@ -48,6 +48,10 @@ const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
             }}
             placeholder="이름을 입력하세요"
             maxLength={10}
+            keyboardType="default"
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="none"
           />
         </View>
       )}

@@ -133,6 +133,10 @@ const BirthInfoForm: React.FC<BirthInfoFormProps> = ({
             placeholder="이름을 입력하세요"
             maxLength={10}
             editable={isNameEditable}
+            keyboardType="default"
+            autoCapitalize="none"
+            autoCorrect={false}
+            textContentType="none"
           />
         </View>
       )}
