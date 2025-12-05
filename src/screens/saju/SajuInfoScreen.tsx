@@ -802,15 +802,13 @@ const styles = StyleSheet.create({
   },
   editContainer: {
     paddingTop: 0,
-    minHeight: IS_IPAD ? 900 : 600,
-    justifyContent: 'space-between',
   },
   editContent: {
     flexGrow: 1,
   },
   editHeader: {
     marginTop: 4,
-    marginBottom: IS_IPAD ? 36 : 28,
+    marginBottom: IS_IPAD ? 36 : (Platform.OS === 'android' ? 13 : 28),
     alignItems: 'center',
   },
   editTitle: {
@@ -1052,7 +1050,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: IS_IPAD ? 60 : 50,
+    marginTop: IS_IPAD ? 24 : (Platform.OS === 'android' ? 10 : 20),
     gap: IS_IPAD ? 16 : 12,
     paddingBottom: IS_IPAD ? 40 : 30,
   },

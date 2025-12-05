@@ -22,15 +22,15 @@ const ContactSupportScreen: React.FC<ContactSupportScreenProps> = ({ navigation 
   const handlePressEmail = async () => {
     const encodedBody: string = encodeURIComponent(EMAIL_BODY_TEMPLATE);
     const mailtoUrl: string = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(EMAIL_SUBJECT)}&body=${encodedBody}`;
-    const canOpen: boolean = await Linking.canOpenURL(mailtoUrl);
-    if (!canOpen) {
-      Alert.alert('안내', '이 기기에서 이메일 앱을 열 수 없습니다.');
-      return;
-    }
     try {
+      // canOpenURL 체크를 제거하고 바로 시도 (안드로이드에서 canOpenURL이 false를 반환해도 실제로는 열릴 수 있음)
       await Linking.openURL(mailtoUrl);
     } catch (error) {
-      Alert.alert('안내', '이메일 앱 실행에 실패했습니다. 다시 시도해 주세요.');
+      Alert.alert(
+        '이메일 앱 실행이 실패했습니다.',
+        `이메일 주소: ${SUPPORT_EMAIL}\n\n위 주소로 직접 문의해 주세요.`,
+        [{ text: '확인' }]
+      );
     }
   };
   return (
@@ -158,7 +158,8 @@ const styles = StyleSheet.create({
     lineHeight: IS_IPAD ? 28 : 22,
   },
   section: {
-    paddingVertical: IS_IPAD ? 28 : 20,
+    paddingTop: IS_IPAD ? 20 : 14,
+    paddingBottom: IS_IPAD ? 28 : 20,
     borderTopWidth: 1,
     borderTopColor: '#EDF2F7',
   },
@@ -176,7 +177,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: IS_IPAD ? 30 : 20,
     paddingBottom: IS_IPAD ? 40 : 32,
-    paddingTop: IS_IPAD ? 24 : 16,
+    paddingTop: IS_IPAD ? 18 : 12,
     borderTopWidth: 1,
     borderTopColor: '#EEF2F6',
     backgroundColor: '#FFFFFF',

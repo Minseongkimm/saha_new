@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  Platform,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { isIPad } from '../../utils/platform';
@@ -133,10 +134,6 @@ const BirthInfoForm: React.FC<BirthInfoFormProps> = ({
             placeholder="이름을 입력하세요"
             maxLength={10}
             editable={isNameEditable}
-            keyboardType="default"
-            autoCapitalize="none"
-            autoCorrect={false}
-            textContentType="none"
           />
         </View>
       )}
@@ -393,7 +390,7 @@ const styles = StyleSheet.create({
   },
   calendarTypeButton: {
     flex: 1,
-    paddingVertical: IS_IPAD ? 14 : 10,
+    paddingVertical: IS_IPAD ? 14 : (Platform.OS === 'android' ? 8 : 10),
     paddingHorizontal: IS_IPAD ? 16 : 12,
     borderRadius: IS_IPAD ? 24 : 20,
     borderWidth: 1,
@@ -434,7 +431,7 @@ const styles = StyleSheet.create({
   },
   radioButton: {
     flex: 1,
-    paddingVertical: IS_IPAD ? 14 : 10,
+    paddingVertical: IS_IPAD ? 14 : (Platform.OS === 'android' ? 8 : 10),
     paddingHorizontal: IS_IPAD ? 16 : 12,
     borderRadius: IS_IPAD ? 24 : 20,
     borderWidth: 1,
