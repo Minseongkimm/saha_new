@@ -12,7 +12,6 @@ import CustomHeader from '../../components/common/CustomHeader';
 import { renderHighlight } from '../../utils/text/textFormatUtils';
 import { safeGoBack } from '../../utils/navigation/safeGoBack';
 import { isIPad } from '../../utils/platform';
-import { useAppConfig } from '../../contexts/AppConfigContext';
 
 const IS_IPAD = isIPad();
 
@@ -21,7 +20,6 @@ interface BannerDetailScreenProps {
 }
 
 const BannerDetailScreen: React.FC<BannerDetailScreenProps> = ({ navigation }) => {
-  const { useMindfulnessTerms } = useAppConfig();
 
   const handleClose = () => {
     safeGoBack(navigation);
@@ -70,10 +68,7 @@ const BannerDetailScreen: React.FC<BannerDetailScreenProps> = ({ navigation }) =
             
             <View style={styles.processItem}>
               <Text style={styles.processText}>
-                {useMindfulnessTerms 
-                  ? '상담사의 지혜와 AI의 통찰이 만나 당신의 이야기를 기반으로 성향, 흐름, 인생의 방향을 함께 읽어드립니다.'
-                  : '명리학의 지혜와 AI의 통찰이 만나 당신의 사주 데이터를 기반으로 성향, 흐름, 인생의 방향을 함께 읽어드립니다.'
-                }
+                명리학의 지혜와 AI의 통찰이 만나 당신의 사주 데이터를 기반으로 성향, 흐름, 인생의 방향을 함께 읽어드립니다.
               </Text>
               <Text style={styles.processText}>
                  사바가 전하고 싶은 건 단순한 결과가 아니라{renderHighlight(' 당신 자신을 이해하는 과정')}이에요.

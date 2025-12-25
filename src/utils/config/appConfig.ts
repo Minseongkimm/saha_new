@@ -71,18 +71,4 @@ export async function getAppConfig(key: string, forceRefresh: boolean = false): 
   }
 }
 
-/**
- * mindfulness 문구 사용 여부 조회
- * @param forceRefresh - true면 캐시를 무시하고 DB에서 직접 조회
- * @returns true면 mindfulness 문구 사용, false면 기본 문구 사용
- */
-export async function shouldUseMindfulnessTerms(forceRefresh: boolean = false): Promise<boolean> {
-  const value = await getAppConfig('use_mindfulness_terms', forceRefresh);
-  if (value === null) {
-    // 기본값: true (mindfulness 문구 사용)
-    return true;
-  }
-  // DB에서 "false" 문자열로 저장되면 true, 아니면 false
-  return value.toLowerCase() === 'false';
-}
 

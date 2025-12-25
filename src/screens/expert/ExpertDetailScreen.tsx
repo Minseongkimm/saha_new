@@ -66,7 +66,6 @@ interface ExpertWithDetails extends Expert {
 
 const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, route }) => {
   const { expertId } = route.params;
-  const { useMindfulnessTerms } = useAppConfig();
   const [loading, setLoading] = useState(true);
   const [expert, setExpert] = useState<ExpertWithDetails | null>(null);
   const [compatExpertId, setCompatExpertId] = useState<string | null>(null);
@@ -139,34 +138,16 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
       }
       try {
         const compatName: string = `${expert.name} (궁합 전용)`;
-        const tableName = useMindfulnessTerms ? 'experts_mindfulness' : 'experts';
-        const nameField = useMindfulnessTerms ? 'name' : 'name';
-        
-        if (useMindfulnessTerms) {
-          // experts_mindfulness에서 조회 (expert_id 반환)
-          const { data } = await supabase
-            .from('experts_mindfulness')
-            .select('expert_id')
-            .eq('name', compatName.replace('도사', '').replace('낭자', ''))
-            .eq('category', expert.category)
-            .maybeSingle();
-          if (data && typeof (data as { expert_id?: string }).expert_id === 'string') {
-            setCompatExpertId((data as { expert_id: string }).expert_id);
-          } else {
-            setCompatExpertId(expert.id);
-          }
+        const { data } = await supabase
+          .from('experts')
+          .select('id')
+          .eq('name', compatName)
+          .eq('category', expert.category)
+          .maybeSingle();
+        if (data && typeof (data as { id?: string }).id === 'string') {
+          setCompatExpertId((data as { id: string }).id);
         } else {
-          const { data } = await supabase
-            .from('experts')
-            .select('id')
-            .eq('name', compatName)
-            .eq('category', expert.category)
-            .maybeSingle();
-          if (data && typeof (data as { id?: string }).id === 'string') {
-            setCompatExpertId((data as { id: string }).id);
-          } else {
-            setCompatExpertId(expert.id);
-          }
+          setCompatExpertId(expert.id);
         }
       } catch {
         setCompatExpertId(expert.id);
@@ -332,66 +313,18 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
 
   const fetchExpertDetails = async (swr: boolean) => {
     try {
-      let data: any;
-      let error: any;
-
-      if (useMindfulnessTerms) {
-        // experts_mindfulness 테이블 조회 (expert_id로 조회)
-        const expertResult = await withSupabaseRetry<any>(async () => {
-          return await supabase
-            .from('experts_mindfulness')
-            .select('*')
-            .eq('expert_id', expertId)
-            .single();
-        });
-
-        if (expertResult.error) {
-          data = null;
-          error = expertResult.error;
-        } else {
-          // expert_details_mindfulness 별도 조회
-          const detailsResult = await withSupabaseRetry<any>(async () => {
-            return await supabase
-              .from('expert_details_mindfulness')
-              .select('*')
-              .eq('expert_id', expertId)
-              .maybeSingle();
-          });
-
-          if (detailsResult.error) {
-            data = null;
-            error = detailsResult.error;
-          } else {
-            // expert_id를 id로 매핑하고 expert_details_mindfulness를 expert_details로 매핑
-            const details = detailsResult.data;
-            data = {
-              ...expertResult.data,
-              id: expertResult.data.expert_id,
-              expert_quote_mindfulness: expertResult.data.expert_quote, // expert_quote를 expert_quote_mindfulness로 매핑
-              signature_phrase_mindfulness: expertResult.data.signature_phrase, // signature_phrase를 signature_phrase_mindfulness로 매핑
-              expert_details: details ? {
-                ...details,
-                message_mindfulness: details.message, // message를 message_mindfulness로 매핑
-                introduction_mindfulness: details.introduction, // introduction을 introduction_mindfulness로 매핑
-              } : null,
-            };
-            error = null;
-          }
-        }
-      } else {
-        const result = await withSupabaseRetry<any>(async () => {
-          return await supabase
-            .from('experts')
-            .select(`
-              *,
-              expert_details(*)
-            `)
-            .eq('id', expertId)
-            .single();
-        });
-        data = result.data;
-        error = result.error;
-      }
+      const result = await withSupabaseRetry<any>(async () => {
+        return await supabase
+          .from('experts')
+          .select(`
+            *,
+            expert_details(*)
+          `)
+          .eq('id', expertId)
+          .single();
+      });
+      const data = result.data;
+      const error = result.error;
 
       if (error) throw error;
       
@@ -440,9 +373,9 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
         <View style={styles.content}>
           <View style={styles.titleRow}>
             <Text style={styles.title}>{expert.name}</Text>
-            {(useMindfulnessTerms ? expert.signature_phrase_mindfulness : expert.signature_phrase) && (
+            {expert.signature_phrase && (
               <Text style={styles.hashtagText}>
-                {(useMindfulnessTerms ? expert.signature_phrase_mindfulness : expert.signature_phrase)!.split('·').map(phrase => `#${phrase.trim().replace(/\s/g, '')}`).join(' ')}
+                {expert.signature_phrase.split('·').map(phrase => `#${phrase.trim().replace(/\s/g, '')}`).join(' ')}
               </Text>
             )}
           </View>
@@ -461,14 +394,12 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
-                {useMindfulnessTerms ? '상담사님 한마디' : '도사님 한마디'}
+                도사님 한마디
               </Text>
             </View>
             <View style={styles.quoteBorder}>
               <Text style={styles.quoteBorderText}>
-                {(useMindfulnessTerms && expert.expert_details.message_mindfulness 
-                  ? expert.expert_details.message_mindfulness 
-                  : expert.expert_details.message).split('.').filter(s => s.trim()).map(sentence => sentence.trim() + '.').join('\n')}
+                {expert.expert_details.message.split('.').filter(s => s.trim()).map(sentence => sentence.trim() + '.').join('\n')}
               </Text>
             </View>
           </View>
@@ -477,13 +408,11 @@ const ExpertDetailScreen: React.FC<ExpertDetailScreenProps> = ({ navigation, rou
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>
-                {useMindfulnessTerms ? '상담사님 소개' : '도사님 소개'}
+                도사님 소개
               </Text>
             </View>
             <Text style={styles.introText}>
-              {useMindfulnessTerms && expert.expert_details.introduction_mindfulness 
-                ? expert.expert_details.introduction_mindfulness 
-                : expert.expert_details.introduction}
+              {expert.expert_details.introduction}
             </Text>
           </View>
 

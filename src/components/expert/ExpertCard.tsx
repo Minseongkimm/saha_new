@@ -24,7 +24,6 @@ import { Expert } from '../../types/expert';
 import { Colors } from '../../constants/colors';
 import { getExpertImage } from '../../utils/expert/getExpertImage';
 import { isIPad } from '../../utils/platform';
-import { useAppConfig } from '../../contexts/AppConfigContext';
 
 const IS_IPAD = isIPad();
 
@@ -34,8 +33,6 @@ interface ExpertCardProps {
 }
 
 const ExpertCard: React.FC<ExpertCardProps> = ({ expert, onPress }) => {
-  const { useMindfulnessTerms } = useAppConfig();
-  
   return (
     <TouchableOpacity
       style={styles.card}
@@ -86,18 +83,18 @@ const ExpertCard: React.FC<ExpertCardProps> = ({ expert, onPress }) => {
         )}
         
         {/* 도사의 한마디 - 말풍선 스타일 */}
-        {(useMindfulnessTerms ? expert.expert_quote_mindfulness : expert.expert_quote) && (
+        {expert.expert_quote && (
           <View style={styles.quoteContainer}>
             <Text style={styles.quoteText}>
-              {useMindfulnessTerms ? expert.expert_quote_mindfulness : expert.expert_quote}
+              {expert.expert_quote}
             </Text>
           </View>
         )}
         
         {/* 시그니처 문구 - 도사의 특징을 나타내는 짧은 문구 */}
-        {(useMindfulnessTerms ? expert.signature_phrase_mindfulness : expert.signature_phrase) && (
+        {expert.signature_phrase && (
           <Text style={styles.signatureText}>
-            {useMindfulnessTerms ? expert.signature_phrase_mindfulness : expert.signature_phrase}
+            {expert.signature_phrase}
           </Text>
         )}
       </View>

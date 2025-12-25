@@ -1,6 +1,5 @@
 // Welcome 메시지는 간단한 프리셋 사용
-import { welcomeMessages, welcomeMessagesMindfulness } from './welcomeMessages';
-import { shouldUseMindfulnessTerms } from '../../utils/config/appConfig';
+import { welcomeMessages } from './welcomeMessages';
 
 class WelcomeService {
   private static instance: WelcomeService;
@@ -21,21 +20,9 @@ class WelcomeService {
     expertName: string,
     onStream?: (chunk: string) => void
   ): Promise<string> {
-    const useMindfulnessTerms = await shouldUseMindfulnessTerms();
-    const messages = useMindfulnessTerms ? welcomeMessagesMindfulness : welcomeMessages;
-    
-    // mindfulness 모드일 때는 이름 매핑 필요 (도사/낭자 제거된 이름)
-    let lookupName = expertName;
-    if (useMindfulnessTerms) {
-      // 이름에서 도사/낭자 제거 (궁합 전용은 그대로 유지)
-      lookupName = expertName.replace(/도사|낭자/g, '').trim();
-    }
-    
-    const defaultMessage = useMindfulnessTerms 
-      ? "안녕하세요! 상담을 시작합니다."
-      : "안녕하세요! 사주 상담을 시작합니다.";
-    
-    const message = messages[lookupName] || messages[expertName] || defaultMessage;
+    const messages = welcomeMessages;
+    const defaultMessage = "안녕하세요! 사주 상담을 시작합니다.";
+    const message = messages[expertName] || defaultMessage;
     
     // 스트리밍 효과가 필요한 경우
     if (onStream) {

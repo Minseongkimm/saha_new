@@ -12,6 +12,7 @@
 import { Alert } from 'react-native';
 import { supabase } from '../../../../../utils/database/supabaseClient';
 import { streamChat } from '../../../../../services/ai/edgeFunctionClient';
+import { withSupabaseRetry, withRetry } from '../../../../../utils/network/retry';
 import { extractFollowUpQuestions, removeFollowUpQuestionsFromText } from '../../../../../utils/text/textFormatUtils';
 import { ChatMessage } from '../../../../../types/chat';
 import { BirthInfo } from '../../../../../services/ai';
@@ -88,20 +89,24 @@ export async function processAiResponse(params: ProcessAiResponseParams): Promis
 
     const partnerSajuId = partnerData?.partnerId ?? partnerData?.partnerSajuId ?? null;
 
-    aiFinalText = await streamChat(
-      roomId,
-      expertCategory,
-      messages,
-      sajuPayload,
-      (chunk: string) => {
-        setMessages(prev => prev.map(msg => 
-          msg.id === tempAiMessageId
-            ? { ...msg, message: (msg as any).message + chunk }
-            : msg
-        ));
-      },
-      userMessageId || undefined,
-      partnerSajuId || undefined
+    aiFinalText = await withRetry(
+      () => streamChat(
+        roomId,
+        expertCategory,
+        messages,
+        sajuPayload,
+        (chunk: string) => {
+          setMessages(prev => prev.map(msg => 
+            msg.id === tempAiMessageId
+              ? { ...msg, message: (msg as any).message + chunk }
+              : msg
+          ));
+        },
+        userMessageId || undefined,
+        partnerSajuId || undefined
+      ),
+      2, // 최대 2번 재시도
+      1000 // 1초 간격
     );
   } catch (error: any) {
     if (error.message?.includes('잔액') || error.message?.includes('402')) {
@@ -121,14 +126,16 @@ export async function processAiResponse(params: ProcessAiResponseParams): Promis
   ));
   
   const { id: _ignoreTempId, follow_up_questions: _ignoreFollowUp, ...dbAiMessage } = tempAiMessage as any;
-  const { data: insertedAiMessage, error: aiMessageError } = await supabase
-    .from('chat_messages')
-    .insert({
-      ...dbAiMessage,
-      message: cleanedMessage,
-    })
-    .select('id')
-    .single();
+  const { data: insertedAiMessage, error: aiMessageError } = await withSupabaseRetry<{ id: string }>(async () => {
+    return await supabase
+      .from('chat_messages')
+      .insert({
+        ...dbAiMessage,
+        message: cleanedMessage,
+      })
+      .select('id')
+      .single();
+  });
   
   if (aiMessageError) throw aiMessageError;
   
@@ -139,13 +146,15 @@ export async function processAiResponse(params: ProcessAiResponseParams): Promis
   
   const cleanedText = removeBoldMarkup(cleanedMessage);
   const previewText = cleanedText.length > 30 ? cleanedText.substring(0, 30) + '...' : cleanedText;
-  await supabase
-    .from('chat_rooms')
-    .update({
-      last_message: previewText,
-      last_message_at: tempAiMessage.created_at,
-    })
-    .eq('id', roomId);
+  await withSupabaseRetry(async () => {
+    return await supabase
+      .from('chat_rooms')
+      .update({
+        last_message: previewText,
+        last_message_at: tempAiMessage.created_at,
+      })
+      .eq('id', roomId);
+  });
   
   return {
     aiMessageId: insertedAiMessage?.id || null,

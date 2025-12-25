@@ -80,29 +80,25 @@ export const EXPERT_CATEGORIES = {
 /**
  * 카테고리 label을 가져오는 함수
  * @param categoryKey - 카테고리 키
- * @param useMindfulnessTerms - mindfulness 문구 사용 여부
  * @returns 카테고리 label
  */
 export function getExpertCategoryLabel(
-  categoryKey: string,
-  useMindfulnessTerms: boolean
+  categoryKey: string
 ): string {
   const category = EXPERT_CATEGORIES[categoryKey as keyof typeof EXPERT_CATEGORIES];
   if (!category) return '';
-  return useMindfulnessTerms ? category.labelMindfulness : category.label;
+  return category.label;
 }
 
 /**
  * 카테고리 description을 가져오는 함수
  * @param categoryKey - 카테고리 키
- * @param useMindfulnessTerms - mindfulness 문구 사용 여부
  * @returns 카테고리 description
  */
 export function getExpertCategoryDescription(
-  categoryKey: string,
-  useMindfulnessTerms: boolean
+  categoryKey: string
 ): string {
   const category = EXPERT_CATEGORIES[categoryKey as keyof typeof EXPERT_CATEGORIES];
   if (!category) return '';
-  return useMindfulnessTerms ? category.descriptionMindfulness : category.description;
+  return category.description;
 }

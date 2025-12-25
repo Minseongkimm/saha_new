@@ -9,7 +9,6 @@ import {
 import { EXPERT_CATEGORIES, getExpertCategoryLabel } from '../../types/expert';
 import { Colors } from '../../constants/colors';
 import { isIPad } from '../../utils/platform';
-import { useAppConfig } from '../../contexts/AppConfigContext';
 
 const IS_IPAD = isIPad();
 
@@ -22,7 +21,6 @@ const CategoryChipStyle: React.FC<CategoryChipStyleProps> = ({
   selectedCategory,
   onCategoryPress,
 }) => {
-  const { useMindfulnessTerms } = useAppConfig();
   const categories = Object.values(EXPERT_CATEGORIES).filter(category => 
     !['traditional_saju', 'today_fortune', 'newyear_fortune'].includes(category.key)
   );
@@ -49,7 +47,7 @@ const CategoryChipStyle: React.FC<CategoryChipStyleProps> = ({
                 ]}
                 numberOfLines={1}
               >
-                {getExpertCategoryLabel(category.key, useMindfulnessTerms)}
+                {getExpertCategoryLabel(category.key)}
               </Text>
             </TouchableOpacity>
           );

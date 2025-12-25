@@ -13,7 +13,6 @@ import {
 } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { isIPad } from '../../utils/platform';
-import { useAppConfig } from '../../contexts/AppConfigContext';
 
 const IS_IPAD = isIPad();
 
@@ -42,7 +41,6 @@ const ChatStartBottomSheet: React.FC<ChatStartBottomSheetProps> = ({
   onPartnerAnalysis,
   onPersonalFortune
 }) => {
-  const { useMindfulnessTerms } = useAppConfig();
   const translateY = React.useRef(new Animated.Value(height)).current;
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -151,31 +149,22 @@ const ChatStartBottomSheet: React.FC<ChatStartBottomSheetProps> = ({
               <View style={styles.loveExpertContent}>
                 <Text style={styles.loveExpertTitle}>어떤 상담을 원하시나요?</Text>
                 
-                {/* 궁합 분석 옵션 - mindfulness 모드에서는 숨김 */}
-                {!useMindfulnessTerms && (
-                  <View style={styles.optionCard}>
-                    <Text style={styles.optionTitle}>궁합 분석</Text>
-                    <Text style={styles.optionDescription}>상대방과의 궁합을 자세히 봐드려요</Text>
-                    <TouchableOpacity 
-                      style={styles.optionButton}
-                      onPress={onPartnerAnalysis}
-                    >
-                      <Text style={styles.optionButtonText}>상대방 정보와 함께 시작</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
-
-                {/* 개인 연애운/상담 옵션 */}
+                {/* 궁합 분석 옵션 */}
                 <View style={styles.optionCard}>
-                  <Text style={styles.optionTitle}>
-                    {useMindfulnessTerms ? '개인 연애 상담' : '개인 연애운'}
-                  </Text>
-                  <Text style={styles.optionDescription}>
-                    {useMindfulnessTerms 
-                      ? '나의 연애에 대해 상담받아보세요'
-                      : '나의 연애운만 확인해보세요'
-                    }
-                  </Text>
+                  <Text style={styles.optionTitle}>궁합 분석</Text>
+                  <Text style={styles.optionDescription}>상대방과의 궁합을 자세히 봐드려요</Text>
+                  <TouchableOpacity 
+                    style={styles.optionButton}
+                    onPress={onPartnerAnalysis}
+                  >
+                    <Text style={styles.optionButtonText}>상대방 정보와 함께 시작</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* 개인 연애운 옵션 */}
+                <View style={styles.optionCard}>
+                  <Text style={styles.optionTitle}>개인 연애운</Text>
+                  <Text style={styles.optionDescription}>나의 연애운만 확인해보세요</Text>
                   <TouchableOpacity 
                     style={styles.optionButton}
                     onPress={onPersonalFortune}

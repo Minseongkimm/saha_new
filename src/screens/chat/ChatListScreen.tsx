@@ -44,7 +44,6 @@ interface ChatItem {
 }
 
 const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
-  const { useMindfulnessTerms } = useAppConfig();
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectionMode, setSelectionMode] = useState<boolean>(false);
@@ -100,30 +99,12 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
         }
         const expertIds: string[] = Array.from(new Set(roomList.map(r => r.expert_id)));
         
-        let experts: any[] = [];
-        let expertError: any = null;
-
-        if (useMindfulnessTerms) {
-          // experts_mindfulness 테이블 조회
-          const { data, error } = await supabase
-            .from('experts_mindfulness')
-            .select('expert_id, name, category, title, image_name, is_online, created_at')
-            .in('expert_id', expertIds);
-          
-          expertError = error;
-          experts = (data || []).map((e: any) => ({
-            ...e,
-            id: e.expert_id, // expert_id를 id로 매핑
-          }));
-        } else {
-          const { data, error } = await supabase
-            .from('experts')
-            .select('id, name, category, title, image_name, is_online, created_at')
-            .in('id', expertIds);
-          
-          expertError = error;
-          experts = data || [];
-        }
+        const { data, error: expertError } = await supabase
+          .from('experts')
+          .select('id, name, category, title, image_name, is_online, created_at')
+          .in('id', expertIds);
+        
+        const experts: any[] = data || [];
         
         if (expertError) throw expertError;
         const expertMap: Record<string, Expert> = {};
@@ -220,7 +201,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
       } finally {
         setLoading(false);
       }
-  }, [useMindfulnessTerms]);
+  }, []);
 
   useEffect(() => {
     // 최초 진입: 캐시가 있고 비어있지 않으면 즉시 표시, 아니면 서버에서 가져오기
@@ -305,16 +286,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
     }
   };
 
-  const categoryLabelMap: Record<Expert['category'], string> = useMindfulnessTerms ? {
-    comprehensive: '종합상담',
-    love: '연애',
-    money: '재정',
-    career: '커리어',
-    health: '건강',
-    traditional_saju: '정통상담',
-    today_fortune: '오늘의 상담',
-    newyear_fortune: '신년상담',
-  } : {
+  const categoryLabelMap: Record<Expert['category'], string> = {
     comprehensive: '종합사주',
     love: '연애',
     money: '금전운',
@@ -414,7 +386,7 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
       {loading ? (
         <View style={styles.loadingContainer}>
           <SabaLoader
-            message={useMindfulnessTerms ? "대화속에 답이 있습니다" : "대화속에 실마리가 있습니다"}
+            message="대화속에 실마리가 있습니다"
           />
         </View>
       ) : (
@@ -428,13 +400,10 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyTitle}>
-                {useMindfulnessTerms ? "새로운 시작을 펼쳐보세요" : "운명의 지도를 펼쳐보세요"}
+                운명의 지도를 펼쳐보세요
               </Text>
               <Text style={styles.emptySubtitle}>
-                {useMindfulnessTerms
-                  ? `AI 상담사에게 편하게 말을 걸고 ${'\n'}나를 이해하는 질문부터 시작해보세요.`
-                  : `AI 도사에게 편하게 말을 걸고 ${'\n'}나를 이해하는 질문부터 시작해보세요.`
-                }
+                AI 도사에게 편하게 말을 걸고 {'\n'}나를 이해하는 질문부터 시작해보세요.
               </Text>
               <TouchableOpacity 
                 style={styles.startChatButton}

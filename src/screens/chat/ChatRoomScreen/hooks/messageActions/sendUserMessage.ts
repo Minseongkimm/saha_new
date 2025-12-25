@@ -9,6 +9,7 @@
  */
 import { supabase } from '../../../../../utils/database/supabaseClient';
 import { ChatMessage } from '../../../../../types/chat';
+import { withSupabaseRetry } from '../../../../../utils/network/retry';
 
 export interface SendUserMessageResult {
   userMessageId: string | null;
@@ -32,11 +33,13 @@ export async function sendUserMessage(
   setMessages(prev => [...prev, userMessage as ChatMessage]);
   scrollToBottom(true);
   const { id: _tempUserId, ...dbUserMessage } = userMessage;
-  const { data: insertedUserMessage, error: userMessageError } = await supabase
-    .from('chat_messages')
-    .insert(dbUserMessage)
-    .select('id')
-    .single();
+  const { data: insertedUserMessage, error: userMessageError } = await withSupabaseRetry<{ id: string }>(async () => {
+    return await supabase
+      .from('chat_messages')
+      .insert(dbUserMessage)
+      .select('id')
+      .single();
+  });
   if (userMessageError) throw userMessageError;
   return {
     userMessageId: insertedUserMessage?.id || null,

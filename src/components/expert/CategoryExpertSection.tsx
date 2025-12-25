@@ -23,7 +23,6 @@ import { Expert, EXPERT_CATEGORIES, getExpertCategoryLabel, getExpertCategoryDes
 import { Colors } from '../../constants/colors';
 import SabaLoader from '../common/SabaLoader';
 import { isIPad } from '../../utils/platform';
-import { useAppConfig } from '../../contexts/AppConfigContext';
 
 const IS_IPAD = isIPad();
 
@@ -40,7 +39,6 @@ const CategoryExpertSection: React.FC<CategoryExpertSectionProps> = ({
   loading,
   onExpertPress,
 }) => {
-  const { useMindfulnessTerms } = useAppConfig();
   // 카테고리 정보 가져오기 (제목, 설명 등)
   const categoryInfo = EXPERT_CATEGORIES[category as keyof typeof EXPERT_CATEGORIES];
   
@@ -52,8 +50,8 @@ const CategoryExpertSection: React.FC<CategoryExpertSectionProps> = ({
     return (
       <View style={styles.container}>
         <SectionHeader 
-          title={categoryInfo ? getExpertCategoryLabel(categoryInfo.key, useMindfulnessTerms) : ''} 
-          description={categoryInfo ? getExpertCategoryDescription(categoryInfo.key, useMindfulnessTerms) : undefined}
+          title={categoryInfo ? getExpertCategoryLabel(categoryInfo.key) : ''} 
+          description={categoryInfo ? getExpertCategoryDescription(categoryInfo.key) : undefined}
           style={styles.header}
         />
         <View style={styles.loadingContainer}>
@@ -68,8 +66,8 @@ const CategoryExpertSection: React.FC<CategoryExpertSectionProps> = ({
     return (
       <View style={styles.container}>
         <SectionHeader 
-          title={categoryInfo ? getExpertCategoryLabel(categoryInfo.key, useMindfulnessTerms) : ''} 
-          description={categoryInfo ? getExpertCategoryDescription(categoryInfo.key, useMindfulnessTerms) : undefined}
+          title={categoryInfo ? getExpertCategoryLabel(categoryInfo.key) : ''} 
+          description={categoryInfo ? getExpertCategoryDescription(categoryInfo.key) : undefined}
           style={styles.header}
         />
         <View style={styles.emptyContainer}>
@@ -83,8 +81,8 @@ const CategoryExpertSection: React.FC<CategoryExpertSectionProps> = ({
   return (
     <View style={styles.container}>
       <SectionHeader 
-        title={categoryInfo ? getExpertCategoryLabel(categoryInfo.key, useMindfulnessTerms) : ''} 
-        description={categoryInfo ? getExpertCategoryDescription(categoryInfo.key, useMindfulnessTerms) : undefined}
+        title={categoryInfo ? getExpertCategoryLabel(categoryInfo.key) : ''} 
+        description={categoryInfo ? getExpertCategoryDescription(categoryInfo.key) : undefined}
         style={styles.header}
       />
       {/* 도사 카드들을 2열 그리드로 배치 */}

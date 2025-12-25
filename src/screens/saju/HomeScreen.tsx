@@ -37,64 +37,31 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [showCacheInfo, setShowCacheInfo] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('comprehensive');
   const [showBannerModal, setShowBannerModal] = useState(false);
-  const { useMindfulnessTerms } = useAppConfig();
   const scrollViewRef = useRef<ScrollView>(null);
   const categoryRefs = useRef<{ [key: string]: View | null }>({});
 
   const fetchExperts = useCallback(async () => {
     try {
-      if (useMindfulnessTerms) {
-        // experts_mindfulness 테이블 조회
-        const { data: expertsData, error: expertsError } = await supabase
-          .from('experts_mindfulness')
-          .select('*')
-          .order('created_at', { ascending: true });
+      const { data, error } = await supabase
+        .from('experts')
+        .select(`
+          *,
+          expert_details(*)
+        `)
+        .order('created_at', { ascending: true });
 
-        if (expertsError) throw expertsError;
-
-        // expert_details_mindfulness 별도 조회
-        const expertIds = (expertsData || []).map((e: any) => e.expert_id);
-        const { data: detailsData, error: detailsError } = await supabase
-          .from('expert_details_mindfulness')
-          .select('*')
-          .in('expert_id', expertIds);
-
-        if (detailsError) throw detailsError;
-
-        // 데이터 매핑
-        const detailsMap = new Map((detailsData || []).map((d: any) => [d.expert_id, d]));
-        const list = (expertsData || []).map((item: any) => ({
-          ...item,
-          id: item.expert_id, // expert_id를 id로 매핑
-          expert_quote_mindfulness: item.expert_quote, // expert_quote를 expert_quote_mindfulness로 매핑
-          signature_phrase_mindfulness: item.signature_phrase, // signature_phrase를 signature_phrase_mindfulness로 매핑
-          expert_details: detailsMap.get(item.expert_id) || null,
-        }));
-        
-        setExperts(list);
-        setExpertListCache(list);
-      } else {
-        const { data, error } = await supabase
-          .from('experts')
-          .select(`
-            *,
-            expert_details(*)
-          `)
-          .order('created_at', { ascending: true });
-
-        if (error) throw error;
-        const list = data || [];
-        
-        setExperts(list);
-        setExpertListCache(list);
-      }
+      if (error) throw error;
+      const list = data || [];
+      
+      setExperts(list);
+      setExpertListCache(list);
     } catch (error) {
       console.error('Error fetching experts:', error);
       Alert.alert('오류', '전문가 목록을 불러오는데 실패했습니다.');
     } finally {
       setLoading(false);
     }
-  }, [useMindfulnessTerms]);
+  }, []);
 
   useEffect(() => {
     const FRESH_MS = 24 * 60 * 60 * 1000; // 24시간
@@ -213,10 +180,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           activeOpacity={0.9}
         >
           <Image
-            source={useMindfulnessTerms 
-              ? require('../../../assets/banner/home_banner_fake.png')
-              : require('../../../assets/banner/home_banner.png')
-            }
+            source={require('../../../assets/banner/home_banner.png')}
             style={styles.bannerImage}
             resizeMode="cover" // 비율에 맞춰 꽉 채움
           />
@@ -224,8 +188,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           
         {/* 사주 메뉴 섹션 */}
         <View style={styles.content}>
-          {!useMindfulnessTerms && (
-            <View style={styles.sajuCard}>
+          <View style={styles.sajuCard}>
               <SectionHeader 
                 title="사주 풀이" 
                 description="숨겨진 운명의 실마리를 찾아보세요"
@@ -287,7 +250,6 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 </TouchableOpacity>
               </View>
             </View>
-          )}
 
           {/* 테스트 도구 (캐시 및 DB 삭제) - 필요할 때만 주석 해제 */}
           {/* <TestTools /> */}
@@ -295,8 +257,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           {/* AI 사주 도사 섹션 */}
           <View style={styles.expertSection}>
             <SectionHeader 
-              title={useMindfulnessTerms ? "AI 상담사" : "AI 도사"} 
-              description={useMindfulnessTerms ? "불안이 아닌 확신으로 인생을 끌갈수있는 상담" : "언제든 대화할 수 있는 나만의 사주 선생님"}
+              title="AI 도사" 
+              description="언제든 대화할 수 있는 나만의 사주 선생님"
             />
             
             {/* 카테고리 선택기 */}

@@ -37,7 +37,6 @@ interface MyInfoScreenProps {
 }
 
 const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
-  const { useMindfulnessTerms } = useAppConfig();
   const [userName, setUserName] = useState('사용자');
   const [birthDate, setBirthDate] = useState<string>('');
   const [loading, setLoading] = useState(true);
@@ -250,33 +249,17 @@ const MyInfoScreen: React.FC<MyInfoScreenProps> = ({ navigation }) => {
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.profileHeader}>
-          {useMindfulnessTerms ? (
-            // 상담사 모드: 이니셜 표시
-            <View style={[
-              styles.profileImage,
-              { backgroundColor: '#6B73FF' } // 상담사 모드 기본 색상
-            ]}>
-              <Text style={{
-                fontSize: IS_IPAD ? 52 : 36,
-                fontWeight: 'bold',
-                color: 'white'
-              }}>
-                {userName ? userName.charAt(0) : '사'}
-              </Text>
-            </View>
-          ) : (
-            // 사주 모드: 일간 오행 표시
-            <View style={[
-              styles.profileImage, 
-              { backgroundColor: hasBirthInfo && dayGan !== '?' ? getElementBackgroundColor(dayGan) : '#f0f0f0' }
-            ]}>
-              <Text style={{
-                fontSize: IS_IPAD ? 52 : 36,
-                fontWeight: 'bold',
-                color: hasBirthInfo && dayGan !== '?' ? getElementColor(dayGan) : '#999'
-              }}>{dayGan}</Text>
-            </View>
-          )}
+          {/* 사주 모드: 일간 오행 표시 */}
+          <View style={[
+            styles.profileImage, 
+            { backgroundColor: hasBirthInfo && dayGan !== '?' ? getElementBackgroundColor(dayGan) : '#f0f0f0' }
+          ]}>
+            <Text style={{
+              fontSize: IS_IPAD ? 52 : 36,
+              fontWeight: 'bold',
+              color: hasBirthInfo && dayGan !== '?' ? getElementColor(dayGan) : '#999'
+            }}>{dayGan}</Text>
+          </View>
           <Text style={styles.userName}>{userName}</Text>
           <Text style={styles.birthDate}>
             {birthDate || '생년월일 입력이 필요합니다'}
