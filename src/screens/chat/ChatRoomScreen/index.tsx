@@ -13,6 +13,7 @@ import {
   Platform,
   Image,
   StatusBar,
+  Keyboard,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../../../constants/colors';
@@ -51,6 +52,9 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   
   // 결제 로딩 상태
   const [isPaymentLoading, setIsPaymentLoading] = useState(false);
+  
+  // Android 키보드 상태 추적
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   // 커스텀 훅들
   const {
@@ -145,6 +149,24 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     }
   }, [messages]);
 
+  // Android 키보드 이벤트 리스너
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
+    
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0;
   const headerContentHeight = Platform.OS === 'android' ? 70 : (IS_IPAD ? 70 : 56);
   const headerTopPadding = statusBarHeight + (IS_IPAD ? 10 : 0);
@@ -179,72 +201,41 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         </View>
       </View>
       
-      {Platform.OS === 'ios' ? (
-        <KeyboardAvoidingView 
-          style={styles.keyboardAvoidingView}
-          behavior="padding"
-        >
-          <MessageList
-            messages={messages}
-            isAiResponding={isAiResponding}
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
+        enabled={Platform.OS === 'ios' || isKeyboardVisible}
+      >
+        <MessageList
+          messages={messages}
+          isAiResponding={isAiResponding}
+          expert={expert}
+          flatListRef={flatListRef}
+          shouldAutoScroll={shouldAutoScroll}
+          setShouldAutoScroll={setShouldAutoScroll}
+          scrollToBottom={scrollToBottom}
+          loading={loading}
+        />
+        
+        <View style={styles.inputContainer}>
+          <InitialQuestions
             expert={expert}
-            flatListRef={flatListRef}
-            shouldAutoScroll={shouldAutoScroll}
-            setShouldAutoScroll={setShouldAutoScroll}
-            scrollToBottom={scrollToBottom}
-            loading={loading}
+            messages={messages}
+            onSendMessage={sendMessageWithText}
           />
           
-          <View style={styles.inputContainer}>
-            <InitialQuestions
-              expert={expert}
-              messages={messages}
-              onSendMessage={sendMessageWithText}
-            />
-            
-            <FollowUpQuestions
-              messages={messages}
-              onSendMessage={sendMessageWithText}
-            />
-            
-            <MessageInput
-              isAiResponding={isAiResponding}
-              onSendMessage={sendMessage}
-            />
-          </View>
-        </KeyboardAvoidingView>
-      ) : (
-        <>
-          <MessageList
+          <FollowUpQuestions
             messages={messages}
-            isAiResponding={isAiResponding}
-            expert={expert}
-            flatListRef={flatListRef}
-            shouldAutoScroll={shouldAutoScroll}
-            setShouldAutoScroll={setShouldAutoScroll}
-            scrollToBottom={scrollToBottom}
-            loading={loading}
+            onSendMessage={sendMessageWithText}
           />
           
-          <View style={styles.inputContainer}>
-            <InitialQuestions
-              expert={expert}
-              messages={messages}
-              onSendMessage={sendMessageWithText}
-            />
-            
-            <FollowUpQuestions
-              messages={messages}
-              onSendMessage={sendMessageWithText}
-            />
-            
-            <MessageInput
-              isAiResponding={isAiResponding}
-              onSendMessage={sendMessage}
-            />
-          </View>
-        </>
-      )}
+          <MessageInput
+            isAiResponding={isAiResponding}
+            onSendMessage={sendMessage}
+          />
+        </View>
+      </KeyboardAvoidingView>
 
       <InsufficientBalanceBottomSheet
         visible={showInsufficientBalanceSheet && !isTransitioning}
