@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     padding: IS_IPAD ? 24 : 18,
-    paddingBottom: 0, // Safe area
+    paddingBottom: 30, // Safe area
   },
   saveButton: {
     backgroundColor: Colors.primaryColor,

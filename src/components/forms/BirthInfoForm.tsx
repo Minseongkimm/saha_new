@@ -143,7 +143,7 @@ const BirthInfoForm: React.FC<BirthInfoFormProps> = ({
         <View style={styles.dateInputContainer}>
           <TextInput
             style={styles.dateInput}
-            placeholder="1992.02.06"
+            placeholder="1991.10.25"
             value={dateValue}
             onChangeText={handleDateChange}
             keyboardType="number-pad"

@@ -28,7 +28,7 @@ export const EXPERT_CATEGORIES = {
   },
   love: {
     key: 'love',
-    label: '연애',
+    label: '연애/궁합',
     labelMindfulness: '관계',
     description: '연애운과 애정운을 자세히 봐드립니다',
     descriptionMindfulness: '관계에 대한 고민을 함께 나누고 상담해드립니다'

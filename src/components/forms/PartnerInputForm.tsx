@@ -29,7 +29,7 @@ const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
   showRelationship = false,
   isModal = false,
 }) => {
-  const relationshipOptions: RelationshipStatus[] = ['dating', 'married', 'interested', 'breakup', 'other'];
+  const relationshipOptions: RelationshipStatus[] = ['dating', 'married', 'interested', 'breakup'];
 
   return (
     <View style={[styles.container, isModal && styles.modalContainer]}>
@@ -94,7 +94,7 @@ const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
         <View style={styles.dateInputContainer}>
           <TextInput
             style={styles.dateInput}
-            placeholder="1992.02.06"
+            placeholder="1991.10.25"
             value={birthInfo.birthYear || birthInfo.birthMonth || birthInfo.birthDay ? 
               `${birthInfo.birthYear || ''}${birthInfo.birthMonth ? `.${birthInfo.birthMonth}` : ''}${birthInfo.birthDay ? `.${birthInfo.birthDay}` : ''}` 
               : ''
@@ -325,24 +325,24 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   inputContainer: {
-    marginBottom: IS_IPAD ? 24 : 16,
+    marginBottom: IS_IPAD ? 23 : 14,
   },
   label: {
-    fontSize: IS_IPAD ? 20 : 15,
+    fontSize: IS_IPAD ? 19 : 14,
     fontWeight: '600',
-    marginBottom: IS_IPAD ? 12 : 8,
+    marginBottom: IS_IPAD ? 11 : 7,
     color: '#333',
   },
   nameInput: {
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
-    paddingVertical: IS_IPAD ? 12 : 8,
-    fontSize: IS_IPAD ? 20 : 16,
+    paddingVertical: IS_IPAD ? 11 : 8,
+    fontSize: IS_IPAD ? 19 : 15,
     color: '#333',
   },
   dateInputContainer: {
     position: 'relative',
-    marginBottom: IS_IPAD ? 28 : 18,
+    marginBottom: IS_IPAD ? 27 : 16,
   },
   timeInputContainer: {
     position: 'relative',
@@ -351,17 +351,17 @@ const styles = StyleSheet.create({
   dateInput: {
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
-    paddingVertical: IS_IPAD ? 12 : 8,
-    paddingRight: IS_IPAD ? 40 : 30,
-    fontSize: IS_IPAD ? 22 : 17,
+    paddingVertical: IS_IPAD ? 11 : 8,
+    paddingRight: IS_IPAD ? 38 : 28,
+    fontSize: IS_IPAD ? 21 : 16,
     color: '#333',
   },
   timeInput: {
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
-    paddingVertical: IS_IPAD ? 12 : 8,
-    paddingRight: IS_IPAD ? 40 : 30,
-    fontSize: IS_IPAD ? 22 : 17,
+    paddingVertical: IS_IPAD ? 11 : 8,
+    paddingRight: IS_IPAD ? 38 : 28,
+    fontSize: IS_IPAD ? 21 : 16,
     color: '#333',
   },
   clearButton: {
@@ -383,17 +383,17 @@ const styles = StyleSheet.create({
   calendarTypeContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: IS_IPAD ? 16 : 10,
-    gap: IS_IPAD ? 16 : 10,
+    marginTop: IS_IPAD ? 15 : 8,
+    gap: IS_IPAD ? 15 : 8,
   },
   calendarTypeButton: {
     flex: 1,
-    padding: IS_IPAD ? 18 : 12,
-    borderRadius: IS_IPAD ? 24 : 18,
+    padding: IS_IPAD ? 17 : 11,
+    borderRadius: IS_IPAD ? 23 : 16,
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: 'white',
-    minHeight: IS_IPAD ? 58 : 42,
+    minHeight: IS_IPAD ? 56 : 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -402,7 +402,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   calendarTypeText: {
-    fontSize: IS_IPAD ? 20 : 15,
+    fontSize: IS_IPAD ? 19 : 14,
     color: '#333',
   },
   calendarTypeTextSelected: {
@@ -424,17 +424,17 @@ const styles = StyleSheet.create({
   radioContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginTop: IS_IPAD ? 16 : 10,
-    gap: IS_IPAD ? 16 : 10,
+    marginTop: IS_IPAD ? 15 : 8,
+    gap: IS_IPAD ? 15 : 8,
   },
   radioButton: {
     flex: 1,
-    padding: IS_IPAD ? 18 : 12,
-    borderRadius: IS_IPAD ? 24 : 18,
+    padding: IS_IPAD ? 17 : 11,
+    borderRadius: IS_IPAD ? 23 : 16,
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: 'white',
-    minHeight: IS_IPAD ? 58 : 42,
+    minHeight: IS_IPAD ? 56 : 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   radioText: {
-    fontSize: IS_IPAD ? 20 : 15,
+    fontSize: IS_IPAD ? 19 : 14,
     color: '#333',
   },
   radioTextSelected: {
@@ -476,7 +476,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   checkboxLabel: {
-    fontSize: IS_IPAD ? 18 : 14,
+    fontSize: IS_IPAD ? 17 : 14,
     color: '#333',
   },
   relationshipContainer: {
@@ -485,9 +485,9 @@ const styles = StyleSheet.create({
     gap: IS_IPAD ? 12 : 8,
   },
   relationshipButton: {
-    paddingHorizontal: IS_IPAD ? 24 : 16,
-    paddingVertical: IS_IPAD ? 12 : 8,
-    borderRadius: IS_IPAD ? 24 : 18,
+    paddingHorizontal: IS_IPAD ? 23 : 16,
+    paddingVertical: IS_IPAD ? 11 : 8,
+    borderRadius: IS_IPAD ? 23 : 16,
     borderWidth: 1,
     borderColor: '#ddd',
     backgroundColor: 'white',
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primaryColor,
   },
   relationshipButtonText: {
-    fontSize: IS_IPAD ? 18 : 14,
+    fontSize: IS_IPAD ? 17 : 14,
     color: '#666',
   },
   relationshipButtonTextSelected: {
