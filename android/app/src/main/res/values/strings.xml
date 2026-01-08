@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">saha</string>
+    <string name="app_name">사바</string>
     <string name="kakao_app_key">8664599143dee6919c04f7b00e0a495d</string>
     <string name="kakao_custom_scheme">kakao8664599143dee6919c04f7b00e0a495d</string>
 </resources>
