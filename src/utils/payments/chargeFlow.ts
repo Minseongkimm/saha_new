@@ -20,6 +20,9 @@ export async function handleChargeFlow(
   amount: number,
   options?: ChargeFlowOptions
 ): Promise<void> {
+  // 결제 과정이 시작되었는지 추적하는 플래그
+  let isPurchaseStarted = false;
+  
   try {
     // 1. 상품 ID 변환
     const productId = getProductIdFromAmount(amount);
@@ -29,7 +32,10 @@ export async function handleChargeFlow(
 
     // 2. 결제 시작 (스토어 결제 화면 표시)
     // Apple 결제 UI는 시스템이 표시 (로딩 표시하지 않음)
-    const { provider, receiptOrToken } = await startPurchase(productId);
+    const { provider, receiptOrToken, purchase } = await startPurchase(productId);
+    
+    // 결제가 시작되었음을 표시 (startPurchase 성공 = 실제 결제 과정 진입)
+    isPurchaseStarted = true;
 
     // 3. 결제 완료 후 서버 검증 시작 - 이제 로딩 모달 표시
     options?.onLoading?.(true, '결제 확인 중...');
@@ -39,7 +45,7 @@ export async function handleChargeFlow(
         provider,
         receiptOrToken,
         productId,
-      });
+      }, purchase);
 
       // 4. 검증 결과 확인
       if (verifyResult.status !== 'approved') {
@@ -120,8 +126,11 @@ export async function handleChargeFlow(
       options.onError(error instanceof Error ? error : new Error(errorMessage));
     }
 
-    // 에러 메시지 표시
-    Alert.alert('충전 실패', errorMessage);
+    // 결제 과정이 시작된 후에만 Alert 표시
+    // (결제 화면을 열기 전의 에러는 Alert 표시하지 않음)
+    if (isPurchaseStarted) {
+      Alert.alert('충전 실패', errorMessage);
+    }
   }
 }
 

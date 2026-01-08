@@ -723,13 +723,20 @@ async function checkDuplicatePurchase(
 }
 
 /**
+ * UUID 생성 함수 (crypto.randomUUID 사용)
+ */
+function generateUUID(): string {
+  return crypto.randomUUID();
+}
+
+/**
  * 잔액 업데이트
  */
 async function updateUserBalance(
   supabase: ReturnType<typeof createClient>,
   userId: string,
   productId: string,
-  purchaseId: string,
+  purchaseToken: string,  // Google Play purchaseToken 또는 Apple transactionId
   provider: 'apple' | 'google'
 ): Promise<number> {
   // 상품 정보 조회
@@ -740,6 +747,24 @@ async function updateUserBalance(
 
   // 총 사바 코인 수량 계산 (기본 + 보너스)
   const totalSahaAmount = productInfo.totalSaha;
+
+  // 중복 구매 확인 (동일 transaction_id로 이미 처리된 경우)
+  const { data: existingPayment } = await supabase
+    .from('payments')
+    .select('id')
+    .eq('transaction_id', purchaseToken)
+    .single();
+
+  if (existingPayment) {
+    log('info', '이미 처리된 구매입니다', { purchaseToken: purchaseToken.slice(0, 20) + '...' });
+    // 이미 처리된 경우 현재 잔액 반환
+    const { data: currentBalance } = await supabase
+      .from('user_balances')
+      .select('total_purchased, total_usage')
+      .eq('user_id', userId)
+      .single();
+    return (currentBalance?.total_purchased || 0) - (currentBalance?.total_usage || 0);
+  }
 
   // user_balances 조회
   const { data: balanceData, error: balanceError } = await supabase
@@ -756,11 +781,15 @@ async function updateUserBalance(
 
   const newTotalPurchased = (balanceData?.total_purchased || 0) + totalSahaAmount;
 
+  // UUID 생성 (DB id용)
+  const purchaseUUID = generateUUID();
+  const paymentUUID = generateUUID();
+
   // purchases 테이블에 먼저 레코드 생성
   const { error: purchaseUpsertError } = await supabase
     .from('purchases')
     .upsert({
-      id: purchaseId,
+      id: purchaseUUID,
       user_id: userId,
       product_name: productInfo.productName,
       saha_amount: productInfo.sahaAmount,
@@ -779,9 +808,10 @@ async function updateUserBalance(
   const { error: paymentError } = await supabase
     .from('payments')
     .insert({
+      id: paymentUUID,
       user_id: userId,
-      purchase_id: purchaseId,
-      transaction_id: purchaseId,
+      purchase_id: purchaseUUID,
+      transaction_id: purchaseToken,  // Google Play purchaseToken 또는 Apple transactionId 저장
       amount_minor: productInfo.priceMinor, // 결제 금액 (원)
       currency: productInfo.currency,
       provider: provider,
@@ -858,17 +888,28 @@ Deno.serve(async (req) => {
       return createErrorResponse(new Error('Authorization header required'), 401);
     }
 
-    // Supabase 클라이언트 생성 (SERVICE_ROLE_KEY 사용)
-    const supabaseUrl = getEnvVar('SUPABASE_URL');
-    const supabaseServiceKey = getEnvVar('SUPABASE_SERVICE_ROLE_KEY');
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // 토큰에서 사용자 확인
+    // 토큰에서 사용자 확인 (먼저 액세스 토큰으로 클라이언트 생성)
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await (supabase.auth as { getUser: (token: string) => Promise<{ data: { user: { id: string } | null }; error: unknown }> }).getUser(token);
+    const supabaseUrl = getEnvVar('SUPABASE_URL');
+    const supabaseAnonKey = getEnvVar('SUPABASE_ANON_KEY');
+    
+    // 액세스 토큰으로 클라이언트 생성 (사용자 인증 확인용)
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    });
+    
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) {
       return createErrorResponse(new Error('Unauthorized'), 401);
     }
+
+    // Supabase 클라이언트 생성 (SERVICE_ROLE_KEY 사용 - DB 작업용)
+    const supabaseServiceKey = getEnvVar('SUPABASE_SERVICE_ROLE_KEY');
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // 요청 본문 파싱 (이미 위에서 파싱됨)
     const requestBody: VerifyIapRequest = body || await req.json();
