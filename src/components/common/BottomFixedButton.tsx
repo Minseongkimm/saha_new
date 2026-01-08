@@ -11,6 +11,7 @@ interface BottomFixedButtonProps {
   style?: any;
   buttonStyle?: any;
   textStyle?: any;
+  disabled?: boolean;
 }
 
 const BottomFixedButton: React.FC<BottomFixedButtonProps> = ({
@@ -19,14 +20,26 @@ const BottomFixedButton: React.FC<BottomFixedButtonProps> = ({
   style,
   buttonStyle,
   textStyle,
+  disabled = false,
 }) => {
   return (
     <View style={[styles.container, style]}>
       <TouchableOpacity 
-        style={[styles.button, buttonStyle]}
+        style={[
+          styles.button, 
+          disabled && styles.buttonDisabled,
+          buttonStyle
+        ]}
         onPress={onPress}
+        disabled={disabled}
       >
-        <Text style={[styles.buttonText, textStyle]}>{text}</Text>
+        <Text style={[
+          styles.buttonText, 
+          disabled && styles.buttonTextDisabled,
+          textStyle
+        ]}>
+          {text}
+        </Text>
       </TouchableOpacity>
     </View>
   );
@@ -56,6 +69,13 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: IS_IPAD ? 22 : 16,
     fontWeight: '600',
+  },
+  buttonDisabled: {
+    backgroundColor: '#cccccc',
+    opacity: 0.6,
+  },
+  buttonTextDisabled: {
+    color: '#999999',
   },
 });
 

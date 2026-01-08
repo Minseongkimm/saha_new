@@ -402,6 +402,7 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
         <BottomFixedButton
           onPress={handleStartChat}
           text="오늘의 운세 이야기 나누기"
+          disabled={isStreaming}
         />
       )}
       

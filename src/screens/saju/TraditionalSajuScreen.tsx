@@ -216,6 +216,7 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
           }
         }}
         text="정통사주 깊게 이야기 하기"
+        disabled={isStreaming}
       />
       
       {/* 채팅 시작 바텀 시트 */}

@@ -359,6 +359,7 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
       <BottomFixedButton
         onPress={handleStartChat}
         text="신년운세 이야기 나누기"
+        disabled={isStreaming}
       />
 
       {/* 채팅 시작 바텀 시트 */}
