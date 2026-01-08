@@ -73,6 +73,8 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session, initialAuthRouteNa
             fontWeight: 'bold',
           },
           headerTitleAlign: 'center',
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
         }}
         initialRouteName={session ? initialAuthRouteName : 'Login'}
       >
@@ -109,6 +111,7 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session, initialAuthRouteNa
                   elevation: 0,
                   shadowOpacity: 0,
                 },
+                gestureEnabled: false,
               }}
             />
             <Stack.Screen

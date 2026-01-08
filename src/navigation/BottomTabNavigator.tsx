@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Dimensions } from 'react-native';
+import { Dimensions, BackHandler, Platform } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../constants/colors';
 import HomeScreen from '../screens/saju/HomeScreen';
@@ -18,6 +19,21 @@ const TAB_BAR_PADDING_TOP: number = IS_IPAD ? 10 : 5;
 const Tab = createBottomTabNavigator();
 
 const BottomTabNavigator: React.FC = () => {
+  useFocusEffect(
+    React.useCallback(() => {
+      if (Platform.OS === 'android') {
+        const onBackPress = () => {
+          // MainTabs 화면에서 뒤로가기를 눌렀을 때 앱 종료 방지
+          return true;
+        };
+
+        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+        return () => subscription.remove();
+      }
+    }, [])
+  );
+
   return (
     <Tab.Navigator
       screenOptions={{
