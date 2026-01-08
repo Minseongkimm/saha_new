@@ -53,26 +53,37 @@ const waitForSession = async (): Promise<void> => {
   }
 };
 
-// 약관 동의 기록 저장
+// 약관 동의 기록 저장 (기존 동의 기록이 없는 경우에만)
 const saveTermsAgreement = async (userId: string): Promise<void> => {
   try {
     // 약관 버전은 하드코딩 (약관 내용도 하드코딩되어 있으므로)
     const termsVersion = 'v1';
     const privacyVersion = 'v1';
 
-    // 약관 동의 기록 저장
-    await Promise.all([
-      supabase.from('terms_agreements').insert({
+    // 기존 동의 기록 확인
+    const { data: existingAgreements } = await supabase
+      .from('terms_agreements')
+      .select('terms_type')
+      .eq('user_id', userId);
+
+    const existingTypes = new Set(existingAgreements?.map(a => a.terms_type) || []);
+
+    // 기존에 동의 기록이 없는 약관만 저장
+    if (!existingTypes.has('terms_of_service')) {
+      await supabase.from('terms_agreements').insert({
         user_id: userId,
         terms_type: 'terms_of_service',
         terms_version: termsVersion,
-      }),
-      supabase.from('terms_agreements').insert({
+      });
+    }
+
+    if (!existingTypes.has('privacy_policy')) {
+      await supabase.from('terms_agreements').insert({
         user_id: userId,
         terms_type: 'privacy_policy',
         terms_version: privacyVersion,
-      }),
-    ]);
+      });
+    }
   } catch (error) {
     console.error('약관 동의 기록 저장 오류:', error);
     // 에러를 throw하지 않고 로그만 남김 (약관 동의는 user_metadata에도 저장되므로)
