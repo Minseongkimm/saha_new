@@ -6,6 +6,8 @@ export interface ChatRoom {
   partner_saju_id: string | null;
   last_message: string | null;
   last_message_at: string | null;
+  status?: 'active' | 'ended';
+  ended_at?: string | null;
   created_at: string;
 }
 

@@ -2,7 +2,7 @@
  * ChatRoomScreen - 채팅방 메인 화면
  * 채팅방의 전체 레이아웃과 컴포넌트들을 조합하여 구성
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,8 @@ import {
   Image,
   StatusBar,
   Keyboard,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../../../constants/colors';
@@ -29,6 +31,9 @@ import PaymentLoadingModal from '../../../components/common/PaymentLoadingModal'
 import { handleChargeFlow } from '../../../utils/payments/chargeFlow';
 import { safeGoBack } from '../../../utils/navigation/safeGoBack';
 import { isIPad } from '../../../utils/platform';
+import ConfirmModal from '../../../components/common/ConfirmModal';
+import { endChatRoom } from '../../../utils/chat/chatUtils';
+import { ChatMessage } from '../../../types/chat';
 
 const IS_IPAD = isIPad();
 
@@ -55,6 +60,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   
   // Android 키보드 상태 추적
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [showEndModal, setShowEndModal] = useState(false);
 
   // 커스텀 훅들
   const {
@@ -70,6 +76,14 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     freeMessageInfo,
     refreshBalance
   } = useChatRoom({ roomId, expert });
+
+  const messagesRef = useRef<ChatMessage[]>([]);
+  const pendingNavActionRef = useRef<any>(null);
+  const isEndingRef = useRef<boolean>(false);
+  const hasEndedRef = useRef<boolean>(false);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const {
     isAiResponding,
@@ -172,6 +186,77 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   const headerTopPadding = statusBarHeight + (IS_IPAD ? 10 : 0);
   const leftWidth = IS_IPAD ? 80 : 60;
   const rightWidth = IS_IPAD ? 160 : 120;
+
+  const getLastMessageInfo = (): { text: string | null; createdAt: string | null } => {
+    const latestMessages = messagesRef.current;
+    if (latestMessages.length === 0) {
+      return { text: null, createdAt: null };
+    }
+    const lastMessage = latestMessages[latestMessages.length - 1];
+    return {
+      text: lastMessage?.message ?? null,
+      createdAt: lastMessage?.created_at ?? null
+    };
+  };
+
+  const executeEndChat = async (reason: string): Promise<void> => {
+    if (isEndingRef.current || hasEndedRef.current) return;
+    isEndingRef.current = true;
+    try {
+      const lastMessageInfo = getLastMessageInfo();
+      await endChatRoom(roomId, {
+        lastMessage: lastMessageInfo.text,
+        lastMessageAt: lastMessageInfo.createdAt,
+        endedReason: reason
+      });
+      hasEndedRef.current = true;
+    } catch (error) {
+      console.error('Failed to end chat:', error);
+    } finally {
+      isEndingRef.current = false;
+    }
+  };
+
+  const handleConfirmEnd = async () => {
+    await executeEndChat('user_exit');
+    setShowEndModal(false);
+    const action = pendingNavActionRef.current;
+    pendingNavActionRef.current = null;
+    if (action) {
+      navigation.dispatch(action);
+    } else {
+      safeGoBack(navigation);
+    }
+  };
+
+  const handleCancelEnd = () => {
+    pendingNavActionRef.current = null;
+    setShowEndModal(false);
+  };
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (event: any) => {
+      if (hasEndedRef.current || isEndingRef.current) {
+        return;
+      }
+      event.preventDefault();
+      pendingNavActionRef.current = event.data.action;
+      setShowEndModal(true);
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  useEffect(() => {
+    const onAppStateChange = async (nextState: AppStateStatus) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        await executeEndChat('app_background');
+      }
+    };
+    const subscription = AppState.addEventListener('change', onAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, []);
   
   return (
     <SafeAreaView style={styles.container}>
@@ -258,6 +343,14 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       <PaymentLoadingModal
         visible={isPaymentLoading}
         message="결제중입니다"
+      />
+      <ConfirmModal
+        visible={showEndModal}
+        onClose={handleCancelEnd}
+        title="대화 종료"
+        message="대화를 종료하고 목록으로 돌아갈까요?"
+        confirmText="종료 후 나가기"
+        onConfirm={handleConfirmEnd}
       />
     </SafeAreaView>
   );

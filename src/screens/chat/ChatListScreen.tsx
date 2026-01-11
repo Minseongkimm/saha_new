@@ -41,6 +41,9 @@ interface ChatItem {
   profileImage: ImageSourcePropType;
   isRead: boolean;
   expert: Expert;
+  status?: 'active' | 'ended';
+  endedAt?: string | null;
+  sortTime?: string | null;
 }
 
 const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
@@ -80,6 +83,8 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
             partner_saju_id,
             last_message,
             last_message_at,
+            status,
+            ended_at,
             created_at,
             messages:chat_messages(message, created_at)
           `)
@@ -181,6 +186,8 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
             profileImage: profile,
             isRead: true,
             expert: expert as Expert,
+            status: (room as any).status ?? 'active',
+            endedAt: (room as any).ended_at ?? null,
             sortTime: tsIso || room.created_at,
           };
         });
