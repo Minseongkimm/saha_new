@@ -127,8 +127,8 @@ const BirthInfoForm: React.FC<BirthInfoFormProps> = ({
             ]}
             value={data.name || ''}
             onChangeText={(text) => {
-              // 한글, 영문만 허용 (숫자, 특수문자 제거)
-              const filteredText = text.replace(/[^ㄱ-ㅎㅏ-ㅣ가-힣a-zA-Z\s]/g, '');
+              // 한글 자모/완성형, 영문만 허용 (숫자, 특수문자 제거)
+              const filteredText = text.replace(/[^\u1100-\u11FF\u3130-\u318F\uAC00-\uD7A3a-zA-Z\s]/g, '');
               onChange('name', filteredText);
             }}
             placeholder="이름을 입력하세요"
