@@ -24,7 +24,7 @@ import { removeBoldMarkup } from '../../utils/text/removeBoldMarkup';
 import SabaLoader from '../../components/common/SabaLoader';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { isIPad } from '../../utils/platform';
-import { useAppConfig } from '../../contexts/AppConfigContext';
+import { getDefaultExpert, startChatWithExpert } from '../../utils/chat/chatUtils';
 
 const IS_IPAD = isIPad();
 
@@ -53,6 +53,19 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteModalVisible, setDeleteModalVisible] = useState<boolean>(false);
   const rowAnimMap = React.useRef<Map<string, Animated.Value>>(new Map());
+
+  const startDefaultChat = useCallback(async () => {
+    try {
+      const expert = await getDefaultExpert();
+      if (!expert) {
+        Alert.alert('오류', '대화할 AI를 찾을 수 없습니다.');
+        return;
+      }
+      await startChatWithExpert(navigation, expert.id);
+    } catch (error) {
+      Alert.alert('오류', '새 대화를 시작할 수 없습니다. 잠시 후 다시 시도하세요.');
+    }
+  }, [navigation]);
 
   const fetchChatRooms = useCallback(async () => {
       try {
@@ -410,11 +423,11 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
                 운명의 지도를 펼쳐보세요
               </Text>
               <Text style={styles.emptySubtitle}>
-                AI 도사에게 편하게 말을 걸고 {'\n'}나를 이해하는 질문부터 시작해보세요.
+                AI Companion과 편하게 대화하며 {'\n'}오늘의 포커스를 잡아보세요.
               </Text>
               <TouchableOpacity 
                 style={styles.startChatButton}
-                onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })}
+              onPress={startDefaultChat}
               >
                 <Text style={styles.startChatButtonText}>대화하기</Text>
               </TouchableOpacity>
@@ -450,7 +463,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: IS_IPAD ? 20 : 16,
+    paddingVertical: IS_IPAD ? 14 : 10,
     paddingHorizontal: IS_IPAD ? 30 : 20,
     backgroundColor: 'white',
     borderBottomWidth: 1,

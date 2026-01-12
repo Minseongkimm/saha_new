@@ -91,26 +91,7 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session, initialAuthRouteNa
               name="MainTabs"
               component={BottomTabNavigator}
               options={{
-                headerTitle: () => (
-                  <View style={{ 
-                    flex: 1, 
-                    alignItems: 'center', 
-                    justifyContent: 'center',
-                    paddingTop: IS_SMALL_DEVICE ? 10 : 0,
-                    ...(Platform.OS === 'android' && { position: 'absolute', left: 0, right: 0 })
-                  }}>
-                    <Image
-                      source={require('../../assets/logo/logo_icon.png')}
-                      style={{ width: IS_IPAD ? 56 : 40, height: IS_IPAD ? 56 : 40, resizeMode: 'contain' }}
-                    />
-                  </View>
-                ),
-                headerTitleAlign: 'center',
-                headerStyle: {
-                  borderBottomWidth: 0,
-                  elevation: 0,
-                  shadowOpacity: 0,
-                },
+                headerShown: false,
                 gestureEnabled: false,
               }}
             />

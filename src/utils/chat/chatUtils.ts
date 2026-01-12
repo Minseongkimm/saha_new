@@ -32,32 +32,54 @@ export const getExpertByCategory = async (category: string): Promise<{ id: strin
 };
 
 /**
- * 전문가와 채팅 시작
- * @param navigation - 네비게이션 객체
- * @param expertId - 전문가 ID
- * @param partnerData - 상대방 정보 (선택사항)
+ * 기본 전문가 조회 (우선: comprehensive, 없으면 생성일 오름차순 첫 번째)
  */
-export const startChatWithExpert = async (
+export const getDefaultExpert = async (): Promise<{ id: string; name: string } | null> => {
+  const byCategory = await getExpertByCategory('comprehensive');
+  if (byCategory) return byCategory;
+
+  try {
+    const { data: fallback, error } = await supabase
+      .from('experts')
+      .select('id, name')
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !fallback) {
+      console.error('Default expert fallback error:', error);
+      return null;
+    }
+    return fallback;
+  } catch (error) {
+    console.error('Error in getDefaultExpert:', error);
+    return null;
+  }
+};
+
+interface StartChatResult {
+  roomId: string;
+  expert: any;
+}
+
+const createChatRoomWithExpertInternal = async (
   navigation: any,
   expertId: string,
   partnerData?: any
-) => {
-  // BirthInfo 검사: 없으면 입력 화면으로
+): Promise<StartChatResult | null> => {
   const ok = await ensureBirthInfoOrNavigate(navigation);
-  if (!ok) return;
+  if (!ok) return null;
 
   const { status, user } = await getCurrentUserSafely();
   if (status === 'network_error') {
-    // 네트워크 문제일 때는 유저에게 알림을 띄우지 않고 조용히 종료
-    return;
+    return null;
   }
   if (status === 'unauthenticated' || !user) {
     Alert.alert('오류', '로그인이 필요합니다.');
-    return;
+    return null;
   }
 
   try {
-    // 1. 전문가 정보 가져오기 (ID로 조회)
     const { data: expert, error: expertError } = await withSupabaseRetry<any>(async () => {
       return await supabase
         .from('experts')
@@ -68,7 +90,7 @@ export const startChatWithExpert = async (
 
     if (expertError || !expert) {
       Alert.alert('오류', '전문가 정보를 찾을 수 없습니다.');
-      return;
+      return null;
     }
 
     const isLoveCategory: boolean = expert.category === 'love';
@@ -98,17 +120,35 @@ export const startChatWithExpert = async (
     const chatRoomId = newRoom.id;
     markChatListNeedsRefresh();
 
-    // 4. 채팅방으로 이동
-    navigation.navigate('ChatRoom', {
+    return {
       roomId: chatRoomId,
-      expert: expert,
-      partnerData: partnerData // 상대방 정보 전달
-    });
-
+      expert,
+    };
   } catch (error) {
     console.error('Error starting chat:', error);
     Alert.alert('오류', '채팅을 시작할 수 없습니다.');
+    return null;
   }
+};
+
+/**
+ * 전문가와 채팅 시작
+ * @param navigation - 네비게이션 객체
+ * @param expertId - 전문가 ID
+ * @param partnerData - 상대방 정보 (선택사항)
+ */
+export const startChatWithExpert = async (
+  navigation: any,
+  expertId: string,
+  partnerData?: any
+) => {
+  const result = await createChatRoomWithExpert(navigation, expertId, partnerData);
+  if (!result) return;
+  navigation.navigate('ChatRoom', {
+    roomId: result.roomId,
+    expert: result.expert,
+    partnerData: partnerData
+  });
 };
 
 interface EndChatOptions {
@@ -147,4 +187,12 @@ export const endChatRoom = async (roomId: string, options?: EndChatOptions): Pro
   } catch (error) {
     console.error('Error ending chat room:', error);
   }
+};
+
+export const createChatRoomWithExpert = async (
+  navigation: any,
+  expertId: string,
+  partnerData?: any
+): Promise<StartChatResult | null> => {
+  return await createChatRoomWithExpertInternal(navigation, expertId, partnerData);
 };

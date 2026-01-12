@@ -1,29 +1,17 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   SafeAreaView,
   Image,
-  Dimensions,
   ScrollView,
   TouchableOpacity,
-  Alert,
-  Platform,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import SectionHeader from '../../components/common/SectionHeader';
-import CategoryChipStyle from '../../components/expert/CategoryChipStyle';
-import CategoryExpertSection from '../../components/expert/CategoryExpertSection';
-import BannerModal from '../../components/bottomsheets/BannerModal';
 import { Colors } from '../../constants/colors';
-import { supabase } from '../../utils/database/supabaseClient';
-import { Expert, EXPERT_CATEGORIES } from '../../types/expert';
-import { getExpertListCache, setExpertListCache, isExpertListFresh } from '../../utils/expert/expertListCache';
 import { ensureBirthInfoOrNavigate } from '../../utils/user/birthInfoGuard';
-import { TestTools } from '../../components/common/TestTools';
 import { isIPad } from '../../utils/platform';
-import { useAppConfig } from '../../contexts/AppConfigContext';
 
 const IS_IPAD = isIPad();
 
@@ -31,305 +19,166 @@ interface HomeScreenProps {
   navigation: any;
 }
 
+interface PremiumCard {
+  id: string;
+  title: string;
+  subtitle: string;
+}
+
+const premiumItems: PremiumCard[] = [
+  {
+    id: 'deep-read',
+    title: 'Deep Insight',
+    subtitle: '하루 컨디션과 키 포인트를 정리한 심층 리포트',
+  },
+  {
+    id: 'love-pack',
+    title: 'Relationship Pack',
+    subtitle: '상대와의 대화 포인트, 오늘의 액션 체크리스트',
+  },
+  {
+    id: 'focus-briefing',
+    title: 'Focus Briefing',
+    subtitle: '오늘 해야 할 것만 뽑아주는 초간단 브리핑',
+  },
+];
+
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
-  const [experts, setExperts] = useState<Expert[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showCacheInfo, setShowCacheInfo] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('comprehensive');
-  const [showBannerModal, setShowBannerModal] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
-  const categoryRefs = useRef<{ [key: string]: View | null }>({});
-
-  const fetchExperts = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('experts')
-        .select(`
-          *,
-          expert_details(*)
-        `)
-        .order('created_at', { ascending: true });
-
-      if (error) throw error;
-      const list = data || [];
-      
-      setExperts(list);
-      setExpertListCache(list);
-    } catch (error) {
-      console.error('Error fetching experts:', error);
-      Alert.alert('오류', '전문가 목록을 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    const FRESH_MS = 24 * 60 * 60 * 1000; // 24시간
-    if (isExpertListFresh(FRESH_MS)) {
-      const cached = getExpertListCache();
-      if (cached) {
-        setExperts(cached);
-        setLoading(false);
-        // 백그라운드 최신화
-        void (async () => {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user) {
-            await fetchExperts();
-          }
-        })();
-        return;
-      }
-    }
-    // 세션이 준비되면 호출 (안드에서 복원 지연 대비)
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await fetchExperts();
-        return;
-      }
-      // 짧은 지연 후 1회 재시도
-      await new Promise((r) => setTimeout(r, 400));
-      const { data: { user: user2 } } = await supabase.auth.getUser();
-      if (user2) {
-        await fetchExperts();
-        return;
-      }
-      // 인증 이벤트로 1회만 트리거
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_evt, session) => {
-        if (session?.user) {
-          void fetchExperts();
-          subscription.unsubscribe();
-        }
-      });
-    })();
-    
-    // 앱 시작 시 배너 모달 표시 확인
-    checkAndShowBannerModal();
-  }, [fetchExperts]);
-
-  const checkAndShowBannerModal = async () => {
-    try {
-      // 오늘 하루동안 닫기 상태 확인
-      const closedDate = await AsyncStorage.getItem('banner_closed_date');
-      const today = new Date().toDateString();
-      
-      if (closedDate !== today) {
-        // 오늘 닫지 않았으면 모달 표시
-        setTimeout(() => {
-          setShowBannerModal(true);
-        }, 500); // 0.5초 후에 모달 표시
-      }
-    } catch (error) {
-      console.error('Error checking banner close date:', error);
-    }
+  const handleNavigate = async (route: string) => {
+    const ok = await ensureBirthInfoOrNavigate(navigation, route);
+    if (!ok) return;
+    navigation.navigate(route);
   };
-
-
-  const handleExpertPress = (expert: Expert) => {
-    navigation.navigate('ExpertDetail', { expertId: expert.id });
-  };
-
-  const handleBannerPress = () => {
-    // 배너 클릭 시 BannerDetailScreen으로 직접 이동
-    navigation.navigate('BannerDetail');
-  };
-
-  const handleCloseBannerModal = () => {
-    setShowBannerModal(false);
-  };
-
-  // 테스트용: 오늘의 운세 캐시 삭제, 정통사주 캐시 삭제, 신년운세 캐시 삭제, DB 삭제 등은 TestTools 컴포넌트로 이동됨
-
-  // 카테고리 선택 핸들러
-  const handleCategoryPress = (category: string) => {
-    setSelectedCategory(category);
-    // 약간의 지연 후 스크롤하여 상태 업데이트가 먼저 완료되도록 함
-    setTimeout(() => {
-      scrollToCategory(category);
-    }, 100);
-  };
-
-  // 카테고리로 스크롤하는 함수
-  const scrollToCategory = (category: string) => {
-    const categoryRef = categoryRefs.current[category];
-    if (categoryRef && scrollViewRef.current) {
-      // measureInWindow를 사용하여 더 안정적인 위치 측정
-      categoryRef.measureInWindow((x, y, width, height) => {
-        if (scrollViewRef.current && y > 0) {
-          // 현재 스크롤 위치를 고려하여 스크롤
-          scrollViewRef.current.scrollTo({ 
-            y: Math.max(0, y - 120), // 상단 여백을 위해 120px 위로, 최소 0
-            animated: true 
-          });
-        }
-      });
-    }
-  };
-
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView 
-        ref={scrollViewRef}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* 배너 섹션 */}
-        <TouchableOpacity 
-          style={styles.bannerSection} 
-          onPress={handleBannerPress}
-          activeOpacity={0.9}
-        >
-          <Image
-            source={require('../../../assets/banner/home_banner.png')}
-            style={styles.bannerImage}
-            resizeMode="cover" // 비율에 맞춰 꽉 채움
-          />
-        </TouchableOpacity>
-          
-        {/* 사주 메뉴 섹션 */}
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.heroCard}>
+          <View style={styles.heroBadge}>
+            <Text style={styles.heroBadgeText}>AI Companion</Text>
+          </View>
+          <Text style={styles.heroTitle}>대화로 시작하는 나만의 가이드</Text>
+          <Text style={styles.heroSubtitle}>
+            GPT 스타일로 바로 묻고 답하며 오늘의 방향을 잡아보세요.
+          </Text>
+        </View>
+
         <View style={styles.content}>
           <View style={styles.sajuCard}>
-              <SectionHeader 
-                title="사주 풀이" 
-                description="숨겨진 운명의 실마리를 찾아보세요"
-                style={styles.sajuCardHeader}
-              />
-              <View style={styles.menuGrid}>
-                <TouchableOpacity 
-                  style={styles.menuItem} 
-                  activeOpacity={0.8}
-                  onPress={async () => {
-                    const ok = await ensureBirthInfoOrNavigate(navigation, 'JeongtongSaju');
-                    if (!ok) return;
-                    navigation.navigate('JeongtongSaju');
-                  }}
-                >
-                  <View style={styles.menuIcon}>
-                    <Image
-                      source={require('../../../assets/saju/jeongtong_saju.png')}
-                      style={styles.menuIconImage}
-                    />
-                  </View>
-                  <Text style={styles.menuText}>정통사주</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.menuItem} 
-                  activeOpacity={0.8}
-                  onPress={async () => {
-                    const ok = await ensureBirthInfoOrNavigate(navigation, 'TodayFortune');
-                    if (!ok) return;
-                    navigation.navigate('TodayFortune');
-                  }}
-                >
-                  <View style={styles.menuIcon}>
-                    <Image
-                      source={require('../../../assets/saju/calendar_saju.png')}
-                      style={styles.menuIconImage}
-                    />
-                  </View>
-                  <Text style={styles.menuText}>오늘의 운세</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={styles.menuItem} 
-                  activeOpacity={0.8}
-                  onPress={async () => {
-                    const ok = await ensureBirthInfoOrNavigate(navigation, 'NewYearFortune');
-                    if (!ok) return;
-                    navigation.navigate('NewYearFortune');
-                  }}
-                >
-                  <View style={styles.menuIcon}>
-                    <Image
-                      source={require('../../../assets/saju/newyear_saju.png')}
-                      style={styles.menuIconImage}
-                    />
-                  </View>
-                  <Text style={styles.menuText}>신년 운세</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-          {/* 테스트 도구 (캐시 및 DB 삭제) - 필요할 때만 주석 해제 */}
-          {/* <TestTools /> */}
-
-          {/* AI 사주 도사 섹션 */}
-          <View style={styles.expertSection}>
-            <SectionHeader 
-              title="AI 도사" 
-              description="언제든 대화할 수 있는 나만의 사주 선생님"
+            <SectionHeader
+              title="무료 사주 풀이"
+              description="기본 풀이를 무료로 확인하세요"
+              style={styles.sajuCardHeader}
             />
-            
-            {/* 카테고리 선택기 */}
-            <View style={styles.allStylesContainer}>
-              <CategoryChipStyle
-                selectedCategory={selectedCategory}
-                onCategoryPress={handleCategoryPress}
-              />
-            </View>
-
-            {/* 카테고리별 도사 섹션들 (기존 사주 메뉴 카테고리 제외) */}
-            {Object.keys(EXPERT_CATEGORIES)
-              .filter(category => !['traditional_saju', 'today_fortune', 'newyear_fortune'].includes(category))
-              .map((category) => (
-                <View
-                  key={category}
-                  ref={(ref) => {
-                    categoryRefs.current[category] = ref;
-                  }}
-                >
-                  <CategoryExpertSection
-                    category={category}
-                    experts={experts.filter(expert => expert.is_online)}
-                    loading={loading}
-                    onExpertPress={handleExpertPress}
+            <View style={styles.menuGrid}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                activeOpacity={0.8}
+                onPress={() => handleNavigate('JeongtongSaju')}
+              >
+                <View style={styles.menuIcon}>
+                  <Image
+                    source={require('../../../assets/saju/jeongtong_saju.png')}
+                    style={styles.menuIconImage}
                   />
                 </View>
-              ))}
+                <Text style={styles.menuText}>정통사주</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                activeOpacity={0.8}
+                onPress={() => handleNavigate('TodayFortune')}
+              >
+                <View style={styles.menuIcon}>
+                  <Image
+                    source={require('../../../assets/saju/calendar_saju.png')}
+                    style={styles.menuIconImage}
+                  />
+                </View>
+                <Text style={styles.menuText}>오늘의 운세</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.menuItem}
+                activeOpacity={0.8}
+                onPress={() => handleNavigate('NewYearFortune')}
+              >
+                <View style={styles.menuIcon}>
+                  <Image
+                    source={require('../../../assets/saju/newyear_saju.png')}
+                    style={styles.menuIconImage}
+                  />
+                </View>
+                <Text style={styles.menuText}>신년 운세</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.premiumSection}>
+            <SectionHeader
+              title="프리미엄 콘텐츠"
+              description="대화 이후 더 깊게 보고 싶을 때"
+            />
+            {premiumItems.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.premiumCard}
+                activeOpacity={0.85}
+              >
+                <View style={styles.premiumTextArea}>
+                  <Text style={styles.premiumTitle}>{item.title}</Text>
+                  <Text style={styles.premiumSubtitle}>{item.subtitle}</Text>
+                </View>
+                <View style={styles.premiumBadge}>
+                  <Text style={styles.premiumBadgeText}>Premium</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
       </ScrollView>
-      
-      {/* 배너 모달 */}
-      <BannerModal 
-        visible={showBannerModal}
-        onClose={handleCloseBannerModal}
-        navigation={navigation}
-      />
     </SafeAreaView>
   );
 };
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const IS_SMALL_DEVICE: boolean = SCREEN_HEIGHT < 700;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',
   },
-  loadingContainer: {
-    padding: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 200,
+  heroCard: {
+    backgroundColor: '#0E1116',
+    marginHorizontal: IS_IPAD ? 22 : 16,
+    marginTop: IS_IPAD ? 20 : 14,
+    marginBottom: IS_IPAD ? 12 : 8,
+    borderRadius: IS_IPAD ? 26 : 18,
+    padding: IS_IPAD ? 30 : 22,
   },
-  bannerSection: {
-    width: IS_IPAD ? '93%' : SCREEN_WIDTH - 30,
-    alignSelf: 'center',
-    aspectRatio: IS_IPAD ? 3.3 : (IS_SMALL_DEVICE ? 2.8 : 3.2),
-    position: 'relative',
-    marginTop: Platform.OS === 'android' ? 0 : (IS_IPAD ? 20 : 15),
-    marginLeft: IS_IPAD ? 0 : 15,
-    marginRight: IS_IPAD ? 0 : 15,
-    marginBottom: IS_IPAD ? 10 : 0,
-    borderRadius: IS_IPAD ? 20 : 15,
-    overflow: 'hidden',
+  heroBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#1F2937',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    marginBottom: 8,
   },
-  bannerImage: {
-    width: '100%',
-    height: '100%',
+  heroBadgeText: {
+    color: '#C7D2FE',
+    fontWeight: '700',
+    fontSize: IS_IPAD ? 16 : 12,
+  },
+  heroTitle: {
+    color: 'white',
+    fontSize: IS_IPAD ? 28 : 20,
+    fontWeight: '800',
+    marginBottom: 8,
+    lineHeight: IS_IPAD ? 36 : 28,
+  },
+  heroSubtitle: {
+    color: '#E5E7EB',
+    fontSize: IS_IPAD ? 18 : 14,
+    lineHeight: IS_IPAD ? 26 : 22,
   },
   content: {
     padding: 10,
@@ -338,34 +187,21 @@ const styles = StyleSheet.create({
   sajuCard: {
     backgroundColor: '#fefefe',
     marginHorizontal: IS_IPAD ? 20 : 3,
-    marginBottom: IS_IPAD ? 30 : 15,
-    borderRadius: IS_IPAD ? 24 : 16,
-    paddingVertical: IS_IPAD ? 40 : 25,
+    marginBottom: IS_IPAD ? 22 : 16,
+    borderRadius: IS_IPAD ? 22 : 16,
+    paddingVertical: IS_IPAD ? 32 : 24,
     paddingHorizontal: IS_IPAD ? 30 : 18,
     borderWidth: 0.5,
     borderColor: '#f5f5f5',
     shadowColor: Colors.primaryColor,
     shadowOpacity: 0.08,
-    shadowRadius: 13,
+    shadowRadius: 12,
     elevation: 0.3,
   },
   sajuCardHeader: {
     marginTop: -3,
     marginBottom: 5,
     paddingHorizontal: 0,
-  },
-  expertSection: {
-    width: '100%',
-  },
-  cardsSection: {
-    width: '100%',
-  },
-  cardsGrid: {
-    marginTop: 10,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    paddingHorizontal: 3,
   },
   menuGrid: {
     flexDirection: 'row',
@@ -376,16 +212,16 @@ const styles = StyleSheet.create({
   menuItem: {
     flex: 1,
     alignItems: 'center',
+    gap: 8,
   },
   menuIcon: {
     width: IS_IPAD ? 80 : 50,
     height: IS_IPAD ? 80 : 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: IS_IPAD ? 12 : 5,
-  },
-  menuIconText: {
-    fontSize: 20,
+    marginBottom: IS_IPAD ? 6 : 2,
+    backgroundColor: '#f4f6fb',
+    borderRadius: IS_IPAD ? 18 : 14,
   },
   menuIconImage: {
     width: IS_IPAD ? 48 : 31,
@@ -393,34 +229,50 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   menuText: {
-    fontSize: IS_IPAD ? 20 : 14,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: IS_IPAD ? 18 : 14,
+    fontWeight: '700',
+    color: '#111827',
     textAlign: 'center',
   },
-  testButtonContainer: {
-    marginHorizontal: 15,
+  premiumSection: {
+    marginHorizontal: IS_IPAD ? 20 : 3,
+    marginTop: IS_IPAD ? 10 : 6,
+  },
+  premiumCard: {
+    backgroundColor: '#0E1116',
+    borderRadius: IS_IPAD ? 20 : 16,
+    paddingVertical: IS_IPAD ? 22 : 18,
+    paddingHorizontal: IS_IPAD ? 22 : 18,
     marginTop: 10,
-    marginBottom: 15,
     flexDirection: 'row',
-    gap: 8,
-  },
-  testButton: {
-    flex: 1,
-    backgroundColor: '#FF6B6B',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderRadius: 6,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
   },
-  testButtonText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '600',
+  premiumTextArea: {
+    flex: 1,
+    paddingRight: 12,
   },
-  allStylesContainer: {
-    marginBottom: 0,
+  premiumTitle: {
+    color: 'white',
+    fontSize: IS_IPAD ? 22 : 17,
+    fontWeight: '800',
+    marginBottom: 6,
+  },
+  premiumSubtitle: {
+    color: '#E5E7EB',
+    fontSize: IS_IPAD ? 18 : 13,
+    lineHeight: IS_IPAD ? 26 : 20,
+  },
+  premiumBadge: {
+    backgroundColor: Colors.primaryColor,
+    paddingHorizontal: IS_IPAD ? 16 : 12,
+    paddingVertical: IS_IPAD ? 10 : 8,
+    borderRadius: IS_IPAD ? 16 : 12,
+  },
+  premiumBadgeText: {
+    color: 'white',
+    fontSize: IS_IPAD ? 16 : 12,
+    fontWeight: '700',
   },
 });
 

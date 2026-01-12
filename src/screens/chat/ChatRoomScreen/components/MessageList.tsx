@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messageContainer: {
-    marginTop: IS_IPAD ? 14 : 10,
+    marginTop: 0,
     marginBottom: IS_IPAD ? 8 : 5,
     paddingHorizontal: IS_IPAD ? 20 : 12,
   },

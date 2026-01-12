@@ -57,13 +57,13 @@ const InitialQuestions: React.FC<InitialQuestionsProps> = ({ expert, messages, o
 const styles = StyleSheet.create({
   initialQuestionsContainer: {
     paddingHorizontal: IS_IPAD ? 24 : 16,
-    paddingTop: IS_IPAD ? 24 : 16,
+    paddingTop: 0,
     paddingBottom: IS_IPAD ? 18 : 12,
   },
   initialQuestionsTitle: {
     fontSize: IS_IPAD ? 18 : 14,
     color: '#333',
-    marginBottom: IS_IPAD ? 16 : 12,
+    marginBottom: IS_IPAD ? 12 : 8,
     fontWeight: '600',
     textAlign: 'center',
   },

@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../constants/colors';
 import HomeScreen from '../screens/saju/HomeScreen';
-import ChatListScreen from '../screens/chat/ChatListScreen';
+import ChatEntryScreen from '../screens/chat/ChatEntryScreen';
 import MyInfoScreen from '../screens/user/MyInfoScreen';
 import { isIPad } from '../utils/platform';
 
@@ -36,6 +36,7 @@ const BottomTabNavigator: React.FC = () => {
 
   return (
     <Tab.Navigator
+      initialRouteName="Chat"
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
@@ -58,22 +59,22 @@ const BottomTabNavigator: React.FC = () => {
       }}
     >
       <Tab.Screen
-        name="Home"
-        component={HomeScreen}
+        name="Chat"
+        component={ChatEntryScreen}
         options={{
-          tabBarLabel: '홈',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="home" size={IS_IPAD ? 32 : 24} color={color} />
+          tabBarLabel: '채팅',
+          tabBarIcon: ({ color }) => (
+            <Icon name="chatbubble-ellipses" size={IS_IPAD ? 32 : 24} color={color} />
           ),
         }}
       />
       <Tab.Screen
-        name="Chat"
-        component={ChatListScreen}
+        name="Home"
+        component={HomeScreen}
         options={{
-          tabBarLabel: '대화',
-          tabBarIcon: ({ color, size }) => (
-            <Icon name="chatbox" size={IS_IPAD ? 32 : 24} color={color} />
+          tabBarLabel: '탐색',
+          tabBarIcon: ({ color }) => (
+            <Icon name="compass" size={IS_IPAD ? 32 : 24} color={color} />
           ),
         }}
       />
@@ -82,7 +83,7 @@ const BottomTabNavigator: React.FC = () => {
         component={MyInfoScreen}
         options={{
           tabBarLabel: '내정보',
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Icon name="person" size={IS_IPAD ? 32 : 24} color={color} />
           ),
         }}
