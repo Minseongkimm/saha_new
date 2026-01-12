@@ -21,7 +21,7 @@ class WelcomeService {
     onStream?: (chunk: string) => void
   ): Promise<string> {
     const messages = welcomeMessages;
-    const defaultMessage = "안녕하세요! 사주 상담을 시작합니다.";
+    const defaultMessage = "고민, 걱정, 불안, 사주 무엇이든 편하게 물어보세요.";
     const message = messages[expertName] || defaultMessage;
     
     // 스트리밍 효과가 필요한 경우

@@ -34,6 +34,7 @@ interface SendMessageCoreParams {
   onBalanceUpdate?: (expected?: RefreshBalanceExpected) => Promise<void>;
   onBalanceInsufficient?: (balanceCheck: { freeMessageInfo?: any; balance?: number }) => void;
   partnerData?: any;
+  suppressUserBubble?: boolean;
 }
 
 export async function sendMessageCore(params: SendMessageCoreParams): Promise<void> {
@@ -48,7 +49,8 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
     scrollToBottom,
     onBalanceUpdate,
     onBalanceInsufficient,
-    partnerData
+    partnerData,
+    suppressUserBubble
   } = params;
   
   if (!messageText.trim()) return;
@@ -67,12 +69,24 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
   let userMessageId: string | null = null;
   
   try {
-    const userMessageResult = await sendUserMessage(roomId, messageText, setMessages, scrollToBottom);
+    const userMessageResult = await sendUserMessage(
+      roomId,
+      messageText,
+      setMessages,
+      scrollToBottom,
+      { suppressUiUpdate: params.suppressUserBubble }
+    );
     userMessageId = userMessageResult.userMessageId;
     tempUserMessageId = userMessageResult.tempUserMessageId;
     
     if (!userMessageId) throw new Error('사용자 메시지 저장 실패');
     
+    // UI에 사용자 말풍선을 표시하지 않는 경우, AI 응답도 생성하지 않고 종료
+    if (suppressUserBubble) {
+      setShouldAutoScroll(false);
+      return;
+    }
+
     setShouldAutoScroll(true);
     
     const preparedMessages = prepareMessagesForAI(messages, messageText);

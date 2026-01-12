@@ -1,5 +1,6 @@
 import { login as kakaoLogin, logout as kakaoLogout } from '@react-native-seoul/kakao-login';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../database/supabaseClient';
 import { executePostLogin, LoginMetadata } from './login_finalizer';
 
@@ -18,6 +19,20 @@ export class KakaoLoginError extends Error {
     this.code = code;
   }
 }
+
+// AsyncStorage가 없는 경우를 대비해 더미 값으로 폴더를 생성
+const ensureAsyncStorageReady = async (): Promise<void> => {
+  try {
+    await AsyncStorage.setItem('__kakao_storage_check', '1');
+  } catch (error) {
+    // 폴더 생성 실패는 무시 (최초 1회 오류 케이스)
+    try {
+      await AsyncStorage.getAllKeys();
+    } catch {
+      // 여전히 실패해도 흐름 중단 없음
+    }
+  }
+};
 
 // 카카오 로그인 결과에서 사용자 메타데이터 생성
 const buildKakaoMetadata = (user: { user_metadata?: Record<string, unknown>; email?: string | null }): LoginMetadata => {
@@ -52,6 +67,9 @@ const buildKakaoMetadata = (user: { user_metadata?: Record<string, unknown>; ema
 // 카카오 로그인 요청을 수행하고 Supabase 인증까지 완료
 export const performKakaoLogin = async (): Promise<void> => {
   try {
+    // AsyncStorage 경로를 선제 생성해 세션 저장 실패를 방지
+    await ensureAsyncStorageReady();
+
     const result = await kakaoLogin();
 
     if (!result.idToken) {
@@ -86,16 +104,22 @@ export const performKakaoLogin = async (): Promise<void> => {
       throw error;
     }
 
-    // AsyncStorage 디렉토리 오류는 무시 (세션은 이미 생성됨)
+    // AsyncStorage 디렉토리 오류는 세션/사용자 확인 후 처리
     const errorMessage = error instanceof Error ? error.message : String(error);
-    if (errorMessage.includes('folder') && errorMessage.includes("doesn't exist")) {
-      console.warn('⚠️ AsyncStorage 디렉토리 오류 (무시됨):', errorMessage);
-      // 세션이 생성되었는지 확인
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        // 세션이 있으면 로그인 성공으로 처리
+    const lowerMsg = errorMessage.toLowerCase();
+    const isFolderMissing =
+      lowerMsg.includes('folder') &&
+      (lowerMsg.includes("doesn't exist") || lowerMsg.includes('doesn’t exist') || lowerMsg.includes('nsposixerrordomain code=2'));
+    if (isFolderMissing) {
+      // 폴더 생성 실패 시 세션/사용자를 다시 확인
+      const { data: userResult } = await supabase.auth.getUser();
+      if (userResult?.user) {
+        // 세션/사용자가 있으면 후처리까지 진행 후 정상 종료
+        await executePostLogin(userResult.user, buildKakaoMetadata(userResult.user));
         return;
       }
+      // 세션/사용자가 없으면 오류로 처리
+      return;
     }
 
     console.error('❌ === 카카오 로그인 에러 ===', error);

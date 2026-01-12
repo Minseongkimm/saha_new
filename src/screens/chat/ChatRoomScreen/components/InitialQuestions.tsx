@@ -15,21 +15,27 @@ const IS_IPAD = isIPad();
 interface InitialQuestionsProps {
   expert: any;
   messages: any[];
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, options?: { suppressUserBubble?: boolean }) => void;
 }
 
 const InitialQuestions: React.FC<InitialQuestionsProps> = ({ expert, messages, onSendMessage }) => {
-  // 초기 질문 옵션 표시 (인사말만 있을 때)
-  if (messages.length !== 1) return null;
-  const firstMessage = messages[0];
-  if (firstMessage.sender_type !== 'expert') return null;
+  // 사용자 메시지가 하나도 없을 때만 노출
+  const hasUserMessage = messages.some((m) => m?.sender_type === 'user');
+  if (hasUserMessage) return null;
+  // 환영/전문가 메시지가 없어도 표시
   
   const questionsByExpert = INITIAL_QUESTIONS_BY_EXPERT;
   const questionsByCategory = INITIAL_QUESTIONS;
   
-  // expert.name으로 먼저 찾고, 없으면 category로 폴백
-  const initialQuestions = questionsByExpert[expert.name] 
-    || questionsByCategory[expert.category as keyof typeof questionsByCategory];
+  // category가 'main'이면 종합사주 기본 질문으로 매핑
+  const categoryKey =
+    (expert.category === 'main' ? 'comprehensive' : expert.category) as keyof typeof questionsByCategory;
+
+  // expert.name 우선, 없으면 category, 그래도 없으면 종합사주 기본값
+  const initialQuestions =
+    questionsByExpert[expert.name] ||
+    questionsByCategory[categoryKey] ||
+    questionsByCategory['comprehensive'];
   if (!initialQuestions?.length) return null;
   
   return (

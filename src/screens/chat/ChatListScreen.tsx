@@ -30,6 +30,7 @@ const IS_IPAD = isIPad();
 
 interface ChatListScreenProps {
   navigation: any;
+  route?: any;
 }
 
 interface ChatItem {
@@ -46,13 +47,15 @@ interface ChatItem {
   sortTime?: string | null;
 }
 
-const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
+const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation, route }) => {
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectionMode, setSelectionMode] = useState<boolean>(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteModalVisible, setDeleteModalVisible] = useState<boolean>(false);
   const rowAnimMap = React.useRef<Map<string, Animated.Value>>(new Map());
+  const preselectIds: string[] | undefined = route?.params?.selectIds;
+  const forceSelectionMode: boolean | undefined = route?.params?.selectionMode;
 
   const startDefaultChat = useCallback(async () => {
     try {
@@ -246,6 +249,15 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
     });
     return unsubscribe;
   }, [navigation, fetchChatRooms]);
+
+  useEffect(() => {
+    if (forceSelectionMode) {
+      setSelectionMode(true);
+      if (preselectIds && preselectIds.length > 0) {
+        setSelectedIds(new Set(preselectIds));
+      }
+    }
+  }, [forceSelectionMode, preselectIds]);
 
   const isSelected = (id: string): boolean => selectedIds.has(id);
   const selectedCount = useMemo<number>(() => selectedIds.size, [selectedIds]);

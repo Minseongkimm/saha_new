@@ -61,7 +61,8 @@ interface ChatRoomScreenProps {
 }
 
 const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
-  const { roomId, expert, partnerData } = route.params;
+  const { roomId: initialRoomId, expert, partnerData } = route.params;
+  const [roomId, setRoomId] = useState<string | null>(initialRoomId);
   const [showInsufficientBalanceSheet, setShowInsufficientBalanceSheet] = useState(false);
   const [showChargeSheet, setShowChargeSheet] = useState(false);
   const [insufficientBalanceInfo, setInsufficientBalanceInfo] = useState<{
@@ -80,6 +81,10 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [showEndModal, setShowEndModal] = useState(false);
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
+  const [historySelectionMode, setHistorySelectionMode] = useState(false);
+  const [selectedHistoryIds, setSelectedHistoryIds] = useState<Set<string>>(new Set());
+  const [showHistoryDeleteConfirm, setShowHistoryDeleteConfirm] = useState(false);
+  const [showNewChatConfirm, setShowNewChatConfirm] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const drawerAnim = useRef<Animated.Value>(new Animated.Value(0)).current;
@@ -129,6 +134,10 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       });
       setShowInsufficientBalanceSheet(true);
     },
+    onRoomCreated: (newRoomId) => {
+      setRoomId(newRoomId);
+    },
+    navigation,
     partnerData
   });
 
@@ -152,12 +161,12 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
           status,
           ended_at,
           created_at,
-          messages:chat_messages(message, created_at)
+          messages:chat_messages(message, created_at, sender_type)
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .order('created_at', { foreignTable: 'chat_messages', ascending: false })
-        .limit(1, { foreignTable: 'chat_messages' });
+        .limit(10, { foreignTable: 'chat_messages' });
 
       if (roomError || !rooms) {
         setHistoryItems([]);
@@ -208,10 +217,17 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
           displayName = `${baseName} · 연애상담`;
         }
         const profile: any = expertData?.image_name ? getExpertImage(expertData.image_name) : require('../../../../assets/people/hoosi_guy.jpg');
-        const fallbackMsg = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.message ?? '' : '';
-        const lastText: string = room.last_message || fallbackMsg || '';
-        const fallbackTs = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.created_at ?? null : null;
-        const tsIso: string | null = room.last_message_at || fallbackTs || room.created_at || null;
+        // 마지막 사용자 메시지(없으면 빈 문자열)
+        const userMessages = Array.isArray(room.messages)
+          ? (room.messages as any[]).filter((m) => m?.sender_type === 'user')
+          : [];
+        const latestUserMessage = userMessages.length > 0 ? userMessages[0] : null;
+        const lastText: string = latestUserMessage?.message ?? '';
+        const tsIso: string | null =
+          (latestUserMessage?.created_at as string | null | undefined) ||
+          room.last_message_at ||
+          room.created_at ||
+          null;
         const tsStr: string = tsIso ? new Date(tsIso).toLocaleString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '';
         return {
           id: room.id,
@@ -323,7 +339,11 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       toValue: 0,
       duration: 200,
       useNativeDriver: true,
-    }).start(() => setShowHistoryDrawer(false));
+    }).start(() => {
+      setShowHistoryDrawer(false);
+      setHistorySelectionMode(false);
+      setSelectedHistoryIds(new Set());
+    });
   };
 
   const getLastMessageInfo = (): { text: string | null; createdAt: string | null } => {
@@ -338,8 +358,38 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     };
   };
 
+  const toggleHistorySelection = (id: string) => {
+    setSelectedHistoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const executeHistoryDelete = async () => {
+    if (selectedHistoryIds.size === 0) {
+      setShowHistoryDeleteConfirm(false);
+      return;
+    }
+    try {
+      const ids = Array.from(selectedHistoryIds);
+      await supabase.from('chat_messages').delete().in('chat_room_id', ids);
+      await supabase.from('chat_rooms').delete().in('id', ids);
+      setHistoryItems((prev) => prev.filter((item) => !selectedHistoryIds.has(item.id)));
+      setSelectedHistoryIds(new Set());
+      setHistorySelectionMode(false);
+      setShowHistoryDeleteConfirm(false);
+    } catch (error) {
+      setShowHistoryDeleteConfirm(false);
+    }
+  };
+
   const executeEndChat = async (reason: string): Promise<void> => {
-    if (isEndingRef.current || hasEndedRef.current) return;
+    if (isEndingRef.current || hasEndedRef.current || !roomId) return;
     isEndingRef.current = true;
     try {
       const lastMessageInfo = getLastMessageInfo();
@@ -371,6 +421,19 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   const handleCancelEnd = () => {
     pendingNavActionRef.current = null;
     setShowEndModal(false);
+  };
+
+  const handleConfirmNewChat = async () => {
+    setShowNewChatConfirm(false);
+    // 기존 채팅 종료 후 현재 화면에서 새 채팅을 시작하도록 리셋
+    await executeEndChat('user_exit');
+    setMessages([]);
+    setRoomId(null);
+    setShowHistoryDrawer(false);
+    setHistorySelectionMode(false);
+    setSelectedHistoryIds(new Set());
+    hasEndedRef.current = false;
+    isEndingRef.current = false;
   };
 
   useEffect(() => {
@@ -423,6 +486,12 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
           />
         </View>
         <View style={[styles.rightHeader, { width: rightWidth }]}>
+          <TouchableOpacity
+            style={styles.newChatButton}
+            onPress={() => setShowNewChatConfirm(true)}
+          >
+            <Icon name="add" size={IS_IPAD ? 26 : 20} color="#000000" />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.drawerButton} onPress={openHistoryDrawer}>
             <Icon name="menu" size={IS_IPAD ? 26 : 20} color="#000000" />
           </TouchableOpacity>
@@ -495,6 +564,23 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         confirmText="종료 후 나가기"
         onConfirm={handleConfirmEnd}
       />
+      <ConfirmModal
+        visible={showHistoryDeleteConfirm}
+        onClose={() => setShowHistoryDeleteConfirm(false)}
+        title="대화 삭제"
+        message={`${selectedHistoryIds.size}개의 대화를 삭제할까요?`}
+        confirmText="삭제"
+        onConfirm={executeHistoryDelete}
+        confirmDisabled={selectedHistoryIds.size === 0}
+      />
+      <ConfirmModal
+        visible={showNewChatConfirm}
+        onClose={() => setShowNewChatConfirm(false)}
+        title="새 채팅 시작"
+        message="새 채팅을 시작하시겠습니까?"
+        confirmText="네"
+        onConfirm={handleConfirmNewChat}
+      />
       {showHistoryDrawer && (
         <View style={styles.drawerOverlay}>
           <TouchableOpacity style={styles.drawerBackdrop} onPress={closeHistoryDrawer} />
@@ -513,12 +599,36 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
               },
             ]}
           >
-            <SafeAreaView style={styles.drawerSafeArea} edges={['top', 'bottom']}>
+            <SafeAreaView style={styles.drawerSafeArea} edges={['top']}>
               <View style={styles.drawerHeader}>
                 <Text style={styles.drawerTitle}>대화 내역</Text>
-                <TouchableOpacity onPress={closeHistoryDrawer} style={styles.drawerCloseBtn}>
-                  <Icon name="close" size={IS_IPAD ? 24 : 18} color="#000000" />
-                </TouchableOpacity>
+                <View style={styles.drawerHeaderActions}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (historyItems.length === 0) return;
+                      if (historySelectionMode) {
+                        if (selectedHistoryIds.size > 0) {
+                          setShowHistoryDeleteConfirm(true);
+                        } else {
+                          setHistorySelectionMode(false);
+                          setSelectedHistoryIds(new Set());
+                        }
+                        return;
+                      }
+                      setHistorySelectionMode(true);
+                    }}
+                    style={styles.drawerDeleteBtn}
+                  >
+                    {historySelectionMode && selectedHistoryIds.size > 0 ? (
+                      <Text style={styles.drawerDeleteText}>삭제</Text>
+                    ) : (
+                      <Icon name="trash" size={IS_IPAD ? 22 : 16} color={Colors.primaryColor} />
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={closeHistoryDrawer} style={styles.drawerCloseBtn}>
+                    <Icon name="close" size={IS_IPAD ? 24 : 18} color="#000000" />
+                  </TouchableOpacity>
+                </View>
               </View>
               {historyLoading ? (
                 <View style={styles.drawerLoading}>
@@ -531,14 +641,32 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
                   contentContainerStyle={styles.drawerListContent}
                   renderItem={({ item }) => (
                     <TouchableOpacity
-                      style={styles.drawerItem}
+                      style={[
+                        styles.drawerItem,
+                        historySelectionMode && selectedHistoryIds.has(item.id) ? styles.drawerItemSelected : undefined
+                      ]}
                       onPress={() => {
+                        if (historySelectionMode) {
+                          toggleHistorySelection(item.id);
+                          return;
+                        }
                         closeHistoryDrawer();
                         if (item.id === roomId) return;
                         navigation.navigate('ChatRoom', { roomId: item.id, expert: item.expert });
                       }}
                     >
-                      <Image source={item.profileImage} style={styles.drawerAvatar} />
+                      {historySelectionMode && (
+                        <View
+                          style={[
+                            styles.historyCheckboxBase,
+                            selectedHistoryIds.has(item.id) ? styles.historyCheckboxSelected : styles.historyCheckboxUnselected
+                          ]}
+                        >
+                          {selectedHistoryIds.has(item.id) && (
+                            <Icon name="checkmark" size={IS_IPAD ? 16 : 12} color="#FFFFFF" />
+                          )}
+                        </View>
+                      )}
                       <View style={styles.drawerTextArea}>
                         <View style={styles.drawerRow}>
                           <Text style={styles.drawerName} numberOfLines={1}>{item.name}</Text>
@@ -614,12 +742,17 @@ const styles = StyleSheet.create({
   },
   rightHeader: {
     width: IS_IPAD ? 120 : 90,
-    alignItems: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: IS_IPAD ? 8 : 6,
     zIndex: 1,
   },
+  newChatButton: {
+    padding: IS_IPAD ? 8 : 6,
+  },
   drawerButton: {
-    padding: IS_IPAD ? 10 : 8,
-    marginBottom: 4,
+    padding: IS_IPAD ? 8 : 6,
   },
   balanceContainer: {
     flexDirection: 'row',
@@ -663,10 +796,10 @@ const styles = StyleSheet.create({
   },
   drawerBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
+    backgroundColor: 'transparent',
   },
   drawerPanel: {
-    width: SCREEN_WIDTH * 0.75,
+    width: SCREEN_WIDTH * 0.7,
     backgroundColor: '#FFFFFF',
     shadowColor: '#000',
     shadowOpacity: 0.2,
@@ -675,14 +808,20 @@ const styles = StyleSheet.create({
   },
   drawerSafeArea: {
     flex: 1,
-    paddingHorizontal: IS_IPAD ? 22 : 16,
-    paddingBottom: IS_IPAD ? 24 : 18,
+    paddingHorizontal: 0,
+    paddingBottom: IS_IPAD ? 0 : 0,
   },
   drawerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: IS_IPAD ? 18 : 12,
+    paddingHorizontal: IS_IPAD ? 16 : 12,
+  },
+  drawerHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: IS_IPAD ? 10 : 6,
   },
   drawerTitle: {
     fontSize: IS_IPAD ? 22 : 18,
@@ -692,6 +831,14 @@ const styles = StyleSheet.create({
   drawerCloseBtn: {
     padding: IS_IPAD ? 8 : 6,
   },
+  drawerDeleteBtn: {
+    padding: IS_IPAD ? 8 : 6,
+  },
+  drawerDeleteText: {
+    fontSize: IS_IPAD ? 16 : 13,
+    fontWeight: '700',
+    color: Colors.primaryColor,
+  },
   drawerLoading: {
     flex: 1,
     alignItems: 'center',
@@ -699,7 +846,8 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
   },
   drawerListContent: {
-    paddingBottom: IS_IPAD ? 10 : 6,
+    paddingBottom: 0,
+    paddingHorizontal: 0,
   },
   drawerItem: {
     flexDirection: 'row',
@@ -707,6 +855,11 @@ const styles = StyleSheet.create({
     paddingVertical: IS_IPAD ? 12 : 10,
     borderBottomWidth: 1,
     borderBottomColor: '#F2F3F5',
+    paddingHorizontal: IS_IPAD ? 16 : 6,
+    width: '100%',
+  },
+  drawerItemSelected: {
+    backgroundColor: '#F2F8FF',
   },
   drawerAvatar: {
     width: IS_IPAD ? 56 : 44,
@@ -714,8 +867,26 @@ const styles = StyleSheet.create({
     borderRadius: IS_IPAD ? 28 : 22,
     marginRight: IS_IPAD ? 14 : 12,
   },
+  historyCheckboxBase: {
+    width: IS_IPAD ? 20 : 16,
+    height: IS_IPAD ? 20 : 16,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: IS_IPAD ? 10 : 8,
+  },
+  historyCheckboxSelected: {
+    backgroundColor: Colors.primaryColor,
+    borderColor: Colors.primaryColor,
+  },
+  historyCheckboxUnselected: {
+    backgroundColor: 'white',
+  },
   drawerTextArea: {
     flex: 1,
+    marginLeft: IS_IPAD ? 10 : 8,
   },
   drawerRow: {
     flexDirection: 'row',

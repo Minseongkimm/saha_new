@@ -32,25 +32,52 @@ export const getExpertByCategory = async (category: string): Promise<{ id: strin
 };
 
 /**
- * 기본 전문가 조회 (우선: comprehensive, 없으면 생성일 오름차순 첫 번째)
+ * 기본 전문가 조회
+ * 1) category === "main" 우선 조회
+ * 2) 실패 시 지정된 기본 ID로 폴백
  */
-export const getDefaultExpert = async (): Promise<{ id: string; name: string } | null> => {
-  const byCategory = await getExpertByCategory('comprehensive');
-  if (byCategory) return byCategory;
+const DEFAULT_EXPERT_FALLBACK_ID = 'f7184b56-c8bd-4637-b186-219058bcd047';
 
+export const getDefaultExpert = async (): Promise<any | null> => {
   try {
-    const { data: fallback, error } = await supabase
-      .from('experts')
-      .select('id, name')
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle();
+    const { data: categoryExpert, error: categoryError } = await withSupabaseRetry<any>(async () => {
+      return await supabase
+        .from('experts')
+        .select('*')
+        .eq('category', 'main')
+        .maybeSingle();
+    });
 
-    if (error || !fallback) {
-      console.error('Default expert fallback error:', error);
+    if (categoryError !== null && categoryError !== undefined) {
+      console.error('Default expert query error (by category):', categoryError);
+    }
+
+    if (categoryExpert) {
+      console.log('Default expert found by category:', categoryExpert.id, categoryExpert.name);
+      return categoryExpert;
+    }
+
+    // category로 못 찾으면 ID 폴백
+    const { data: idExpert, error: idError } = await withSupabaseRetry<any>(async () => {
+      return await supabase
+        .from('experts')
+        .select('*')
+        .eq('id', DEFAULT_EXPERT_FALLBACK_ID)
+        .maybeSingle();
+    });
+
+    if (idError !== null && idError !== undefined) {
+      console.error('Default expert query error (by ID fallback):', idError);
       return null;
     }
-    return fallback;
+
+    if (!idExpert) {
+      console.warn('Default expert not found. category=main, id fallback=', DEFAULT_EXPERT_FALLBACK_ID);
+      return null;
+    }
+
+    console.log('Default expert found by ID fallback:', idExpert.id, idExpert.name);
+    return idExpert;
   } catch (error) {
     console.error('Error in getDefaultExpert:', error);
     return null;

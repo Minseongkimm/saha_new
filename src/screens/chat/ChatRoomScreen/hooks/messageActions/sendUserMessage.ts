@@ -20,7 +20,8 @@ export async function sendUserMessage(
   roomId: string,
   messageText: string,
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
-  scrollToBottom: (animated: boolean) => void
+  scrollToBottom: (animated: boolean) => void,
+  options?: { suppressUiUpdate?: boolean }
 ): Promise<SendUserMessageResult> {
   const tempUserMessageId = `temp_user_${Date.now()}`;
   const userMessage = {
@@ -30,8 +31,10 @@ export async function sendUserMessage(
     message: messageText.trim(),
     created_at: new Date().toISOString()
   };
-  setMessages(prev => [...prev, userMessage as ChatMessage]);
-  scrollToBottom(true);
+  if (!options?.suppressUiUpdate) {
+    setMessages(prev => [...prev, userMessage as ChatMessage]);
+    scrollToBottom(true);
+  }
   const { id: _tempUserId, ...dbUserMessage } = userMessage;
   const { data: insertedUserMessage, error: userMessageError } = await withSupabaseRetry<{ id: string }>(async () => {
     return await supabase

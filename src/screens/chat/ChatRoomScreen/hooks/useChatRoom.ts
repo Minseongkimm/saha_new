@@ -14,7 +14,7 @@ import { checkFreeMessageAvailable, FreeMessageStatus } from '../../../../utils/
 import { getCurrentUserSafely } from '../../../../utils/user/authUtils';
 
 interface UseChatRoomProps {
-  roomId: string;
+  roomId: string | null;
   expert: any;
 }
 
@@ -48,7 +48,7 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
       
       const tempMessage: ChatMessage = {
         id: tempMessageId,
-        chat_room_id: roomId,
+        chat_room_id: roomId || 'temp',
         sender_type: 'expert' as const,
         message: '',
         created_at: new Date().toISOString()
@@ -85,14 +85,11 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
         )
       );
       
-      // DB에 인사말 저장
-      const { id: _ignoreId, ...dbWelcomeMessage } = finalMessage as any;
-      await supabase
-        .from('chat_messages')
-        .insert(dbWelcomeMessage);
-        
-      // 캐시 업데이트
-      setCachedMessages(roomId, [...messages, finalMessage]);
+      // DB에 인사말 저장하지 않음 (UI에만 표시)
+      // roomId가 있을 때만 캐시 업데이트
+      if (roomId) {
+        setCachedMessages(roomId, [...messages, finalMessage]);
+      }
       
       scrollToBottom(true);
     } catch (error) {
@@ -102,6 +99,8 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
 
   // 메시지 목록 가져오기
   const fetchMessages = async () => {
+    if (!roomId) return;
+    
     try {
       const { data, error } = await supabase
         .from('chat_messages')
@@ -112,11 +111,14 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
 
       if (error) throw error;
       const ordered = (data || []).reverse();
-      setMessages(ordered);
+      
+      // 기존 환영 메시지 보존
+      const welcomeMessages = messages.filter(msg => msg.id?.startsWith('welcome_'));
+      setMessages([...welcomeMessages, ...ordered]);
       setCachedMessages(roomId, ordered);
       
-      // 메시지가 없으면 초기 인사말 생성
-      if (ordered.length === 0) {
+      // 메시지가 없고 환영 메시지도 없으면 초기 인사말 생성
+      if (ordered.length === 0 && welcomeMessages.length === 0) {
         await generateWelcomeMessage();
       }
       
@@ -131,17 +133,44 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
 
   // 초기 메시지 로드 및 실시간 구독
   useEffect(() => {
-    // 캐시 우선 표시
-    const cached = getCachedMessages(roomId);
-    if (cached.length > 0) {
-      setMessages(cached);
+    // roomId가 없으면 환영 메시지만 표시
+    if (!roomId) {
+      const hasWelcome = messages.some(msg => msg.id?.startsWith('welcome_'));
+      if (!hasWelcome) {
+        generateWelcomeMessage();
+      }
       setLoading(false);
-      // 캐시 표시 직후 즉시 하단 고정
-      scrollToBottom(false);
-      // 백그라운드 새로고침
-      fetchMessages();
+      return;
+    }
+
+    // roomId가 생겼을 때 임시 메시지(temp_)가 있으면 유지하고 DB 로드 스킵
+    const hasTempMessages = messages.some(msg => msg.id?.startsWith('temp_'));
+    if (hasTempMessages) {
+      setLoading(false);
+      // 임시 메시지가 있으면 DB 로드 스킵 (나중에 실시간 구독으로 업데이트됨)
     } else {
-      fetchMessages();
+      // roomId가 생겼을 때 기존 환영 메시지가 있으면 유지하고 DB 메시지 로드
+      const hasWelcome = messages.some(msg => msg.id?.startsWith('welcome_'));
+      
+      // 캐시 우선 표시
+      const cached = getCachedMessages(roomId);
+      if (cached.length > 0) {
+        // 환영 메시지가 있으면 앞에 유지
+        const welcomeMessages = messages.filter(msg => msg.id?.startsWith('welcome_'));
+        setMessages([...welcomeMessages, ...cached]);
+        setLoading(false);
+        // 캐시 표시 직후 즉시 하단 고정
+        scrollToBottom(false);
+        // 백그라운드 새로고침
+        fetchMessages();
+      } else {
+        // 환영 메시지가 있으면 유지하고 DB 메시지 로드
+        if (hasWelcome) {
+          const welcomeMessages = messages.filter(msg => msg.id?.startsWith('welcome_'));
+          setMessages(welcomeMessages);
+        }
+        fetchMessages();
+      }
     }
 
     // 실시간 메시지 구독

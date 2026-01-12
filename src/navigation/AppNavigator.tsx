@@ -13,6 +13,7 @@ import BottomTabNavigator from './BottomTabNavigator';
 import BannerDetailScreen from '../screens/expert/BannerDetailScreen';
 import ExpertDetailScreen from '../screens/expert/ExpertDetailScreen';
 import ChatRoomScreen from '../screens/chat/ChatRoomScreen';
+import ChatListScreen from '../screens/chat/ChatListScreen';
 import SajuInfoScreen from '../screens/saju/SajuInfoScreen';
 import NotificationSettingsScreen from '../screens/user/NotificationSettingsScreen';
 import ContactSupportScreen from '../screens/user/ContactSupportScreen';
@@ -126,6 +127,13 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session, initialAuthRouteNa
             <Stack.Screen
               name="ChatRoom"
               component={ChatRoomScreen}
+              options={{
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="ChatList"
+              component={ChatListScreen}
               options={{
                 headerShown: false,
               }}

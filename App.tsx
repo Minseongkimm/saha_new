@@ -33,7 +33,9 @@ function App() {
     // 앱이 처음 시작될 때 초기 세션 확인
     // Android에서 세션 복원이 늦을 수 있으므로 명시적으로 처리
     supabase.auth.getSession().then(({ data: { session: initialSession }, error }) => {
-      if (error) {
+      // 리프레시 토큰이 없는 경우는 정상적인 상황 (로그인하지 않은 상태)
+      // 이 오류는 조용히 처리
+      if (error && error.message !== 'Invalid Refresh Token: Refresh Token Not Found') {
         console.error('세션 조회 오류:', error);
       }
       setSession(initialSession);
