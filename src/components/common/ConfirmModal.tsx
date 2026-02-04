@@ -41,8 +41,8 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <Text style={styles.modalTitle}>{title}</Text>
           <Text style={styles.modalMessage}>{message}</Text>
           <View style={styles.modalActions}>
-            <TouchableOpacity 
-              style={[styles.modalButton, { backgroundColor: confirmButtonColor }]} 
+            <TouchableOpacity
+              style={[styles.modalButton, styles.modalCancelButton]}
               onPress={onClose}
             >
               <Text style={styles.modalCancelText}>{cancelText}</Text>
@@ -50,13 +50,13 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
             <TouchableOpacity
               style={[
                 styles.modalButton,
-                styles.modalConfirmButton,
+                { backgroundColor: confirmButtonColor },
                 confirmDisabled && styles.modalButtonDisabled,
               ]}
               onPress={onConfirm}
               disabled={confirmDisabled}
             >
-              <Text style={styles.modalConfirmText}>{confirmText}</Text>
+              <Text style={styles.modalConfirmButtonText}>{confirmText}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -113,22 +113,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalConfirmButton: {
+  modalCancelButton: {
     backgroundColor: '#f1f3f5',
   },
   modalButtonDisabled: {
     opacity: 0.5,
   },
   modalCancelText: {
-    color: 'white',
-    fontSize: IS_IPAD ? 20 : 16,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  modalConfirmText: {
     color: '#333',
     fontSize: IS_IPAD ? 20 : 16,
     fontWeight: '700',
+    textAlign: 'center',
+  },
+  modalConfirmButtonText: {
+    color: 'white',
+    fontSize: IS_IPAD ? 20 : 16,
+    fontWeight: '800',
     textAlign: 'center',
   },
 });

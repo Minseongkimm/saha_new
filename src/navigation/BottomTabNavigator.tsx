@@ -16,6 +16,9 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const IS_SMALL_DEVICE: boolean = SCREEN_HEIGHT < 700;
 const BASE_TAB_BAR_HEIGHT: number = IS_IPAD ? 95 : (IS_SMALL_DEVICE ? 62 : 82);
 const TAB_BAR_PADDING_TOP: number = IS_IPAD ? 10 : 5;
+// 탭 4개가 작은 화면에서 잘리지 않도록 아이콘/라벨 크기 조정
+const TAB_ICON_SIZE: number = IS_IPAD ? 32 : (IS_SMALL_DEVICE ? 20 : 24);
+const TAB_LABEL_FONT_SIZE: number = IS_IPAD ? 16 : (IS_SMALL_DEVICE ? 10 : 12);
 
 const Tab = createBottomTabNavigator();
 
@@ -53,7 +56,7 @@ const BottomTabNavigator: React.FC = () => {
         tabBarActiveTintColor: Colors.primaryColor, 
         tabBarInactiveTintColor: '#757575', 
         tabBarLabelStyle: {
-          fontSize: IS_IPAD ? 16 : 12,
+          fontSize: TAB_LABEL_FONT_SIZE,
           fontWeight: '600',
         },
       }}
@@ -64,7 +67,7 @@ const BottomTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: '홈',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="home" size={IS_IPAD ? 32 : 24} color={color} />
+            <Icon name="home" size={TAB_ICON_SIZE} color={color} />
           ),
         }}
       />
@@ -74,7 +77,7 @@ const BottomTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: '대화',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="chatbox" size={IS_IPAD ? 32 : 24} color={color} />
+            <Icon name="chatbox" size={TAB_ICON_SIZE} color={color} />
           ),
         }}
       />
@@ -82,9 +85,9 @@ const BottomTabNavigator: React.FC = () => {
         name="Store"
         component={StoreScreen}
         options={{
-          tabBarLabel: '스토어',
+          tabBarLabel: '상점',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="storefront" size={IS_IPAD ? 32 : 24} color={color} />
+            <Icon name="storefront" size={TAB_ICON_SIZE} color={color} />
           ),
         }}
       />
@@ -94,7 +97,7 @@ const BottomTabNavigator: React.FC = () => {
         options={{
           tabBarLabel: '내정보',
           tabBarIcon: ({ color, size }) => (
-            <Icon name="person" size={IS_IPAD ? 32 : 24} color={color} />
+            <Icon name="person" size={TAB_ICON_SIZE} color={color} />
           ),
         }}
       />

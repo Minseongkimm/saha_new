@@ -1,10 +1,11 @@
 import { supabase } from '../database/supabaseClient';
 import { PaymentTransaction } from './types';
 import { withSupabaseRetry } from '../network/retry';
+import { REVIEW_REWARD_SAHA } from '../../constants/review_reward';
 
 /**
  * 충전 내역 조회
- * purchases 테이블에서 사용자의 충전 기록을 최신순으로 100건 조회
+ * purchases + review_rewards(리뷰 리워드)를 병합해 최신순 100건 반환
  */
 export async function fetchChargeTransactions(): Promise<PaymentTransaction[]> {
   try {
@@ -18,7 +19,7 @@ export async function fetchChargeTransactions(): Promise<PaymentTransaction[]> {
     }
 
     // purchases 테이블에서 직접 조회 (재시도 로직 포함)
-    const { data, error } = await withSupabaseRetry<any[]>(async () => {
+    const { data: purchasesData, error } = await withSupabaseRetry<any[]>(async () => {
       return await supabase
         .from('purchases')
         .select('id, saha_amount, bonus_saha, status, created_at, completed_at')
@@ -31,18 +32,15 @@ export async function fetchChargeTransactions(): Promise<PaymentTransaction[]> {
       return [];
     }
 
-    const formatted: PaymentTransaction[] = (data || []).map((item: any) => {
+    const fromPurchases: PaymentTransaction[] = (purchasesData || []).map((item: any) => {
       const status = item.status === 'completed' ? 'success' : (item.status === 'pending' ? 'pending' : 'failed');
       const when = item.completed_at ?? item.created_at;
-      
-      // 사바 코인 수량 계산 (기본 + 보너스)
       const sahaAmount = item.saha_amount || 0;
       const bonusSaha = item.bonus_saha || 0;
       const totalSahaAmount = sahaAmount + bonusSaha;
-      
       return {
         id: item.id,
-        amount: totalSahaAmount, // 사바 코인 수량 (기본 + 보너스)
+        amount: totalSahaAmount,
         type: 'charge',
         description: '사바 충전',
         created_at: when,
@@ -50,7 +48,26 @@ export async function fetchChargeTransactions(): Promise<PaymentTransaction[]> {
       } as PaymentTransaction;
     });
 
-    return formatted;
+    // review_rewards(리뷰 리워드) 조회 후 충전 내역 형태로 변환
+    const { data: reviewRewardsData } = await supabase
+      .from('review_rewards')
+      .select('id, rewarded_at')
+      .eq('user_id', user.id)
+      .limit(100);
+    const fromReviewRewards: PaymentTransaction[] = (reviewRewardsData || []).map((item: { id: string; rewarded_at: string }) => ({
+      id: item.id,
+      amount: REVIEW_REWARD_SAHA,
+      type: 'charge' as const,
+      description: '리뷰 리워드',
+      created_at: item.rewarded_at,
+      status: 'success' as const,
+    }));
+
+    // 병합 후 날짜 기준 내림차순 정렬, 상위 100건
+    const merged = [...fromPurchases, ...fromReviewRewards].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    return merged.slice(0, 100);
   } catch (err: any) {
     console.error('fetchChargeTransactions exception:', err);
     return [];
