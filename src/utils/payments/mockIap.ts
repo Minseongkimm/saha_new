@@ -95,6 +95,16 @@ export async function mockVerifyAndGrant(payload: VerifyPayload): Promise<Verify
       .eq('user_id', user.id)
       .single();
 
+    // 사용자 이름 조회 (purchases.user_name 저장용)
+    const { data: birthRow } = await supabase
+      .from('birth_info')
+      .select('name')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const user_name = birthRow?.name ?? null;
+
     // 사바 코인 수량 계산 (기본 코인 + 보너스)
     const totalSahaAmount = productInfo.sahaAmount + productInfo.bonusSaha;
     const newTotalPurchased = (balanceData?.total_purchased || 0) + totalSahaAmount;
@@ -105,6 +115,7 @@ export async function mockVerifyAndGrant(payload: VerifyPayload): Promise<Verify
       .upsert({
         id: payload.receiptOrToken,
         user_id: user.id,
+        user_name,
         product_name: productInfo.productName,
         saha_amount: productInfo.sahaAmount,
         bonus_saha: productInfo.bonusSaha,

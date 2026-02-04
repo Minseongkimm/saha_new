@@ -781,6 +781,16 @@ async function updateUserBalance(
 
   const newTotalPurchased = (balanceData?.total_purchased || 0) + totalSahaAmount;
 
+  // 사용자 이름 조회 (purchases.user_name 저장용)
+  const { data: birthRow } = await supabase
+    .from('birth_info')
+    .select('name')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const user_name = birthRow?.name ?? null;
+
   // UUID 생성 (DB id용)
   const purchaseUUID = generateUUID();
   const paymentUUID = generateUUID();
@@ -791,6 +801,7 @@ async function updateUserBalance(
     .upsert({
       id: purchaseUUID,
       user_id: userId,
+      user_name,
       product_name: productInfo.productName,
       saha_amount: productInfo.sahaAmount,
       bonus_saha: productInfo.bonusSaha,

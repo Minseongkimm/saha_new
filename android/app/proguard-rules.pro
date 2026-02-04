@@ -37,6 +37,21 @@
 -keep class com.kakao.sdk.** { *; }
 -dontwarn com.kakao.sdk.**
 
+# Retrofit (generic return type signature is required at runtime)
+-keepattributes Signature,Exceptions,InnerClasses,EnclosingMethod,AnnotationDefault,RuntimeVisibleAnnotations,RuntimeVisibleParameterAnnotations,*Annotation*
+-keep class retrofit2.** { *; }
+-keep interface retrofit2.** { *; }
+-keepclassmembers interface * {
+    @retrofit2.* <methods>;
+}
+-keepclassmembers class * {
+    @retrofit2.http.* <methods>;
+}
+-keepclassmembers class com.kakao.sdk.** {
+    @retrofit2.* <methods>;
+}
+-dontwarn retrofit2.**
+
 # 네이티브 메서드
 -keepclasseswithmembernames class * {
     native <methods>;
