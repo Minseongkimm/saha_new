@@ -6,6 +6,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../constants/colors';
 import HomeScreen from '../screens/saju/HomeScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
+import StoreScreen from '../screens/store/StoreScreen';
 import MyInfoScreen from '../screens/user/MyInfoScreen';
 import { isIPad } from '../utils/platform';
 
@@ -74,6 +75,16 @@ const BottomTabNavigator: React.FC = () => {
           tabBarLabel: '대화',
           tabBarIcon: ({ color, size }) => (
             <Icon name="chatbox" size={IS_IPAD ? 32 : 24} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Store"
+        component={StoreScreen}
+        options={{
+          tabBarLabel: '스토어',
+          tabBarIcon: ({ color, size }) => (
+            <Icon name="storefront" size={IS_IPAD ? 32 : 24} color={color} />
           ),
         }}
       />
