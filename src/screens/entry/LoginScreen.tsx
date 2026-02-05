@@ -97,7 +97,7 @@ function LoginScreen({ navigation }: LoginScreenProps) {
         <View style={styles.textContainer}>
           <Text style={styles.title}>사바</Text>
           <Text style={styles.description}>
-          스스로를 알아가는 길, 사바AI와 함께
+          내 운명을 말해주는 사주AI
           </Text>
         </View>
 
