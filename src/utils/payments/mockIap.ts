@@ -95,7 +95,7 @@ export async function mockVerifyAndGrant(payload: VerifyPayload): Promise<Verify
       .eq('user_id', user.id)
       .single();
 
-    // 사용자 이름 조회 (purchases.user_name 저장용)
+    // 사용자 이름 조회 (purchases.user_name 저장용): birth_info.name 우선, 없으면 auth user_metadata
     const { data: birthRow } = await supabase
       .from('birth_info')
       .select('name')
@@ -103,7 +103,14 @@ export async function mockVerifyAndGrant(payload: VerifyPayload): Promise<Verify
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    const user_name = birthRow?.name ?? null;
+    const meta = user?.user_metadata;
+    const user_name =
+      birthRow?.name ??
+      (typeof meta?.name === 'string' ? meta.name : null) ??
+      (typeof meta?.full_name === 'string' ? meta.full_name : null) ??
+      (typeof meta?.user_name === 'string' ? meta.user_name : null) ??
+      (typeof meta?.preferred_username === 'string' ? meta.preferred_username : null) ??
+      null;
 
     // 사바 코인 수량 계산 (기본 코인 + 보너스)
     const totalSahaAmount = productInfo.sahaAmount + productInfo.bonusSaha;

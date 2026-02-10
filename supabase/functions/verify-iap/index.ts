@@ -1,8 +1,12 @@
 /// <reference lib="deno.ns" />
 
-// @deno-types="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/module/index.d.ts"
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { handleCorsPreFlight, getJsonHeaders } from '../_shared/cors.ts';
+
+/** Service role client exposes auth.admin (getUserById); Deno ESM types may not. */
+type SupabaseAuthAdmin = { admin: { getUserById(userId: string): Promise<{ data: { user: { user_metadata?: unknown } | null }; error: unknown }> } };
+/** Anon client auth.getUser(); Deno ESM types may not expose it. */
+type SupabaseAuthUser = { getUser(): Promise<{ data: { user: { id: string } | null }; error: unknown }> };
 import { createErrorResponse, validateRequest, validateEnvVars } from '../_shared/error-handler.ts';
 import { log, getEnvVar } from '../_shared/config.ts';
 
@@ -708,7 +712,7 @@ async function verifyGooglePurchase(
  * 중복 결제 체크
  */
 async function checkDuplicatePurchase(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   userId: string,
   purchaseId: string
 ): Promise<boolean> {
@@ -733,7 +737,7 @@ function generateUUID(): string {
  * 잔액 업데이트
  */
 async function updateUserBalance(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   userId: string,
   productId: string,
   purchaseToken: string,  // Google Play purchaseToken 또는 Apple transactionId
@@ -781,7 +785,7 @@ async function updateUserBalance(
 
   const newTotalPurchased = (balanceData?.total_purchased || 0) + totalSahaAmount;
 
-  // 사용자 이름 조회 (purchases.user_name 저장용)
+  // 사용자 이름 조회 (purchases.user_name 저장용): birth_info.name 우선, 없으면 auth user_metadata
   const { data: birthRow } = await supabase
     .from('birth_info')
     .select('name')
@@ -789,7 +793,17 @@ async function updateUserBalance(
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();
-  const user_name = birthRow?.name ?? null;
+  let user_name: string | null = birthRow?.name ?? null;
+  if (user_name == null) {
+    const { data: { user: authUser } } = await (supabase.auth as SupabaseAuthAdmin).admin.getUserById(userId);
+    const meta = authUser?.user_metadata as Record<string, unknown> | undefined;
+    const fromMeta =
+      (typeof meta?.name === 'string' ? meta.name : null) ??
+      (typeof meta?.full_name === 'string' ? meta.full_name : null) ??
+      (typeof meta?.user_name === 'string' ? meta.user_name : null) ??
+      (typeof meta?.preferred_username === 'string' ? meta.preferred_username : null);
+    user_name = fromMeta ?? null;
+  }
 
   // UUID 생성 (DB id용)
   const purchaseUUID = generateUUID();
@@ -905,22 +919,22 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = getEnvVar('SUPABASE_ANON_KEY');
     
     // 액세스 토큰으로 클라이언트 생성 (사용자 인증 확인용)
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    const userClient: SupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       },
     });
-    
-    const { data: { user }, error: userError } = await userClient.auth.getUser();
+
+    const { data: { user }, error: userError } = await (userClient.auth as SupabaseAuthUser).getUser();
     if (userError || !user) {
       return createErrorResponse(new Error('Unauthorized'), 401);
     }
 
     // Supabase 클라이언트 생성 (SERVICE_ROLE_KEY 사용 - DB 작업용)
     const supabaseServiceKey = getEnvVar('SUPABASE_SERVICE_ROLE_KEY');
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase: SupabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // 요청 본문 파싱 (이미 위에서 파싱됨)
     const requestBody: VerifyIapRequest = body || await req.json();
