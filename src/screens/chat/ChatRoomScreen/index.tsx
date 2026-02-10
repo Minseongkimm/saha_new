@@ -2,7 +2,7 @@
  * ChatRoomScreen - 채팅방 메인 화면
  * 채팅방의 전체 레이아웃과 컴포넌트들을 조합하여 구성
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
   Keyboard,
   AppState,
   AppStateStatus,
+  Alert,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../../../constants/colors';
@@ -34,6 +35,12 @@ import { isIPad } from '../../../utils/platform';
 import ConfirmModal from '../../../components/common/ConfirmModal';
 import { endChatRoom } from '../../../utils/chat/chatUtils';
 import { ChatMessage } from '../../../types/chat';
+import { supabase } from '../../../utils/database/supabaseClient';
+import { openStoreForReview, REVIEW_REWARD_SAHA } from '../../../constants/review_reward';
+import {
+  hasUserReceivedReviewReward,
+  grantReviewReward,
+} from '../../../utils/reviewReward/reviewReward';
 
 const IS_IPAD = isIPad();
 
@@ -61,6 +68,12 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   // Android 키보드 상태 추적
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [showEndModal, setShowEndModal] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [hasReceivedReviewReward, setHasReceivedReviewReward] = useState<boolean>(false);
+  const [showReviewPromptModal, setShowReviewPromptModal] = useState<boolean>(false);
+  const [showReviewConfirmModal, setShowReviewConfirmModal] = useState<boolean>(false);
+  const [pendingReviewConfirm, setPendingReviewConfirm] = useState<boolean>(false);
+  const [isGrantingReview, setIsGrantingReview] = useState<boolean>(false);
 
   // 커스텀 훅들
   const {
@@ -109,6 +122,32 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     },
     partnerData
   });
+
+  const loadUserAndReviewRewardStatus = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    setUserId(user?.id ?? null);
+    if (!user?.id) return;
+    try {
+      const received = await hasUserReceivedReviewReward(user.id);
+      setHasReceivedReviewReward(received);
+    } catch (e) {
+      console.error('loadUserAndReviewRewardStatus error:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadUserAndReviewRewardStatus();
+  }, [loadUserAndReviewRewardStatus]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'active' && pendingReviewConfirm) {
+        setShowReviewConfirmModal(true);
+        setPendingReviewConfirm(false);
+      }
+    });
+    return () => subscription.remove();
+  }, [pendingReviewConfirm]);
 
   const handleCharge = () => {
     // 즉시 전환 (첫 번째 닫는 애니메이션을 기다리지 않고 바로 두 번째 열기)
@@ -217,9 +256,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     }
   };
 
-  const handleConfirmEnd = async () => {
-    await executeEndChat('user_exit');
-    setShowEndModal(false);
+  const doNavigateAfterEnd = useCallback(() => {
     const action = pendingNavActionRef.current;
     pendingNavActionRef.current = null;
     if (action) {
@@ -227,7 +264,64 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     } else {
       safeGoBack(navigation);
     }
+  }, [navigation]);
+
+  const handleConfirmEnd = async () => {
+    await executeEndChat('user_exit');
+    setShowEndModal(false);
+    if (hasReceivedReviewReward) {
+      doNavigateAfterEnd();
+    } else {
+      setShowReviewPromptModal(true);
+    }
   };
+
+  const handleReviewPromptLater = useCallback(() => {
+    setShowReviewPromptModal(false);
+    doNavigateAfterEnd();
+  }, [doNavigateAfterEnd]);
+
+  const handleReviewPromptConfirm = useCallback(async () => {
+    try {
+      await openStoreForReview();
+      setPendingReviewConfirm(true);
+      setShowReviewPromptModal(false);
+    } catch (e) {
+      console.error('openStoreForReview error:', e);
+      Alert.alert('오류', '스토어를 열 수 없습니다.');
+      doNavigateAfterEnd();
+    }
+  }, [doNavigateAfterEnd]);
+
+  const handleConfirmReviewDone = useCallback(async () => {
+    if (!userId) {
+      setShowReviewConfirmModal(false);
+      doNavigateAfterEnd();
+      return;
+    }
+    setShowReviewConfirmModal(false);
+    setIsGrantingReview(true);
+    try {
+      const platform = Platform.OS === 'android' ? 'android' : 'ios';
+      const { newBalance } = await grantReviewReward(userId, platform);
+      setHasReceivedReviewReward(true);
+      Alert.alert(
+        '리워드 지급 완료',
+        `사바 ${REVIEW_REWARD_SAHA}개가 지급되었습니다. (잔액: ${newBalance})`
+      );
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : '리워드 지급에 실패했습니다.';
+      Alert.alert('안내', message);
+    } finally {
+      setIsGrantingReview(false);
+    }
+    doNavigateAfterEnd();
+  }, [userId, doNavigateAfterEnd]);
+
+  const handleCloseReviewConfirmModal = useCallback(() => {
+    setShowReviewConfirmModal(false);
+    doNavigateAfterEnd();
+  }, [doNavigateAfterEnd]);
 
   const handleCancelEnd = () => {
     pendingNavActionRef.current = null;
@@ -351,6 +445,25 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         message="대화를 종료하고 목록으로 돌아갈까요?"
         confirmText="종료 후 나가기"
         onConfirm={handleConfirmEnd}
+      />
+      <ConfirmModal
+        visible={showReviewPromptModal}
+        onClose={handleReviewPromptLater}
+        title="리뷰 작성하고 사바 받기"
+        message={`대화를 종료했어요. 스토어에 리뷰를 남기시면 사바 ${REVIEW_REWARD_SAHA}개를 드려요 (1회 한정).`}
+        cancelText="나중에"
+        confirmText="리뷰 작성하기"
+        onConfirm={handleReviewPromptConfirm}
+      />
+      <ConfirmModal
+        visible={showReviewConfirmModal}
+        onClose={handleCloseReviewConfirmModal}
+        title="리뷰 작성 확인"
+        message="소중한 리뷰 감사합니다. 작성 완료하셨으면 사바를 지급해 드려요."
+        cancelText="아니요"
+        confirmText="완료"
+        onConfirm={handleConfirmReviewDone}
+        confirmDisabled={isGrantingReview}
       />
     </SafeAreaView>
   );
