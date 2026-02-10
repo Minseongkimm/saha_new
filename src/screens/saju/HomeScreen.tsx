@@ -192,6 +192,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               <SectionHeader 
                 title="사주 풀이" 
                 description="숨겨진 운명의 실마리를 찾아보세요"
+                badge="Free"
                 style={styles.sajuCardHeader}
               />
               <View style={styles.menuGrid}>
