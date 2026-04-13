@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,9 @@ import {
 } from '../../utils/reviewReward/reviewReward';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { Colors } from '../../constants/colors';
+import CategoryChipStyle from '../../components/expert/CategoryChipStyle';
+import { getExpertCategoryLabel } from '../../types/expert';
+import StoreProductCard from './components/StoreProductCard';
 
 const StoreScreen: React.FC = () => {
   const [userId, setUserId] = useState<string | null>(null);
@@ -29,6 +32,102 @@ const StoreScreen: React.FC = () => {
   const [pendingReviewConfirm, setPendingReviewConfirm] = useState<boolean>(false);
   const [isGranting, setIsGranting] = useState<boolean>(false);
   const [rewardCardDismissed, setRewardCardDismissed] = useState<boolean>(false);
+  const STORE_CATEGORY_KEYS = ['comprehensive', 'love', 'money', 'career', 'health'] as const;
+  const [selectedCategory, setSelectedCategory] = useState<string>('comprehensive');
+  const scrollViewRef = useRef<ScrollView>(null);
+  const categoryRefs = useRef<Record<string, View | null>>({});
+
+  const STORE_PRODUCTS_BY_CATEGORY: Record<
+    (typeof STORE_CATEGORY_KEYS)[number],
+    Array<{ title: string; description: string; priceInSaba: number }>
+  > = {
+    comprehensive: [
+      {
+        title: '사주 리포트',
+        description:
+          '생년월일시 기반으로 운세와 성향을 분석한 상세 리포트를 받아보세요.',
+        priceInSaba: 300,
+      },
+      {
+        title: '종합 운세 리포트',
+        description: '한 해의 흐름과 월별 운세를 한눈에 확인해보세요.',
+        priceInSaba: 300,
+      },
+    ],
+    love: [
+      {
+        title: '연애·궁합 리포트',
+        description: '연애운과 애정운, 궁합을 분석한 리포트를 받아보세요.',
+        priceInSaba: 300,
+      },
+      {
+        title: '결혼운 리포트',
+        description: '결혼 시기와 배우자운을 살펴본 상세 리포트입니다.',
+        priceInSaba: 300,
+      },
+    ],
+    money: [
+      {
+        title: '금전운 리포트',
+        description: '재물운과 금전운을 분석한 상세 리포트를 받아보세요.',
+        priceInSaba: 300,
+      },
+      {
+        title: '재물운 상세 리포트',
+        description: '투자·사업·저축운을 구체적으로 분석해드립니다.',
+        priceInSaba: 300,
+      },
+    ],
+    career: [
+      {
+        title: '커리어 리포트',
+        description: '직장운과 사업운을 분석한 상세 리포트를 받아보세요.',
+        priceInSaba: 300,
+      },
+      {
+        title: '직장·이직운 리포트',
+        description: '적성과 진로, 이직 시기를 살펴본 리포트입니다.',
+        priceInSaba: 300,
+      },
+    ],
+    health: [
+      {
+        title: '건강운 리포트',
+        description: '건강운과 질병 시기를 살펴본 리포트를 받아보세요.',
+        priceInSaba: 300,
+      },
+      {
+        title: '건강 주의 시기 리포트',
+        description: '몸 관리가 필요한 시기와 주의점을 정리해드립니다.',
+        priceInSaba: 300,
+      },
+    ],
+  };
+
+  const DEFAULT_PRODUCT_IMAGE = require('../../../assets/saju/jeongtong_saju.png');
+
+  const handleCategoryPress = useCallback((category: string) => {
+    setSelectedCategory(category);
+    setTimeout(() => scrollToCategory(category), 100);
+  }, []);
+
+  const scrollToCategory = useCallback((category: string) => {
+    if (category === 'comprehensive') {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      return;
+    }
+    const categoryRef = categoryRefs.current[category];
+    if (categoryRef && scrollViewRef.current) {
+      categoryRef.measureInWindow((_x, y) => {
+        if (scrollViewRef.current && y > 0) {
+          scrollViewRef.current.scrollTo({
+            y: Math.max(0, y - 120),
+            animated: true,
+          });
+        }
+      });
+    }
+  }, []);
 
   const loadUserAndRewardStatus = useCallback(async () => {
     const {
@@ -107,6 +206,7 @@ const StoreScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container} edges={[]}>
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
@@ -145,6 +245,38 @@ const StoreScreen: React.FC = () => {
           </View>
         )}
         <Text style={styles.title}>상점</Text>
+        <View style={styles.chipContainer}>
+          <CategoryChipStyle
+            selectedCategory={selectedCategory}
+            onCategoryPress={handleCategoryPress}
+          />
+        </View>
+        {STORE_CATEGORY_KEYS.map((categoryKey) => {
+          const products = STORE_PRODUCTS_BY_CATEGORY[categoryKey];
+          const categoryLabel = getExpertCategoryLabel(categoryKey);
+          return (
+            <View
+              key={categoryKey}
+              ref={(ref) => {
+                categoryRefs.current[categoryKey] = ref;
+              }}
+              style={styles.categorySection}
+            >
+              <Text style={styles.sectionTitle}>{categoryLabel}</Text>
+              {products.map((product, index) => (
+                <View key={`${categoryKey}-${index}`} style={styles.productCardWrap}>
+                  <StoreProductCard
+                    imageSource={DEFAULT_PRODUCT_IMAGE}
+                    subtitle={categoryLabel}
+                    title={product.title}
+                    description={product.description}
+                    priceInSaba={product.priceInSaba}
+                  />
+                </View>
+              ))}
+            </View>
+          );
+        })}
       </ScrollView>
       <ConfirmModal
         visible={showReviewConfirmModal}
@@ -198,7 +330,23 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: '#1a1a1a',
-    marginBottom: 20,
+    marginBottom: 4,
+  },
+  chipContainer: {
+    marginBottom: 0,
+  },
+  categorySection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#1a1a1a',
+    marginBottom: 12,
+  },
+  productCardWrap: {
+    marginTop: 12,
+    marginBottom: 16,
   },
   rewardCard: {
     backgroundColor: '#FAF8F5',

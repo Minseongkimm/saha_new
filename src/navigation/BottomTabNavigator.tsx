@@ -6,7 +6,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../constants/colors';
 import HomeScreen from '../screens/saju/HomeScreen';
 import ChatListScreen from '../screens/chat/ChatListScreen';
-// import StoreScreen from '../screens/store/StoreScreen'; // 스토어 배포 전 잠시 비노출
+import StoreScreen from '../screens/store/StoreScreen';
 import MyInfoScreen from '../screens/user/MyInfoScreen';
 import { isIPad } from '../utils/platform';
 
@@ -81,7 +81,6 @@ const BottomTabNavigator: React.FC = () => {
           ),
         }}
       />
-      {/* 스토어 배포 전 잠시 비노출
       <Tab.Screen
         name="Store"
         component={StoreScreen}
@@ -92,7 +91,6 @@ const BottomTabNavigator: React.FC = () => {
           ),
         }}
       />
-      */}
       <Tab.Screen
         name="MyInfo"
         component={MyInfoScreen}
