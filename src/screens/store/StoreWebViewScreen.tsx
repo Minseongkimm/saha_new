@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, Image, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Image, Linking, Platform, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -46,6 +46,14 @@ type StoreWebViewPerfResult = {
   url?: string;
   marker: string;
   timestamp: number;
+};
+
+type StoreWebViewAutoBenchSummary = {
+  count: number;
+  totalMedian?: number;
+  t0ToT1Median?: number;
+  t1ToT2Median?: number;
+  t2ToT3Median?: number;
 };
 
 let activePerfSession: StoreWebViewPerfSession | null = null;
@@ -116,6 +124,29 @@ function parseAutoBenchRunIndex(source: string) {
   if (!matched) return null;
   const index = Number(matched[1]);
   return Number.isFinite(index) ? index : null;
+}
+
+function buildAutoBenchSummary(results: StoreWebViewPerfResult[]): StoreWebViewAutoBenchSummary | null {
+  if (!results.length) return null;
+
+  const totals = results.map((item) => item.totalMs);
+  const t0ToT1 = results
+    .map((item) => item.t0ToT1Ms)
+    .filter((value): value is number => typeof value === 'number');
+  const t1ToT2 = results
+    .map((item) => item.t1ToT2Ms)
+    .filter((value): value is number => typeof value === 'number');
+  const t2ToT3 = results
+    .map((item) => item.t2ToT3Ms)
+    .filter((value): value is number => typeof value === 'number');
+
+  return {
+    count: results.length,
+    totalMedian: median(totals),
+    t0ToT1Median: median(t0ToT1),
+    t1ToT2Median: median(t1ToT2),
+    t2ToT3Median: median(t2ToT3),
+  };
 }
 
 function ensurePerfSession(source: string) {
@@ -441,7 +472,16 @@ const StoreWebViewScreen: React.FC = () => {
         if (prev.some((item) => item.id === result.id)) {
           return prev;
         }
-        return [...prev, result];
+        const next = [...prev, result];
+        if (runIndex >= AUTO_BENCH_TOTAL_RUNS) {
+          const summary = buildAutoBenchSummary(next);
+          if (summary) {
+            emitNativeLog(
+              `${WEBVIEW_PERF_LOG_PREFIX}[AUTO_BENCH_SUMMARY] runs=${summary.count} totalMedian=${formatMs(summary.totalMedian)} T0->T1 median=${formatMs(summary.t0ToT1Median)} T1->T2 median=${formatMs(summary.t1ToT2Median)} T2->T3 median=${formatMs(summary.t2ToT3Median)}`
+            );
+          }
+        }
+        return next;
       });
 
       if (runIndex >= AUTO_BENCH_TOTAL_RUNS) {
@@ -461,27 +501,55 @@ const StoreWebViewScreen: React.FC = () => {
   }, [triggerAutoBenchRun]);
 
   const autoBenchSummary = useMemo(() => {
-    if (!autoBenchResults.length) return null;
-
-    const totals = autoBenchResults.map((item) => item.totalMs);
-    const t0ToT1 = autoBenchResults
-      .map((item) => item.t0ToT1Ms)
-      .filter((value): value is number => typeof value === 'number');
-    const t1ToT2 = autoBenchResults
-      .map((item) => item.t1ToT2Ms)
-      .filter((value): value is number => typeof value === 'number');
-    const t2ToT3 = autoBenchResults
-      .map((item) => item.t2ToT3Ms)
-      .filter((value): value is number => typeof value === 'number');
-
-    return {
-      count: autoBenchResults.length,
-      totalMedian: median(totals),
-      t0ToT1Median: median(t0ToT1),
-      t1ToT2Median: median(t1ToT2),
-      t2ToT3Median: median(t2ToT3),
-    };
+    return buildAutoBenchSummary(autoBenchResults);
   }, [autoBenchResults]);
+
+  const autoBenchReportText = useMemo(() => {
+    if (!autoBenchSummary) return '';
+
+    const header = [
+      '[StoreWebView Auto Benchmark]',
+      `runs=${autoBenchSummary.count}/${AUTO_BENCH_TOTAL_RUNS}`,
+      `total median=${formatMs(autoBenchSummary.totalMedian)}`,
+      `T0->T1 median=${formatMs(autoBenchSummary.t0ToT1Median)}`,
+      `T1->T2 median=${formatMs(autoBenchSummary.t1ToT2Median)}`,
+      `T2->T3 median=${formatMs(autoBenchSummary.t2ToT3Median)}`,
+      '',
+      '[Per Run]',
+    ];
+
+    const perRun = [...autoBenchResults]
+      .sort((a, b) => {
+        const aIndex = parseAutoBenchRunIndex(a.source);
+        const bIndex = parseAutoBenchRunIndex(b.source);
+        if (typeof aIndex === 'number' && typeof bIndex === 'number') {
+          return aIndex - bIndex;
+        }
+        if (typeof aIndex === 'number') return -1;
+        if (typeof bIndex === 'number') return 1;
+        return a.timestamp - b.timestamp;
+      })
+      .map((item) => {
+        const runIndex = parseAutoBenchRunIndex(item.source);
+        const runLabel = runIndex ? `#${runIndex}` : item.source;
+        return `${runLabel} total=${formatMs(item.totalMs)} T0->T1=${formatMs(item.t0ToT1Ms)} T1->T2=${formatMs(item.t1ToT2Ms)} T2->T3=${formatMs(item.t2ToT3Ms)}`;
+      });
+
+    return [...header, ...perRun].join('\n');
+  }, [autoBenchResults, autoBenchSummary]);
+
+  const handleShareAutoBenchReport = useCallback(async () => {
+    if (!autoBenchReportText) return;
+
+    try {
+      await Share.share({
+        title: 'Store WebView Auto Benchmark',
+        message: autoBenchReportText,
+      });
+    } catch (error) {
+      console.warn('[StoreWebViewPerf] failed to share auto benchmark report:', error);
+    }
+  }, [autoBenchReportText]);
 
   const sendBridgeResponse = useCallback(
     (
@@ -830,6 +898,17 @@ const StoreWebViewScreen: React.FC = () => {
                   : `자동측정 ${AUTO_BENCH_TOTAL_RUNS}회 시작`}
               </Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleShareAutoBenchReport}
+              disabled={isAutoBenchRunning || !autoBenchSummary}
+              style={[
+                styles.perfActionButton,
+                styles.perfActionButtonSecondary,
+                isAutoBenchRunning || !autoBenchSummary ? styles.perfActionButtonDisabled : null,
+              ]}
+            >
+              <Text style={styles.perfActionButtonText}>결과 공유</Text>
+            </TouchableOpacity>
           </View>
 
           {autoBenchSummary && (
@@ -945,14 +1024,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   perfActionRow: {
+    flexDirection: 'row',
     marginBottom: 8,
   },
   perfActionButton: {
+    flex: 1,
     borderRadius: 8,
     backgroundColor: '#2563EB',
     paddingVertical: 7,
     paddingHorizontal: 10,
     alignItems: 'center',
+  },
+  perfActionButtonSecondary: {
+    marginLeft: 8,
+    backgroundColor: '#059669',
   },
   perfActionButtonDisabled: {
     opacity: 0.7,
