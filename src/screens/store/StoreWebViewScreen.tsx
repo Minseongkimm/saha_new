@@ -23,6 +23,8 @@ const BRIDGE_REPLAY_CACHE_MAX_SIZE = 300;
 const LOCAL_WEB_HOSTS = new Set(['localhost:3000', '127.0.0.1:3000', '10.0.2.2:3000']);
 const WEBVIEW_PERF_LOG_PREFIX = '[StoreWebViewPerf]';
 const LOADING_MASK_HIDE_DELAY_MS = 120;
+const AUTO_BENCH_TOTAL_RUNS = 10;
+const AUTO_BENCH_NEXT_RUN_DELAY_MS = 260;
 
 type StoreWebViewPerfSession = {
   id: string;
@@ -34,13 +36,33 @@ type StoreWebViewPerfSession = {
   latestUrl?: string;
 };
 
+type StoreWebViewPerfResult = {
+  id: string;
+  source: string;
+  totalMs: number;
+  t0ToT1Ms?: number;
+  t1ToT2Ms?: number;
+  t2ToT3Ms?: number;
+  url?: string;
+  marker: string;
+  timestamp: number;
+};
+
 let activePerfSession: StoreWebViewPerfSession | null = null;
 const perfDebugSubscribers = new Set<(line: string) => void>();
+const perfResultSubscribers = new Set<(result: StoreWebViewPerfResult) => void>();
 
 function subscribeStoreWebViewPerfDebug(listener: (line: string) => void) {
   perfDebugSubscribers.add(listener);
   return () => {
     perfDebugSubscribers.delete(listener);
+  };
+}
+
+function subscribeStoreWebViewPerfResult(listener: (result: StoreWebViewPerfResult) => void) {
+  perfResultSubscribers.add(listener);
+  return () => {
+    perfResultSubscribers.delete(listener);
   };
 }
 
@@ -61,6 +83,12 @@ function emitNativeLog(message: string) {
   console.log(message);
 }
 
+function emitPerfResult(result: StoreWebViewPerfResult) {
+  for (const listener of perfResultSubscribers) {
+    listener(result);
+  }
+}
+
 function createPerfSession(source: string): StoreWebViewPerfSession {
   const now = Date.now();
   const id = `swv_${now}_${Math.random().toString(36).slice(2, 8)}`;
@@ -70,6 +98,24 @@ function createPerfSession(source: string): StoreWebViewPerfSession {
 function formatDuration(value?: number) {
   if (typeof value !== 'number') return '-';
   return `${value}ms`;
+}
+
+function formatMs(value?: number) {
+  if (typeof value !== 'number') return '-';
+  return `${value}ms`;
+}
+
+function median(values: number[]) {
+  if (!values.length) return undefined;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
+}
+
+function parseAutoBenchRunIndex(source: string) {
+  const matched = source.match(/^auto_bench_run_(\d+)$/);
+  if (!matched) return null;
+  const index = Number(matched[1]);
+  return Number.isFinite(index) ? index : null;
 }
 
 function ensurePerfSession(source: string) {
@@ -120,13 +166,30 @@ function markStoreWebViewT3(marker: string) {
   if (session.t3) return;
   const now = Date.now();
   session.t3 = now;
+  const totalMs = now - session.t0;
+  const t0ToT1Ms = typeof session.t1 === 'number' ? session.t1 - session.t0 : undefined;
+  const t1ToT2Ms =
+    typeof session.t1 === 'number' && typeof session.t2 === 'number' ? session.t2 - session.t1 : undefined;
+  const t2ToT3Ms = typeof session.t2 === 'number' ? now - session.t2 : undefined;
 
   emitNativeLog(
-    `${WEBVIEW_PERF_LOG_PREFIX} id=${session.id} T3=${now} marker=${marker} delta(T0->T3)=${formatDuration(now - session.t0)}`
+    `${WEBVIEW_PERF_LOG_PREFIX} id=${session.id} T3=${now} marker=${marker} delta(T0->T3)=${formatDuration(totalMs)}`
   );
   emitNativeLog(
-    `${WEBVIEW_PERF_LOG_PREFIX}[RESULT] id=${session.id} total=${formatDuration(now - session.t0)} T0->T1=${formatDuration(session.t1 ? session.t1 - session.t0 : undefined)} T1->T2=${formatDuration(session.t1 && session.t2 ? session.t2 - session.t1 : undefined)} T2->T3=${formatDuration(session.t2 ? now - session.t2 : undefined)} url=${session.latestUrl || '-'} marker=${marker}`
+    `${WEBVIEW_PERF_LOG_PREFIX}[RESULT] id=${session.id} total=${formatDuration(totalMs)} T0->T1=${formatDuration(t0ToT1Ms)} T1->T2=${formatDuration(t1ToT2Ms)} T2->T3=${formatDuration(t2ToT3Ms)} url=${session.latestUrl || '-'} marker=${marker}`
   );
+
+  emitPerfResult({
+    id: session.id,
+    source: session.source,
+    totalMs,
+    t0ToT1Ms,
+    t1ToT2Ms,
+    t2ToT3Ms,
+    url: session.latestUrl,
+    marker,
+    timestamp: now,
+  });
 }
 
 type BridgeAction =
@@ -227,6 +290,8 @@ const StoreWebViewScreen: React.FC = () => {
   const currentPageUrlRef = useRef<string>('');
   const replayRequestCacheRef = useRef<Map<string, number>>(new Map());
   const loadingMaskHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoBenchNextRunTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoBenchRunningRef = useRef<boolean>(false);
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
   const [isLoadingMaskVisible, setIsLoadingMaskVisible] = useState<boolean>(true);
@@ -234,6 +299,9 @@ const StoreWebViewScreen: React.FC = () => {
   const [reloadKey, setReloadKey] = useState<number>(0);
   const [customerName, setCustomerName] = useState<string>('고객님');
   const [perfDebugLines, setPerfDebugLines] = useState<string[]>([]);
+  const [perfResultLines, setPerfResultLines] = useState<string[]>([]);
+  const [isAutoBenchRunning, setIsAutoBenchRunning] = useState<boolean>(false);
+  const [autoBenchResults, setAutoBenchResults] = useState<StoreWebViewPerfResult[]>([]);
 
   useEffect(() => {
     let mounted = true;
@@ -280,7 +348,7 @@ const StoreWebViewScreen: React.FC = () => {
   useEffect(() => {
     if (!__DEV__) return;
     return subscribeStoreWebViewPerfDebug((line) => {
-      setPerfDebugLines((prev) => [line, ...prev].slice(0, 6));
+      setPerfDebugLines((prev) => [line, ...prev].slice(0, 10));
     });
   }, []);
 
@@ -308,6 +376,11 @@ const StoreWebViewScreen: React.FC = () => {
         clearTimeout(loadingMaskHideTimerRef.current);
         loadingMaskHideTimerRef.current = null;
       }
+
+      if (autoBenchNextRunTimerRef.current) {
+        clearTimeout(autoBenchNextRunTimerRef.current);
+        autoBenchNextRunTimerRef.current = null;
+      }
     };
   }, []);
 
@@ -328,6 +401,87 @@ const StoreWebViewScreen: React.FC = () => {
       loadingMaskHideTimerRef.current = null;
     }, LOADING_MASK_HIDE_DELAY_MS);
   }, []);
+
+  const triggerAutoBenchRun = useCallback((runIndex: number) => {
+    markStoreWebViewT0(`auto_bench_run_${runIndex}`);
+    setHasError(false);
+    setUseLocalFallback(false);
+    showLoadingMask();
+    setReloadKey((prev) => prev + 1);
+  }, [showLoadingMask]);
+
+  const startAutoBench = useCallback(() => {
+    if (isAutoBenchRunning) return;
+    setAutoBenchResults([]);
+    setPerfResultLines([]);
+    setIsAutoBenchRunning(true);
+    autoBenchRunningRef.current = true;
+    triggerAutoBenchRun(1);
+  }, [isAutoBenchRunning, triggerAutoBenchRun]);
+
+  useEffect(() => {
+    if (!__DEV__) return;
+
+    return subscribeStoreWebViewPerfResult((result) => {
+      const runIndex = parseAutoBenchRunIndex(result.source);
+      const runLabel = runIndex ? `#${runIndex}` : result.source;
+      const resultLine =
+        `${runLabel} total=${formatMs(result.totalMs)} ` +
+        `T0->T1=${formatMs(result.t0ToT1Ms)} ` +
+        `T1->T2=${formatMs(result.t1ToT2Ms)} ` +
+        `T2->T3=${formatMs(result.t2ToT3Ms)}`;
+
+      setPerfResultLines((prev) => [resultLine, ...prev].slice(0, AUTO_BENCH_TOTAL_RUNS));
+
+      if (!autoBenchRunningRef.current || runIndex === null) {
+        return;
+      }
+
+      setAutoBenchResults((prev) => {
+        if (prev.some((item) => item.id === result.id)) {
+          return prev;
+        }
+        return [...prev, result];
+      });
+
+      if (runIndex >= AUTO_BENCH_TOTAL_RUNS) {
+        autoBenchRunningRef.current = false;
+        setIsAutoBenchRunning(false);
+        return;
+      }
+
+      if (autoBenchNextRunTimerRef.current) {
+        clearTimeout(autoBenchNextRunTimerRef.current);
+      }
+      autoBenchNextRunTimerRef.current = setTimeout(() => {
+        if (!autoBenchRunningRef.current) return;
+        triggerAutoBenchRun(runIndex + 1);
+      }, AUTO_BENCH_NEXT_RUN_DELAY_MS);
+    });
+  }, [triggerAutoBenchRun]);
+
+  const autoBenchSummary = useMemo(() => {
+    if (!autoBenchResults.length) return null;
+
+    const totals = autoBenchResults.map((item) => item.totalMs);
+    const t0ToT1 = autoBenchResults
+      .map((item) => item.t0ToT1Ms)
+      .filter((value): value is number => typeof value === 'number');
+    const t1ToT2 = autoBenchResults
+      .map((item) => item.t1ToT2Ms)
+      .filter((value): value is number => typeof value === 'number');
+    const t2ToT3 = autoBenchResults
+      .map((item) => item.t2ToT3Ms)
+      .filter((value): value is number => typeof value === 'number');
+
+    return {
+      count: autoBenchResults.length,
+      totalMedian: median(totals),
+      t0ToT1Median: median(t0ToT1),
+      t1ToT2Median: median(t1ToT2),
+      t2ToT3Median: median(t2ToT3),
+    };
+  }, [autoBenchResults]);
 
   const sendBridgeResponse = useCallback(
     (
@@ -661,9 +815,54 @@ const StoreWebViewScreen: React.FC = () => {
         </View>
       )}
 
-      {__DEV__ && perfDebugLines.length > 0 && (
+      {__DEV__ && (
         <View style={styles.perfDebugPanel}>
           <Text style={styles.perfDebugTitle}>WebView Perf Debug</Text>
+          <View style={styles.perfActionRow}>
+            <TouchableOpacity
+              onPress={startAutoBench}
+              disabled={isAutoBenchRunning}
+              style={[styles.perfActionButton, isAutoBenchRunning ? styles.perfActionButtonDisabled : null]}
+            >
+              <Text style={styles.perfActionButtonText}>
+                {isAutoBenchRunning
+                  ? `자동측정 진행 중 ${autoBenchResults.length}/${AUTO_BENCH_TOTAL_RUNS}`
+                  : `자동측정 ${AUTO_BENCH_TOTAL_RUNS}회 시작`}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {autoBenchSummary && (
+            <View style={styles.perfSummaryBlock}>
+              <Text style={styles.perfSummaryTitle}>
+                Summary ({autoBenchSummary.count}/{AUTO_BENCH_TOTAL_RUNS})
+              </Text>
+              <Text style={styles.perfSummaryLine}>
+                total median: {formatMs(autoBenchSummary.totalMedian)}
+              </Text>
+              <Text style={styles.perfSummaryLine}>
+                T0-&gt;T1 median: {formatMs(autoBenchSummary.t0ToT1Median)}
+              </Text>
+              <Text style={styles.perfSummaryLine}>
+                T1-&gt;T2 median: {formatMs(autoBenchSummary.t1ToT2Median)}
+              </Text>
+              <Text style={styles.perfSummaryLine}>
+                T2-&gt;T3 median: {formatMs(autoBenchSummary.t2ToT3Median)}
+              </Text>
+            </View>
+          )}
+
+          {perfResultLines.length > 0 && (
+            <View style={styles.perfResultBlock}>
+              <Text style={styles.perfResultTitle}>Recent RESULT</Text>
+              {perfResultLines.map((line, index) => (
+                <Text key={`result-line-${index}-${line}`} style={styles.perfResultLine}>
+                  {line}
+                </Text>
+              ))}
+            </View>
+          )}
+
           {perfDebugLines.map((line, index) => (
             <Text key={`${index}-${line}`} style={styles.perfDebugLine}>
               {line}
@@ -744,6 +943,58 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.75)',
     paddingHorizontal: 10,
     paddingVertical: 8,
+  },
+  perfActionRow: {
+    marginBottom: 8,
+  },
+  perfActionButton: {
+    borderRadius: 8,
+    backgroundColor: '#2563EB',
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+  },
+  perfActionButtonDisabled: {
+    opacity: 0.7,
+  },
+  perfActionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  perfSummaryBlock: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.2)',
+    paddingTop: 6,
+    marginBottom: 8,
+  },
+  perfSummaryTitle: {
+    color: '#FDE68A',
+    fontSize: 10,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  perfSummaryLine: {
+    color: '#F3F4F6',
+    fontSize: 10,
+    lineHeight: 13,
+  },
+  perfResultBlock: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.2)',
+    paddingTop: 6,
+    marginBottom: 8,
+  },
+  perfResultTitle: {
+    color: '#A7F3D0',
+    fontSize: 10,
+    fontWeight: '700',
+    marginBottom: 3,
+  },
+  perfResultLine: {
+    color: '#E5E7EB',
+    fontSize: 9,
+    lineHeight: 12,
   },
   perfDebugTitle: {
     color: '#A7F3D0',
