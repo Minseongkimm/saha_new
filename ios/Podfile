@@ -19,8 +19,8 @@ target 'saha' do
 
   use_react_native!(
     :path => config[:reactNativePath],
-    # An absolute path to your application root.
-    :app_path => "#{Pod::Config.instance.installation_root}/.."
+    # Keep app_path absolute so generated Codegen script paths stay valid.
+    :app_path => File.expand_path('..', __dir__)
   )
 
   post_install do |installer|

@@ -12,3 +12,9 @@ export const APPLE_AUTH_PRIVATE_KEY = ""; // .p8 키를 직접 문자열로 넣�
 export const APPLE_AUTH_PRIVATE_KEY_PATH = ""; // .p8 파일 경로
 export const APPLE_AUTH_VALIDITY_DAYS = 180; // 1~180 사이, 기본 180
 export const APPLE_AUTH_OUTPUT_PATH = ""; // JWT를 파일로 저장할 경로 (미지정 시 콘솔 출력)
+
+// WebView 상점 URL (예: https://store.your-domain.com)
+export const STORE_WEBVIEW_URL = "https://example.com";
+
+// WebView에서 앱 환경 식별을 위한 UA suffix
+export const WEBVIEW_APP_UA_SUFFIX = "ShinhanApp/1.0.0";
