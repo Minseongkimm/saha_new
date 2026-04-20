@@ -24,6 +24,7 @@ import PartnerInputScreen from '../screens/partner/PartnerInputScreen';
 import TermsScreen from '../screens/user/TermsScreen';
 import { RootStackParamList } from '../types/navigation';
 import LoginScreen from '../screens/entry/LoginScreen';
+import StoreWebViewPreloader from '../screens/store/StoreWebViewPreloader';
 import { isIPad } from '../utils/platform';
 
 const IS_IPAD = isIPad();
@@ -60,6 +61,7 @@ const AppNavigator: React.FC<AppNavigatorProps> = ({ session, initialAuthRouteNa
 
   return (
     <View style={{ flex: 1, paddingBottom: bottomPadding - 18, backgroundColor: '#fff' }}>
+      {session ? <StoreWebViewPreloader /> : null}
       <NavigationContainer key={session ? `auth-${initialAuthRouteName}` : 'guest'}>
         <Stack.Navigator
         screenOptions={{
