@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Image, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -22,6 +22,7 @@ const BRIDGE_REPLAY_CACHE_TTL_MS = 3 * 60_000;
 const BRIDGE_REPLAY_CACHE_MAX_SIZE = 300;
 const LOCAL_WEB_HOSTS = new Set(['localhost:3000', '127.0.0.1:3000', '10.0.2.2:3000']);
 const WEBVIEW_PERF_LOG_PREFIX = '[StoreWebViewPerf]';
+const LOADING_MASK_HIDE_DELAY_MS = 120;
 
 type StoreWebViewPerfSession = {
   id: string;
@@ -225,8 +226,10 @@ const StoreWebViewScreen: React.FC = () => {
   const webViewRef = useRef<WebView>(null);
   const currentPageUrlRef = useRef<string>('');
   const replayRequestCacheRef = useRef<Map<string, number>>(new Map());
+  const loadingMaskHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
+  const [isLoadingMaskVisible, setIsLoadingMaskVisible] = useState<boolean>(true);
   const [useLocalFallback, setUseLocalFallback] = useState<boolean>(false);
   const [reloadKey, setReloadKey] = useState<number>(0);
   const [customerName, setCustomerName] = useState<string>('고객님');
@@ -298,6 +301,33 @@ const StoreWebViewScreen: React.FC = () => {
   useEffect(() => {
     currentPageUrlRef.current = webViewUri;
   }, [webViewUri]);
+
+  useEffect(() => {
+    return () => {
+      if (loadingMaskHideTimerRef.current) {
+        clearTimeout(loadingMaskHideTimerRef.current);
+        loadingMaskHideTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  const showLoadingMask = useCallback(() => {
+    if (loadingMaskHideTimerRef.current) {
+      clearTimeout(loadingMaskHideTimerRef.current);
+      loadingMaskHideTimerRef.current = null;
+    }
+    setIsLoadingMaskVisible(true);
+  }, []);
+
+  const hideLoadingMask = useCallback(() => {
+    if (loadingMaskHideTimerRef.current) {
+      clearTimeout(loadingMaskHideTimerRef.current);
+    }
+    loadingMaskHideTimerRef.current = setTimeout(() => {
+      setIsLoadingMaskVisible(false);
+      loadingMaskHideTimerRef.current = null;
+    }, LOADING_MASK_HIDE_DELAY_MS);
+  }, []);
 
   const sendBridgeResponse = useCallback(
     (
@@ -558,9 +588,10 @@ const StoreWebViewScreen: React.FC = () => {
 
   const handleReload = useCallback(() => {
     setHasError(false);
+    showLoadingMask();
     setUseLocalFallback(false);
     setReloadKey(prev => prev + 1);
-  }, []);
+  }, [showLoadingMask]);
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
@@ -585,10 +616,12 @@ const StoreWebViewScreen: React.FC = () => {
         onMessage={handleWebMessage}
         onLoadStart={() => {
           setHasError(false);
+          showLoadingMask();
           markStoreWebViewT1(currentPageUrlRef.current || webViewUri);
         }}
         onLoadEnd={(event) => {
           markStoreWebViewT2(event.nativeEvent.url || currentPageUrlRef.current);
+          hideLoadingMask();
         }}
         onNavigationStateChange={(navState) => {
           setCanGoBack(navState.canGoBack);
@@ -598,6 +631,7 @@ const StoreWebViewScreen: React.FC = () => {
         }}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onError={() => {
+          setIsLoadingMaskVisible(false);
           if (!useLocalFallback) {
             setUseLocalFallback(true);
             return;
@@ -613,6 +647,17 @@ const StoreWebViewScreen: React.FC = () => {
           <TouchableOpacity style={styles.retryButton} onPress={handleReload}>
             <Text style={styles.retryButtonText}>다시 시도</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {isLoadingMaskVisible && !hasError && (
+        <View style={styles.loadingMask}>
+          <Image
+            source={require('../../../assets/logo/logo_icon.png')}
+            style={styles.loadingMaskLogo}
+          />
+          <ActivityIndicator size="small" color={Colors.primaryColor} />
+          <Text style={styles.loadingMaskText}>상점을 준비하고 있어요</Text>
         </View>
       )}
 
@@ -666,6 +711,29 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 14,
+  },
+  loadingMask: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  loadingMaskLogo: {
+    width: 44,
+    height: 44,
+    marginBottom: 12,
+    resizeMode: 'contain',
+  },
+  loadingMaskText: {
+    marginTop: 10,
+    color: '#4B5563',
+    fontSize: 13,
+    fontWeight: '500',
   },
   perfDebugPanel: {
     position: 'absolute',
