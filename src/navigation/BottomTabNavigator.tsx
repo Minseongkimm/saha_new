@@ -91,6 +91,8 @@ const BottomTabNavigator: React.FC = () => {
             },
           }}
           options={{
+            // 첫 진입 흰 화면 체감을 줄이기 위해 Store 탭 화면을 초기 렌더 시점에 미리 mount한다.
+            lazy: false,
             tabBarLabel: '상점',
             tabBarIcon: ({ color }) => (
               <Icon name="storefront" size={TAB_ICON_SIZE} color={color} />
