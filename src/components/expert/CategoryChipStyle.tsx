@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import { EXPERT_CATEGORIES, getExpertCategoryLabel } from '../../types/expert';
+import { CONSULTATION_CATEGORY_KEYS, EXPERT_CATEGORIES, getExpertCategoryLabel } from '../../types/expert';
 import { Colors } from '../../constants/colors';
 import { isIPad } from '../../utils/platform';
 
@@ -21,9 +21,7 @@ const CategoryChipStyle: React.FC<CategoryChipStyleProps> = ({
   selectedCategory,
   onCategoryPress,
 }) => {
-  const categories = Object.values(EXPERT_CATEGORIES).filter(category => 
-    !['traditional_saju', 'today_fortune', 'newyear_fortune'].includes(category.key)
-  );
+  const categories = CONSULTATION_CATEGORY_KEYS.map(categoryKey => EXPERT_CATEGORIES[categoryKey]);
 
   return (
     <View style={styles.container}>

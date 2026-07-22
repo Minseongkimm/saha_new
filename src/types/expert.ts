@@ -18,20 +18,24 @@ export interface Expert {
   badge_type?: BadgeType;
 }
 
+export const CONSULTATION_CATEGORY_KEYS = ['comprehensive', 'love', 'career'] as const;
+
+export type ConsultationCategoryKey = typeof CONSULTATION_CATEGORY_KEYS[number];
+
 export const EXPERT_CATEGORIES = {
   comprehensive: {
     key: 'comprehensive',
-    label: '종합',
-    labelMindfulness: '종합',
-    description: '전체적인 운세를 종합적으로 분석해드립니다',
-    descriptionMindfulness: '전체적인 상황을 종합적으로 상담해드립니다'
+    label: '인생',
+    labelMindfulness: '인생',
+    description: '인생의 흐름과 중요한 선택을 함께 짚어드립니다',
+    descriptionMindfulness: '인생의 방향과 지금의 고민을 함께 정리해드립니다'
   },
   love: {
     key: 'love',
-    label: '연애/궁합',
+    label: '연애',
     labelMindfulness: '관계',
-    description: '연애운과 애정운을 자세히 봐드립니다',
-    descriptionMindfulness: '관계에 대한 고민을 함께 나누고 상담해드립니다'
+    description: '연애와 관계의 흐름, 상대와의 고민을 봐드립니다',
+    descriptionMindfulness: '연애와 관계에 대한 고민을 함께 나누고 상담해드립니다'
   },
   money: {
     key: 'money',
@@ -42,10 +46,10 @@ export const EXPERT_CATEGORIES = {
   },
   career: {
     key: 'career',
-    label: '커리어',
-    labelMindfulness: '커리어',
-    description: '직장운과 사업운을 분석해드립니다',
-    descriptionMindfulness: '직장과 사업에 대한 고민을 함께 나누고 상담해드립니다'
+    label: '직업',
+    labelMindfulness: '직업',
+    description: '일, 진로, 이직과 사업의 선택을 함께 봐드립니다',
+    descriptionMindfulness: '일과 진로에 대한 고민을 함께 나누고 상담해드립니다'
   },
   health: {
     key: 'health',

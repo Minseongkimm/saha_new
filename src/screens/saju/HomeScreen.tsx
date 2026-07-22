@@ -18,12 +18,10 @@ import CategoryExpertSection from '../../components/expert/CategoryExpertSection
 import BannerModal from '../../components/bottomsheets/BannerModal';
 import { Colors } from '../../constants/colors';
 import { supabase } from '../../utils/database/supabaseClient';
-import { Expert, EXPERT_CATEGORIES } from '../../types/expert';
+import { CONSULTATION_CATEGORY_KEYS, Expert } from '../../types/expert';
 import { getExpertListCache, setExpertListCache, isExpertListFresh } from '../../utils/expert/expertListCache';
 import { ensureBirthInfoOrNavigate } from '../../utils/user/birthInfoGuard';
-import { TestTools } from '../../components/common/TestTools';
 import { isIPad } from '../../utils/platform';
-import { useAppConfig } from '../../contexts/AppConfigContext';
 
 const IS_IPAD = isIPad();
 
@@ -34,11 +32,13 @@ interface HomeScreenProps {
 const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
   const [experts, setExperts] = useState<Expert[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showCacheInfo, setShowCacheInfo] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('comprehensive');
   const [showBannerModal, setShowBannerModal] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
   const categoryRefs = useRef<{ [key: string]: View | null }>({});
+  const visibleExperts = experts.filter(
+    expert => expert.is_online && (CONSULTATION_CATEGORY_KEYS as readonly string[]).includes(expert.category)
+  );
 
   const fetchExperts = useCallback(async () => {
     try {
@@ -71,12 +71,12 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
         setExperts(cached);
         setLoading(false);
         // 백그라운드 최신화
-        void (async () => {
+        (async () => {
           const { data: { user } } = await supabase.auth.getUser();
           if (user) {
             await fetchExperts();
           }
-        })();
+        })().catch(error => console.error('Background expert refresh failed:', error));
         return;
       }
     }
@@ -97,7 +97,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
       // 인증 이벤트로 1회만 트리거
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_evt, session) => {
         if (session?.user) {
-          void fetchExperts();
+          fetchExperts().catch(error => console.error('Auth expert refresh failed:', error));
           subscription.unsubscribe();
         }
       });
@@ -154,7 +154,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
     const categoryRef = categoryRefs.current[category];
     if (categoryRef && scrollViewRef.current) {
       // measureInWindow를 사용하여 더 안정적인 위치 측정
-      categoryRef.measureInWindow((x, y, width, height) => {
+      categoryRef.measureInWindow((_x, y, _width, _height) => {
         if (scrollViewRef.current && y > 0) {
           // 현재 스크롤 위치를 고려하여 스크롤
           scrollViewRef.current.scrollTo({ 
@@ -259,7 +259,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
           <View style={styles.expertSection}>
             <SectionHeader 
               title="AI 도사" 
-              description="언제든 대화할 수 있는 나만의 사주 선생님"
+              description="인생, 연애, 직업 고민을 깊게 나누는 나만의 사주 선생님"
             />
             
             {/* 카테고리 선택기 */}
@@ -270,9 +270,8 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
               />
             </View>
 
-            {/* 카테고리별 도사 섹션들 (기존 사주 메뉴 카테고리 제외) */}
-            {Object.keys(EXPERT_CATEGORIES)
-              .filter(category => !['traditional_saju', 'today_fortune', 'newyear_fortune'].includes(category))
+            {/* 핵심 상담 영역: 인생, 연애, 직업 */}
+            {CONSULTATION_CATEGORY_KEYS
               .map((category) => (
                 <View
                   key={category}
@@ -282,7 +281,7 @@ const HomeScreen: React.FC<HomeScreenProps> = ({ navigation }) => {
                 >
                   <CategoryExpertSection
                     category={category}
-                    experts={experts.filter(expert => expert.is_online)}
+                    experts={visibleExperts}
                     loading={loading}
                     onExpertPress={handleExpertPress}
                   />
