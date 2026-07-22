@@ -10,8 +10,13 @@ import {
   SafeAreaView,
   TouchableOpacity,
   KeyboardAvoidingView,
+  Animated,
+  Dimensions,
+  Modal,
+  FlatList,
   Platform,
   Image,
+  ImageSourcePropType,
   StatusBar,
   Keyboard,
   AppState,
@@ -33,9 +38,16 @@ import { handleChargeFlow } from '../../../utils/payments/chargeFlow';
 import { safeGoBack } from '../../../utils/navigation/safeGoBack';
 import { isIPad } from '../../../utils/platform';
 import ConfirmModal from '../../../components/common/ConfirmModal';
-import { endChatRoom } from '../../../utils/chat/chatUtils';
+import { createChatRoomWithExpert, endChatRoom } from '../../../utils/chat/chatUtils';
 import { ChatMessage } from '../../../types/chat';
 import { supabase } from '../../../utils/database/supabaseClient';
+import { Expert, getExpertCategoryLabel } from '../../../types/expert';
+import { getExpertImage } from '../../../utils/expert/getExpertImage';
+import { removeBoldMarkup } from '../../../utils/text/removeBoldMarkup';
+import { ChatRouteCategory, routeChatCategory } from '../../../utils/chat/routeChatCategory';
+import { fetchUserBalance } from '../../../utils/payments/balance';
+import { checkFreeMessageAvailable } from '../../../utils/payments/freeMessage';
+import { getCurrentUserSafely } from '../../../utils/user/authUtils';
 import { openStoreForReview, REVIEW_REWARD_SAHA } from '../../../constants/review_reward';
 import {
   hasUserReceivedReviewReward,
@@ -43,14 +55,82 @@ import {
 } from '../../../utils/reviewReward/reviewReward';
 
 const IS_IPAD = isIPad();
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SIDEBAR_WIDTH = IS_IPAD ? 430 : Math.min(SCREEN_WIDTH * 0.84, 460);
 
 interface ChatRoomScreenProps {
   navigation: any;
   route: any;
 }
 
+interface SidebarChatItem {
+  id: string;
+  name: string;
+  lastMessage: string;
+  timestamp: string;
+  profileImage: ImageSourcePropType;
+  expert: Expert;
+  sortTime?: string | null;
+}
+
+interface ActiveDirectChat {
+  roomId: string;
+  expert: Expert;
+  initialMessage?: string;
+}
+
+interface DirectDraftMessage {
+  id: string;
+  text: string;
+  role: 'user' | 'status' | 'assignment';
+  expertName?: string;
+}
+
+interface DirectInlineActiveChatProps {
+  activeChat: ActiveDirectChat;
+  draftMessages: DirectDraftMessage[];
+  isKeyboardVisible: boolean;
+  keyboardHeight: number;
+  onBalanceInfoChange: (
+    balance: number,
+    freeMessageInfo: { usedCount: number; dailyLimit: number; available?: boolean }
+  ) => void;
+}
+
+const ROUTING_STATUS_MESSAGES = [
+  '고민의 결을 살펴보는 중',
+  '사주책을 펼쳐보는 중',
+  '어울리는 도사님을 찾는 중',
+];
+const MIN_ROUTING_MS = 2100;
+const CHAT_START_DELAY_MS = 850;
+
+const ASSIGNMENT_DESCRIPTIONS: Record<ChatRouteCategory, string> = {
+  comprehensive: '인생의 큰 흐름과 지금의 선택을 함께 짚어드릴게요.',
+  love: '마음의 거리와 관계의 흐름을 섬세하게 살펴드릴게요.',
+  career: '일과 진로의 흐름을 차분히 짚어드릴게요.',
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const buildAssignmentMessage = (expert: Expert, category: ChatRouteCategory) => {
+  const categoryLabel = getExpertCategoryLabel(expert.category);
+  return `${expert.name}님이 상담을 도와주실 거예요.\n${categoryLabel}의 눈으로 먼저 읽어보고, 대화가 깊어지면 다른 고민도 자연스럽게 이어서 봐드릴게요.\n${ASSIGNMENT_DESCRIPTIONS[category]}`;
+};
+
 const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
-  const { roomId, expert, partnerData } = route.params;
+  if (route.params?.directEntry === true) {
+    return <DirectEntryChatRoomScreen navigation={navigation} />;
+  }
+
+  return <ActiveChatRoomScreen navigation={navigation} route={route} />;
+};
+
+const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
+  const { roomId, expert, partnerData, initialMessage } = route.params;
+  const isDirectMode: boolean = route.params?.directMode === true;
+  const onDirectNewChat: (() => void) | undefined = route.params?.onDirectNewChat;
+  const onDirectSelectChat: ((roomId: string, expert: Expert) => void) | undefined = route.params?.onDirectSelectChat;
   const [showInsufficientBalanceSheet, setShowInsufficientBalanceSheet] = useState(false);
   const [showChargeSheet, setShowChargeSheet] = useState(false);
   const [insufficientBalanceInfo, setInsufficientBalanceInfo] = useState<{
@@ -74,6 +154,11 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   const [showReviewConfirmModal, setShowReviewConfirmModal] = useState<boolean>(false);
   const [pendingReviewConfirm, setPendingReviewConfirm] = useState<boolean>(false);
   const [isGrantingReview, setIsGrantingReview] = useState<boolean>(false);
+  const [isSidebarVisible, setIsSidebarVisible] = useState<boolean>(false);
+  const [sidebarChats, setSidebarChats] = useState<SidebarChatItem[]>([]);
+  const [isSidebarLoading, setIsSidebarLoading] = useState<boolean>(false);
+  const sidebarTranslateX = useRef(new Animated.Value(SIDEBAR_WIDTH)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
 
   // 커스텀 훅들
   const {
@@ -94,13 +179,14 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   const pendingNavActionRef = useRef<any>(null);
   const isEndingRef = useRef<boolean>(false);
   const hasEndedRef = useRef<boolean>(false);
+  const allowRoomSwitchRef = useRef<boolean>(false);
+  const initialMessageSentRef = useRef<boolean>(false);
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
 
   const {
     isAiResponding,
-    hasNewMessageThisSession,
     sendMessage,
     sendMessageWithText
   } = useMessageActions({
@@ -122,6 +208,16 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     },
     partnerData
   });
+
+  useEffect(() => {
+    if (!initialMessage || initialMessageSentRef.current || loading || isAiResponding) return;
+    initialMessageSentRef.current = true;
+    const timer = setTimeout(() => {
+      sendMessageWithText(initialMessage);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [initialMessage, isAiResponding, loading, sendMessageWithText]);
 
   const loadUserAndReviewRewardStatus = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -221,10 +317,147 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   }, []);
 
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0;
-  const headerContentHeight = Platform.OS === 'android' ? 70 : (IS_IPAD ? 70 : 56);
-  const headerTopPadding = statusBarHeight + (IS_IPAD ? 10 : 0);
+  const headerContentHeight = isDirectMode
+    ? (Platform.OS === 'android' ? 46 : (IS_IPAD ? 54 : 44))
+    : (Platform.OS === 'android' ? 54 : (IS_IPAD ? 60 : 48));
+  const headerTopPadding = isDirectMode
+    ? 0
+    : Platform.OS === 'android'
+      ? Math.max(statusBarHeight - 8, 0)
+      : (IS_IPAD ? 4 : 0);
   const leftWidth = IS_IPAD ? 80 : 60;
-  const rightWidth = IS_IPAD ? 160 : 120;
+  const rightWidth = IS_IPAD ? 220 : 168;
+
+  const fetchSidebarChats = useCallback(async () => {
+    try {
+      setIsSidebarLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id) {
+        setSidebarChats([]);
+        return;
+      }
+
+      const { data: rooms, error: roomError } = await supabase
+        .from('chat_rooms')
+        .select(`
+          id,
+          expert_id,
+          chat_context,
+          partner_saju_id,
+          last_message,
+          last_message_at,
+          created_at,
+          messages:chat_messages(message, created_at)
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .order('created_at', { foreignTable: 'chat_messages', ascending: false })
+        .limit(1, { foreignTable: 'chat_messages' });
+
+      if (roomError) throw roomError;
+      const roomList = rooms || [];
+      if (roomList.length === 0) {
+        setSidebarChats([]);
+        return;
+      }
+
+      const expertIds = Array.from(new Set(roomList.map((room: any) => room.expert_id)));
+      const { data: experts, error: expertError } = await supabase
+        .from('experts')
+        .select('id, name, category, title, image_name, is_online, created_at')
+        .in('id', expertIds);
+
+      if (expertError) throw expertError;
+      const expertMap: Record<string, Expert> = {};
+      (experts || []).forEach((item: any) => {
+        expertMap[item.id] = item as Expert;
+      });
+
+      const items: SidebarChatItem[] = roomList
+        .map((room: any) => {
+          const itemExpert = expertMap[room.expert_id];
+          if (!itemExpert) return null;
+          const fallbackMsg = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.message ?? '' : '';
+          const fallbackTs = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.created_at ?? null : null;
+          const tsIso: string | null = room.last_message_at || fallbackTs || room.created_at || null;
+          const tsStr = tsIso ? new Date(tsIso).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
+          const displayName = room.chat_context === 'love_compatibility'
+            ? `${itemExpert.name} · 궁합`
+            : itemExpert.name;
+
+          return {
+            id: room.id,
+            name: displayName,
+            lastMessage: room.last_message || fallbackMsg || '아직 대화가 없습니다',
+            timestamp: tsStr,
+            profileImage: itemExpert.image_name ? getExpertImage(itemExpert.image_name) : require('../../../../assets/people/hoosi_guy.jpg'),
+            expert: itemExpert,
+            sortTime: tsIso || room.created_at,
+          };
+        })
+        .filter(Boolean) as SidebarChatItem[];
+
+      items.sort((a, b) => {
+        const timeA = new Date(a.sortTime || 0).getTime();
+        const timeB = new Date(b.sortTime || 0).getTime();
+        return timeB - timeA;
+      });
+      setSidebarChats(items);
+    } catch (error) {
+      console.error('fetchSidebarChats error:', error);
+      Alert.alert('오류', '대화 목록을 불러오지 못했습니다.');
+    } finally {
+      setIsSidebarLoading(false);
+    }
+  }, []);
+
+  const openSidebar = useCallback(() => {
+    setIsSidebarVisible(true);
+    fetchSidebarChats();
+    requestAnimationFrame(() => {
+      Animated.parallel([
+        Animated.timing(sidebarTranslateX, {
+          toValue: 0,
+          duration: 260,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  }, [backdropOpacity, fetchSidebarChats, sidebarTranslateX]);
+
+  const closeSidebar = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(sidebarTranslateX, {
+        toValue: SIDEBAR_WIDTH,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setIsSidebarVisible(false));
+  }, [backdropOpacity, sidebarTranslateX]);
+
+  const switchChatRoom = useCallback((item: SidebarChatItem) => {
+    closeSidebar();
+    if (item.id === roomId) return;
+    if (isDirectMode && onDirectSelectChat) {
+      onDirectSelectChat(item.id, item.expert);
+      return;
+    }
+    allowRoomSwitchRef.current = true;
+    navigation.replace('ChatRoom', {
+      roomId: item.id,
+      expert: item.expert,
+    });
+  }, [closeSidebar, isDirectMode, navigation, onDirectSelectChat, roomId]);
 
   const getLastMessageInfo = (): { text: string | null; createdAt: string | null } => {
     const latestMessages = messagesRef.current;
@@ -329,7 +562,12 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   };
 
   useEffect(() => {
+    if (isDirectMode) return;
     const unsubscribe = navigation.addListener('beforeRemove', (event: any) => {
+      if (allowRoomSwitchRef.current) {
+        allowRoomSwitchRef.current = false;
+        return;
+      }
       if (hasEndedRef.current || isEndingRef.current) {
         return;
       }
@@ -338,7 +576,7 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
       setShowEndModal(true);
     });
     return unsubscribe;
-  }, [navigation]);
+  }, [isDirectMode, navigation]);
 
   useEffect(() => {
     const onAppStateChange = async (nextState: AppStateStatus) => {
@@ -356,21 +594,35 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
     <SafeAreaView style={styles.container}>
       <View style={[styles.header, { paddingTop: headerTopPadding, minHeight: headerTopPadding + headerContentHeight }]}>
         <View style={[styles.leftHeader, { width: leftWidth }]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => safeGoBack(navigation)}>
-            <Icon name="arrow-back" size={IS_IPAD ? 28 : 19} color="#000000" />
+          <TouchableOpacity
+            style={styles.headerIconButton}
+            onPress={isDirectMode && onDirectNewChat ? onDirectNewChat : () => safeGoBack(navigation)}
+          >
+            <Icon
+              name={isDirectMode ? 'create-outline' : 'arrow-back'}
+              size={IS_IPAD ? 28 : 19}
+              color="#000000"
+            />
           </TouchableOpacity>
         </View>
         <View pointerEvents="none" style={[styles.headerTitleContainer, { top: headerTopPadding, height: headerContentHeight }]}>
-          <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">{expert.title}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
+            {isDirectMode ? '대화' : expert.title}
+          </Text>
         </View>
         <View style={[styles.rightHeader, { width: rightWidth }]}>
-          <View style={styles.balanceContainer}>
-            <Image
-              source={require('../../../../assets/money/saha_money.png')}
-              style={styles.balanceIcon}
-              resizeMode="contain"
-            />
-            <Text style={styles.balanceText}>{currentBalance.toLocaleString()}</Text>
+          <View style={styles.rightHeaderTop}>
+            <View style={styles.balanceContainer}>
+              <Image
+                source={require('../../../../assets/money/saha_money.png')}
+                style={styles.balanceIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.balanceText}>{currentBalance.toLocaleString()}</Text>
+            </View>
+            <TouchableOpacity style={styles.headerIconButton} onPress={openSidebar}>
+              <Icon name="menu" size={IS_IPAD ? 30 : 22} color="#000000" />
+            </TouchableOpacity>
           </View>
           {freeMessageInfo.dailyLimit > 0 && (
             <Text style={styles.freeMessageText}>
@@ -438,6 +690,82 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
         visible={isPaymentLoading}
         message="결제중입니다"
       />
+      <Modal
+        visible={isSidebarVisible}
+        transparent
+        animationType="none"
+        onRequestClose={closeSidebar}
+      >
+        <View style={styles.sidebarModal}>
+          <Animated.View style={[styles.sidebarBackdrop, { opacity: backdropOpacity }]}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={closeSidebar}
+            />
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.sidebarShell,
+              { transform: [{ translateX: sidebarTranslateX }] },
+            ]}
+          >
+          <SafeAreaView style={styles.sidebar}>
+            <View style={styles.sidebarHandle} />
+            <View style={styles.sidebarHeader}>
+              <Text style={styles.sidebarTitle}>대화</Text>
+              <TouchableOpacity style={styles.sidebarCloseButton} onPress={closeSidebar}>
+                <Icon name="close" size={IS_IPAD ? 28 : 22} color="#222222" />
+              </TouchableOpacity>
+            </View>
+            {isSidebarLoading ? (
+              <View style={styles.sidebarLoading}>
+                <Text style={styles.sidebarLoadingText}>대화 목록을 불러오는 중</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={sidebarChats}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={sidebarChats.length === 0 ? styles.sidebarEmptyList : styles.sidebarList}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <View style={styles.sidebarEmpty}>
+                    <Text style={styles.sidebarEmptyTitle}>아직 대화가 없습니다</Text>
+                    <Text style={styles.sidebarEmptyText}>하단 대화 탭에서 새 상담을 시작해보세요.</Text>
+                  </View>
+                }
+                renderItem={({ item }) => {
+                  const isActive = item.id === roomId;
+                  const categoryLabel = getExpertCategoryLabel(item.expert.category);
+                  return (
+                    <TouchableOpacity
+                      style={[styles.sidebarChatItem, isActive ? styles.sidebarChatItemActive : undefined]}
+                      onPress={() => switchChatRoom(item)}
+                    >
+                      <Image source={item.profileImage} style={styles.sidebarProfileImage} />
+                      <View style={styles.sidebarChatInfo}>
+                        <View style={styles.sidebarChatTop}>
+                          <Text style={styles.sidebarChatName} numberOfLines={1}>
+                            {item.name}
+                          </Text>
+                          <Text style={styles.sidebarChatTime}>{item.timestamp}</Text>
+                        </View>
+                        <Text style={styles.sidebarChatCategory} numberOfLines={1}>
+                          {categoryLabel}
+                        </Text>
+                        <Text style={styles.sidebarLastMessage} numberOfLines={1}>
+                          {removeBoldMarkup(item.lastMessage)}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            )}
+          </SafeAreaView>
+          </Animated.View>
+        </View>
+      </Modal>
       <ConfirmModal
         visible={showEndModal}
         onClose={handleCancelEnd}
@@ -469,6 +797,615 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   );
 };
 
+const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
+  activeChat,
+  draftMessages,
+  isKeyboardVisible,
+  keyboardHeight,
+  onBalanceInfoChange,
+}) => {
+  const initialMessageSentRef = useRef<boolean>(false);
+  const {
+    messages,
+    setMessages,
+    loading,
+    userBirthInfo,
+    shouldAutoScroll,
+    setShouldAutoScroll,
+    flatListRef,
+    scrollToBottom,
+    currentBalance,
+    freeMessageInfo,
+    refreshBalance
+  } = useChatRoom({ roomId: activeChat.roomId, expert: activeChat.expert });
+
+  const {
+    isAiResponding,
+    sendMessage,
+    sendMessageWithText
+  } = useMessageActions({
+    roomId: activeChat.roomId,
+    expert: activeChat.expert,
+    userBirthInfo,
+    messages,
+    setMessages,
+    setShouldAutoScroll,
+    scrollToBottom,
+    onBalanceUpdate: refreshBalance,
+    onBalanceInsufficient: () => {
+      Alert.alert('안내', '무료 상담을 모두 사용했거나 사바가 부족합니다.');
+    },
+  });
+
+  useEffect(() => {
+    onBalanceInfoChange(currentBalance, freeMessageInfo);
+  }, [currentBalance, freeMessageInfo, onBalanceInfoChange]);
+
+  useEffect(() => {
+    if (!activeChat.initialMessage || initialMessageSentRef.current || loading || isAiResponding) return;
+    initialMessageSentRef.current = true;
+    const timer = setTimeout(() => {
+      sendMessageWithText(activeChat.initialMessage!);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [activeChat.initialMessage, isAiResponding, loading, sendMessageWithText]);
+
+  useEffect(() => {
+    if (messages.length === 0) return;
+    scrollToBottom(true);
+  }, [messages.length, scrollToBottom]);
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.follow_up_questions && lastMessage.follow_up_questions.length > 0) {
+        setTimeout(() => {
+          scrollToBottom(true);
+        }, 300);
+      }
+    }
+  }, [messages, scrollToBottom]);
+
+  const draftChatMessages: ChatMessage[] = draftMessages
+    .filter((item) => item.role === 'user' || item.role === 'assignment')
+    .map((item) => ({
+      id: item.id,
+      chat_room_id: activeChat.roomId,
+      sender_type: item.role === 'user' ? 'user' : 'expert',
+      message: item.text,
+      created_at: new Date().toISOString(),
+    }));
+
+  const visibleMessages = activeChat.initialMessage
+    ? messages.filter((item, index) => !(
+        index === 0 &&
+        item.sender_type === 'user' &&
+        item.message.trim() === activeChat.initialMessage?.trim()
+      ))
+    : messages;
+  const mergedMessages = [...draftChatMessages, ...visibleMessages];
+
+  return (
+    <>
+      <View style={styles.directEntryMessageArea}>
+        <MessageList
+          messages={mergedMessages}
+          isAiResponding={isAiResponding}
+          expert={activeChat.expert}
+          flatListRef={flatListRef}
+          shouldAutoScroll={shouldAutoScroll}
+          setShouldAutoScroll={setShouldAutoScroll}
+          scrollToBottom={scrollToBottom}
+          loading={loading}
+        />
+      </View>
+      <View
+        style={[
+          styles.inputContainer,
+          styles.inputContainerCompact,
+          Platform.OS === 'android' && isKeyboardVisible
+            ? { marginBottom: Math.max(0, keyboardHeight + (IS_IPAD ? 18 : 14)) }
+            : undefined,
+        ]}
+      >
+        <InitialQuestions
+          expert={activeChat.expert}
+          messages={messages}
+          onSendMessage={sendMessageWithText}
+        />
+        <FollowUpQuestions
+          messages={messages}
+          onSendMessage={sendMessageWithText}
+        />
+        <MessageInput
+          isAiResponding={isAiResponding}
+          onSendMessage={sendMessage}
+        />
+      </View>
+    </>
+  );
+};
+
+const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const [draftMessages, setDraftMessages] = useState<DirectDraftMessage[]>([]);
+  const [isMatching, setIsMatching] = useState<boolean>(false);
+  const [currentBalance, setCurrentBalance] = useState<number>(0);
+  const [freeMessageInfo, setFreeMessageInfo] = useState<{ usedCount: number; dailyLimit: number }>({
+    usedCount: 0,
+    dailyLimit: 1,
+  });
+  const [activeChat, setActiveChat] = useState<ActiveDirectChat | null>(null);
+  const [sidebarChats, setSidebarChats] = useState<SidebarChatItem[]>([]);
+  const [isSidebarVisible, setIsSidebarVisible] = useState<boolean>(false);
+  const [isSidebarLoading, setIsSidebarLoading] = useState<boolean>(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState<boolean>(false);
+  const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
+  const sidebarTranslateX = useRef(new Animated.Value(SIDEBAR_WIDTH)).current;
+  const backdropOpacity = useRef(new Animated.Value(0)).current;
+
+  const loadBalanceInfo = useCallback(async () => {
+    const { status, user } = await getCurrentUserSafely();
+    if (status !== 'authenticated' || !user) return;
+
+    const [balance, freeInfo] = await Promise.all([
+      fetchUserBalance(user.id),
+      checkFreeMessageAvailable(user.id),
+    ]);
+
+    setCurrentBalance(balance ?? 0);
+    setFreeMessageInfo({
+      usedCount: freeInfo.usedCount,
+      dailyLimit: freeInfo.dailyLimit,
+    });
+  }, []);
+
+  useEffect(() => {
+    loadBalanceInfo();
+  }, [loadBalanceInfo]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+
+    const keyboardDidShowListener = Keyboard.addListener('keyboardDidShow', (event) => {
+      setIsKeyboardVisible(true);
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const keyboardDidHideListener = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+
+  const fetchExpertForCategory = useCallback(async (category: ChatRouteCategory): Promise<Expert | null> => {
+    const { data, error } = await supabase
+      .from('experts')
+      .select('id, name, category, title, image_name, is_online, created_at')
+      .eq('category', category)
+      .eq('is_online', true)
+      .limit(1)
+      .maybeSingle();
+
+    if (error || !data) {
+      console.error('Direct chat expert lookup error:', error, 'Category:', category);
+      return null;
+    }
+
+    return data as Expert;
+  }, []);
+
+  const fetchSidebarChats = useCallback(async () => {
+    try {
+      setIsSidebarLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id) {
+        setSidebarChats([]);
+        return;
+      }
+
+      const { data: rooms, error: roomError } = await supabase
+        .from('chat_rooms')
+        .select(`
+          id,
+          expert_id,
+          chat_context,
+          partner_saju_id,
+          last_message,
+          last_message_at,
+          created_at,
+          messages:chat_messages(message, created_at)
+        `)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .order('created_at', { foreignTable: 'chat_messages', ascending: false })
+        .limit(1, { foreignTable: 'chat_messages' });
+
+      if (roomError) throw roomError;
+      const roomList = rooms || [];
+      if (roomList.length === 0) {
+        setSidebarChats([]);
+        return;
+      }
+
+      const expertIds = Array.from(new Set(roomList.map((room: any) => room.expert_id)));
+      const { data: experts, error: expertError } = await supabase
+        .from('experts')
+        .select('id, name, category, title, image_name, is_online, created_at')
+        .in('id', expertIds);
+
+      if (expertError) throw expertError;
+      const expertMap: Record<string, Expert> = {};
+      (experts || []).forEach((item: any) => {
+        expertMap[item.id] = item as Expert;
+      });
+
+      const items: SidebarChatItem[] = roomList
+        .map((room: any) => {
+          const itemExpert = expertMap[room.expert_id];
+          if (!itemExpert) return null;
+          const fallbackMsg = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.message ?? '' : '';
+          const fallbackTs = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.created_at ?? null : null;
+          const tsIso: string | null = room.last_message_at || fallbackTs || room.created_at || null;
+          const tsStr = tsIso ? new Date(tsIso).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
+
+          return {
+            id: room.id,
+            name: room.chat_context === 'love_compatibility' ? `${itemExpert.name} · 궁합` : itemExpert.name,
+            lastMessage: room.last_message || fallbackMsg || '아직 대화가 없습니다',
+            timestamp: tsStr,
+            profileImage: itemExpert.image_name ? getExpertImage(itemExpert.image_name) : require('../../../../assets/people/hoosi_guy.jpg'),
+            expert: itemExpert,
+            sortTime: tsIso || room.created_at,
+          };
+        })
+        .filter(Boolean) as SidebarChatItem[];
+
+      items.sort((a, b) => {
+        const timeA = new Date(a.sortTime || 0).getTime();
+        const timeB = new Date(b.sortTime || 0).getTime();
+        return timeB - timeA;
+      });
+      setSidebarChats(items);
+    } catch (error) {
+      console.error('fetchSidebarChats error:', error);
+      Alert.alert('오류', '대화 목록을 불러오지 못했습니다.');
+    } finally {
+      setIsSidebarLoading(false);
+    }
+  }, []);
+
+  const openSidebar = useCallback(() => {
+    setIsSidebarVisible(true);
+    fetchSidebarChats();
+    requestAnimationFrame(() => {
+      Animated.parallel([
+        Animated.timing(sidebarTranslateX, {
+          toValue: 0,
+          duration: 260,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropOpacity, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  }, [backdropOpacity, fetchSidebarChats, sidebarTranslateX]);
+
+  const closeSidebar = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(sidebarTranslateX, {
+        toValue: SIDEBAR_WIDTH,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropOpacity, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setIsSidebarVisible(false));
+  }, [backdropOpacity, sidebarTranslateX]);
+
+  const handleNewChat = useCallback(() => {
+    setActiveChat(null);
+    setDraftMessages([]);
+    setIsMatching(false);
+  }, []);
+
+  const handleSelectChat = useCallback((roomId: string, expert: Expert) => {
+    closeSidebar();
+    setActiveChat({ roomId, expert });
+  }, [closeSidebar]);
+
+  const handleBalanceInfoChange = useCallback((
+    balance: number,
+    nextFreeMessageInfo: { usedCount: number; dailyLimit: number; available?: boolean }
+  ) => {
+    setCurrentBalance(balance);
+    setFreeMessageInfo({
+      usedCount: nextFreeMessageInfo.usedCount,
+      dailyLimit: nextFreeMessageInfo.dailyLimit,
+    });
+  }, []);
+
+  const handleFirstMessage = useCallback(async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || isMatching) return;
+
+    const statusMessageId = `status-${Date.now()}`;
+    const startedAt = Date.now();
+    setIsMatching(true);
+    setDraftMessages((prev) => [
+      ...prev,
+      { id: `user-${Date.now()}`, text: trimmed, role: 'user' },
+      { id: statusMessageId, text: ROUTING_STATUS_MESSAGES[0], role: 'status' },
+    ]);
+
+    const statusTimers = ROUTING_STATUS_MESSAGES.slice(1).map((statusText, index) => (
+      setTimeout(() => {
+        setDraftMessages((prev) =>
+          prev.map((item) =>
+            item.id === statusMessageId && item.role === 'status'
+              ? { ...item, text: statusText }
+              : item
+          )
+        );
+      }, (index + 1) * 700)
+    ));
+
+    try {
+      const route = await routeChatCategory(trimmed);
+      const elapsedMs = Date.now() - startedAt;
+      if (elapsedMs < MIN_ROUTING_MS) {
+        await sleep(MIN_ROUTING_MS - elapsedMs);
+      }
+      statusTimers.forEach(clearTimeout);
+
+      const assignedExpert = await fetchExpertForCategory(route.category);
+      if (!assignedExpert) {
+        Alert.alert('안내', '지금 연결 가능한 도사님을 찾지 못했습니다.');
+        setDraftMessages((prev) => prev.filter((item) => item.id !== statusMessageId));
+        setIsMatching(false);
+        return;
+      }
+
+      setDraftMessages((prev) =>
+        prev.map((item) =>
+          item.id === statusMessageId
+            ? {
+                ...item,
+                text: buildAssignmentMessage(assignedExpert, route.category),
+                role: 'assignment',
+                expertName: assignedExpert.name,
+              }
+            : item
+        )
+      );
+
+      setTimeout(() => {
+        createChatRoomWithExpert(navigation, assignedExpert.id).then((chatRoom) => {
+          if (!chatRoom) {
+            setIsMatching(false);
+            return;
+          }
+          setActiveChat({
+            roomId: chatRoom.roomId,
+            expert: chatRoom.expert as Expert,
+            initialMessage: trimmed,
+          });
+          setIsMatching(false);
+        });
+      }, CHAT_START_DELAY_MS);
+    } catch (error) {
+      statusTimers.forEach(clearTimeout);
+      console.error('Direct chat matching error:', error);
+      Alert.alert('오류', '상담을 연결하지 못했습니다.');
+      setIsMatching(false);
+    }
+  }, [fetchExpertForCategory, isMatching, navigation]);
+
+  const renderDraftMessage = ({ item }: { item: DirectDraftMessage }) => (
+    <View style={styles.directDraftMessageContainer}>
+      {item.role !== 'user' && item.expertName ? (
+        <View style={styles.directDraftExpertInfo}>
+          <Image
+            source={require('../../../../assets/people/hoosi_guy.jpg')}
+            style={styles.directDraftExpertImage}
+          />
+          <Text style={styles.directDraftExpertName}>{item.expertName}</Text>
+        </View>
+      ) : null}
+      <View style={[
+        styles.directDraftBubble,
+        item.role === 'user' ? styles.directDraftUserBubble : styles.directDraftExpertBubble
+      ]}>
+        <Text style={[
+          styles.directDraftText,
+          item.role === 'user' ? styles.directDraftUserText : styles.directDraftExpertText
+        ]}>
+          {item.text}
+        </Text>
+      </View>
+      <Text style={[
+        styles.timestampBase,
+        item.role === 'user' ? styles.timestampUser : styles.timestampExpert
+      ]}>
+        {new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+      </Text>
+    </View>
+  );
+
+  const headerContentHeight = Platform.OS === 'android' ? 46 : (IS_IPAD ? 54 : 44);
+  const headerTopPadding = 0;
+  const leftWidth = IS_IPAD ? 80 : 60;
+  const rightWidth = IS_IPAD ? 220 : 168;
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <View style={[styles.header, { paddingTop: headerTopPadding, minHeight: headerTopPadding + headerContentHeight }]}>
+        <View style={[styles.leftHeader, { width: leftWidth }]}>
+          <TouchableOpacity style={styles.headerIconButton} onPress={handleNewChat}>
+            <Icon name="create-outline" size={IS_IPAD ? 28 : 19} color="#000000" />
+          </TouchableOpacity>
+        </View>
+        <View pointerEvents="none" style={[styles.headerTitleContainer, { top: headerTopPadding, height: headerContentHeight }]}>
+          <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">대화</Text>
+        </View>
+        <View style={[styles.rightHeader, { width: rightWidth }]}>
+          <View style={styles.rightHeaderTop}>
+            <View style={styles.balanceContainer}>
+              <Image
+                source={require('../../../../assets/money/saha_money.png')}
+                style={styles.balanceIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.balanceText}>{currentBalance.toLocaleString()}</Text>
+            </View>
+            <TouchableOpacity style={styles.headerIconButton} onPress={openSidebar}>
+              <Icon name="menu" size={IS_IPAD ? 30 : 22} color="#000000" />
+            </TouchableOpacity>
+          </View>
+          {freeMessageInfo.dailyLimit > 0 && (
+            <Text style={styles.freeMessageText}>
+              매일 무료 {freeMessageInfo.dailyLimit - freeMessageInfo.usedCount}/{freeMessageInfo.dailyLimit}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={0}
+        enabled={Platform.OS === 'ios'}
+      >
+        {activeChat ? (
+          <DirectInlineActiveChat
+            key={activeChat.roomId}
+            activeChat={activeChat}
+            draftMessages={draftMessages}
+            isKeyboardVisible={isKeyboardVisible}
+            keyboardHeight={keyboardHeight}
+            onBalanceInfoChange={handleBalanceInfoChange}
+          />
+        ) : (
+          <>
+          <View style={styles.directEntryMessageArea}>
+            {draftMessages.length === 0 ? (
+            <View style={styles.directEntryEmpty}>
+              <Text style={styles.directEntryTitle}>고민을 들려주세요</Text>
+              <Text style={styles.directEntrySubtitle}>어울리는 도사님이 흐름을 짚어드릴게요.</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={draftMessages}
+              renderItem={renderDraftMessage}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.directDraftList}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            />
+          )}
+          </View>
+          <View
+            style={[
+              styles.inputContainer,
+              styles.inputContainerCompact,
+              Platform.OS === 'android' && isKeyboardVisible
+                ? { marginBottom: Math.max(0, keyboardHeight + (IS_IPAD ? 18 : 14)) }
+                : undefined,
+            ]}
+          >
+            <MessageInput
+              isAiResponding={isMatching}
+              onSendMessage={handleFirstMessage}
+            />
+          </View>
+          </>
+        )}
+      </KeyboardAvoidingView>
+
+      <Modal
+        visible={isSidebarVisible}
+        transparent
+        animationType="none"
+        onRequestClose={closeSidebar}
+      >
+        <View style={styles.sidebarModal}>
+          <Animated.View style={[styles.sidebarBackdrop, { opacity: backdropOpacity }]}>
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={closeSidebar}
+            />
+          </Animated.View>
+          <Animated.View
+            style={[
+              styles.sidebarShell,
+              { transform: [{ translateX: sidebarTranslateX }] },
+            ]}
+          >
+          <SafeAreaView style={styles.sidebar}>
+            <View style={styles.sidebarHandle} />
+            <View style={styles.sidebarHeader}>
+              <Text style={styles.sidebarTitle}>대화</Text>
+              <TouchableOpacity style={styles.sidebarCloseButton} onPress={closeSidebar}>
+                <Icon name="close" size={IS_IPAD ? 28 : 22} color="#222222" />
+              </TouchableOpacity>
+            </View>
+            {isSidebarLoading ? (
+              <View style={styles.sidebarLoading}>
+                <Text style={styles.sidebarLoadingText}>대화 목록을 불러오는 중</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={sidebarChats}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={sidebarChats.length === 0 ? styles.sidebarEmptyList : styles.sidebarList}
+                showsVerticalScrollIndicator={false}
+                ListEmptyComponent={
+                  <View style={styles.sidebarEmpty}>
+                    <Text style={styles.sidebarEmptyTitle}>아직 대화가 없습니다</Text>
+                    <Text style={styles.sidebarEmptyText}>첫 질문을 남기고 상담을 시작해보세요.</Text>
+                  </View>
+                }
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.sidebarChatItem}
+                    onPress={() => handleSelectChat(item.id, item.expert)}
+                  >
+                    <Image source={item.profileImage} style={styles.sidebarProfileImage} />
+                    <View style={styles.sidebarChatInfo}>
+                      <View style={styles.sidebarChatTop}>
+                        <Text style={styles.sidebarChatName} numberOfLines={1}>{item.name}</Text>
+                        <Text style={styles.sidebarChatTime}>{item.timestamp}</Text>
+                      </View>
+                      <Text style={styles.sidebarChatCategory} numberOfLines={1}>
+                        {getExpertCategoryLabel(item.expert.category)}
+                      </Text>
+                      <Text style={styles.sidebarLastMessage} numberOfLines={1}>
+                        {removeBoldMarkup(item.lastMessage)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </SafeAreaView>
+          </Animated.View>
+        </View>
+      </Modal>
+    </SafeAreaView>
+  );
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -488,7 +1425,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     zIndex: 2,
   },
-  backButton: {
+  headerIconButton: {
     padding: IS_IPAD ? 12 : 8,
   },
   headerTitleContainer: {
@@ -519,6 +1456,11 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     zIndex: 1,
   },
+  rightHeaderTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
   balanceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -546,6 +1488,232 @@ const styles = StyleSheet.create({
   inputContainer: {
     backgroundColor: 'white',
     ...(Platform.OS === 'android' && { paddingBottom: 15 }),
+  },
+  inputContainerCompact: {
+    ...(Platform.OS === 'android' && { paddingBottom: IS_IPAD ? 6 : 4 }),
+  },
+  directEntryMessageArea: {
+    flex: 1,
+  },
+  directEntryEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: IS_IPAD ? 56 : 30,
+    paddingBottom: IS_IPAD ? 120 : 86,
+  },
+  directEntryTitle: {
+    fontSize: IS_IPAD ? 30 : 23,
+    fontWeight: '800',
+    color: '#222222',
+    marginBottom: IS_IPAD ? 12 : 8,
+  },
+  directEntrySubtitle: {
+    fontSize: IS_IPAD ? 17 : 13,
+    lineHeight: IS_IPAD ? 25 : 20,
+    color: '#7A746D',
+    textAlign: 'center',
+  },
+  directDraftList: {
+    paddingTop: IS_IPAD ? 24 : 18,
+    paddingBottom: IS_IPAD ? 16 : 12,
+  },
+  directDraftMessageContainer: {
+    marginTop: IS_IPAD ? 14 : 10,
+    marginBottom: IS_IPAD ? 8 : 5,
+    paddingHorizontal: IS_IPAD ? 20 : 12,
+  },
+  directDraftExpertInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: IS_IPAD ? 12 : 8,
+  },
+  directDraftExpertImage: {
+    width: IS_IPAD ? 36 : 25,
+    height: IS_IPAD ? 36 : 25,
+    borderRadius: IS_IPAD ? 18 : 16,
+    marginRight: IS_IPAD ? 10 : 6,
+  },
+  directDraftExpertName: {
+    fontSize: IS_IPAD ? 18 : 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  directDraftBubble: {
+    maxWidth: IS_IPAD ? '75%' : '80%',
+    borderRadius: IS_IPAD ? 22 : 18,
+    paddingHorizontal: IS_IPAD ? 20 : 16,
+    paddingVertical: IS_IPAD ? 16 : 12,
+  },
+  directDraftUserBubble: {
+    alignSelf: 'flex-end',
+    backgroundColor: Colors.primaryColor,
+    borderBottomRightRadius: 4,
+  },
+  directDraftExpertBubble: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'white',
+    borderBottomLeftRadius: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: Platform.OS === 'android' ? 1 : 0.3,
+  },
+  directDraftText: {
+    fontSize: IS_IPAD ? 18 : 14,
+    lineHeight: IS_IPAD ? 26 : 19,
+  },
+  directDraftUserText: {
+    color: 'white',
+  },
+  directDraftExpertText: {
+    color: '#333',
+  },
+  timestampBase: {
+    fontSize: IS_IPAD ? 14 : 12,
+    color: '#999',
+    marginTop: IS_IPAD ? 6 : 4,
+  },
+  timestampUser: {
+    alignSelf: 'flex-end',
+    textAlign: 'right',
+  },
+  timestampExpert: {
+    alignSelf: 'flex-start',
+    textAlign: 'left',
+  },
+  sidebarModal: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  sidebarBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.24)',
+  },
+  sidebarShell: {
+    width: SIDEBAR_WIDTH,
+  },
+  sidebar: {
+    flex: 1,
+    width: SIDEBAR_WIDTH,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: IS_IPAD ? 28 : 22,
+    borderBottomLeftRadius: IS_IPAD ? 28 : 22,
+    shadowColor: '#000000',
+    shadowOffset: { width: -6, height: 0 },
+    shadowOpacity: 0.16,
+    shadowRadius: 24,
+    elevation: 14,
+    overflow: 'hidden',
+  },
+  sidebarHandle: {
+    width: IS_IPAD ? 36 : 28,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#DED7D0',
+    alignSelf: 'center',
+    marginTop: IS_IPAD ? 12 : 10,
+  },
+  sidebarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: IS_IPAD ? 24 : 18,
+    paddingTop: IS_IPAD ? 18 : 14,
+    paddingBottom: IS_IPAD ? 18 : 14,
+  },
+  sidebarTitle: {
+    fontSize: IS_IPAD ? 28 : 22,
+    fontWeight: '800',
+    color: '#252525',
+  },
+  sidebarCloseButton: {
+    padding: IS_IPAD ? 8 : 6,
+  },
+  sidebarList: {
+    paddingVertical: IS_IPAD ? 12 : 8,
+  },
+  sidebarEmptyList: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  sidebarChatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: IS_IPAD ? 22 : 16,
+    paddingVertical: IS_IPAD ? 16 : 13,
+    borderLeftWidth: 4,
+    borderLeftColor: 'transparent',
+  },
+  sidebarChatItemActive: {
+    backgroundColor: '#FFF8F2',
+    borderLeftColor: Colors.primaryColor,
+  },
+  sidebarProfileImage: {
+    width: IS_IPAD ? 58 : 46,
+    height: IS_IPAD ? 58 : 46,
+    borderRadius: IS_IPAD ? 29 : 23,
+    marginRight: IS_IPAD ? 16 : 12,
+  },
+  sidebarChatInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sidebarChatTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 3,
+  },
+  sidebarChatName: {
+    flex: 1,
+    fontSize: IS_IPAD ? 19 : 15,
+    fontWeight: '700',
+    color: '#252525',
+    marginRight: 10,
+  },
+  sidebarChatTime: {
+    fontSize: IS_IPAD ? 14 : 11,
+    color: '#9A928B',
+  },
+  sidebarChatCategory: {
+    fontSize: IS_IPAD ? 15 : 12,
+    fontWeight: '700',
+    color: Colors.primaryColor,
+    marginBottom: 3,
+  },
+  sidebarLastMessage: {
+    fontSize: IS_IPAD ? 16 : 13,
+    color: '#6E6963',
+  },
+  sidebarLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  sidebarLoadingText: {
+    fontSize: IS_IPAD ? 18 : 14,
+    color: '#6E6963',
+    fontWeight: '600',
+  },
+  sidebarEmpty: {
+    alignItems: 'center',
+    paddingHorizontal: IS_IPAD ? 36 : 24,
+  },
+  sidebarEmptyTitle: {
+    fontSize: IS_IPAD ? 22 : 17,
+    fontWeight: '800',
+    color: '#252525',
+    marginBottom: 8,
+  },
+  sidebarEmptyText: {
+    fontSize: IS_IPAD ? 17 : 13,
+    color: '#7A746D',
+    textAlign: 'center',
+    lineHeight: IS_IPAD ? 25 : 20,
   },
 });
 

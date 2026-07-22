@@ -10,21 +10,18 @@ import {
   ImageSourcePropType,
   Animated,
   Alert,
-  Platform,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { supabase } from '../../utils/database/supabaseClient';
 import { Expert } from '../../types/expert';
 import { getExpertImage } from '../../utils/expert/getExpertImage';
-import { useNavigation } from '@react-navigation/native';
 import { getChatListCache, setChatListCache, isChatListFresh, consumeChatListNeedsRefresh } from '../../utils/chat/chatListCache';
 import { getCurrentUserSafely } from '../../utils/user/authUtils';
 import { removeBoldMarkup } from '../../utils/text/removeBoldMarkup';
 import SabaLoader from '../../components/common/SabaLoader';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { isIPad } from '../../utils/platform';
-import { useAppConfig } from '../../contexts/AppConfigContext';
 
 const IS_IPAD = isIPad();
 
@@ -294,10 +291,10 @@ const ChatListScreen: React.FC<ChatListScreenProps> = ({ navigation }) => {
   };
 
   const categoryLabelMap: Record<Expert['category'], string> = {
-    comprehensive: '종합사주',
+    comprehensive: '인생',
     love: '연애',
     money: '금전운',
-    career: '커리어',
+    career: '직업',
     health: '건강운',
     traditional_saju: '정통사주',
     today_fortune: '오늘의 운세',

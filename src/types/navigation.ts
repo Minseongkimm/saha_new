@@ -4,7 +4,16 @@ export type RootStackParamList = {
   MainTabs: undefined;
   BannerDetail: undefined;
   ExpertDetail: { expert: any };
-  ChatRoom: { roomId: string; expert: any };
+  ChatRoom: {
+    roomId: string;
+    expert: any;
+    partnerData?: any;
+    initialMessage?: string;
+    directMode?: boolean;
+    directEntry?: boolean;
+    onDirectNewChat?: () => void;
+    onDirectSelectChat?: (roomId: string, expert: any) => void;
+  };
   SajuInfo: undefined;
   NotificationSettings: undefined;
   JeongtongSaju: undefined;

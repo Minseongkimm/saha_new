@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, Linking, Platform, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Linking, Platform, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { WebView, WebViewMessageEvent } from 'react-native-webview';
@@ -7,8 +8,11 @@ import { Colors } from '../../constants/colors';
 import { supabase } from '../../utils/database/supabaseClient';
 import {
   ANDROID_APP_USER_AGENT,
+  ENABLE_STORE_WEBVIEW_CACHE,
+  ENABLE_STORE_WEBVIEW_LOADING_MASK,
   LOCAL_STORE_FALLBACK_HTML,
   WEBVIEW_APP_UA_SUFFIX,
+  getStoreWebViewPerfVariantLabel,
   getStoreWebViewOriginWhitelist,
   getStoreWebViewUri,
   isAllowedStoreWebViewUrl,
@@ -24,6 +28,10 @@ const LOCAL_WEB_HOSTS = new Set(['localhost:3000', '127.0.0.1:3000', '10.0.2.2:3
 const WEBVIEW_PERF_LOG_PREFIX = '[StoreWebViewPerf]';
 const AUTO_BENCH_TOTAL_RUNS = 10;
 const AUTO_BENCH_NEXT_RUN_DELAY_MS = 260;
+const COLD_BENCH_TOTAL_RUNS = 2;
+const COLD_BENCH_RESULTS_STORAGE_KEY = 'store_webview_cold_bench_results_v1';
+const COLD_BENCH_ARMED_STORAGE_KEY = 'store_webview_cold_bench_armed_v1';
+const COLD_BENCH_LAST_RESULTS_STORAGE_KEY = 'store_webview_cold_bench_last_results_v1';
 
 type StoreWebViewPerfSession = {
   id: string;
@@ -45,6 +53,15 @@ type StoreWebViewPerfResult = {
   url?: string;
   marker: string;
   timestamp: number;
+};
+
+type TrackEventPayload = {
+  name?: unknown;
+  params?: unknown;
+};
+
+type TrackEventParams = {
+  perfVariant?: unknown;
 };
 
 type StoreWebViewAutoBenchSummary = {
@@ -115,7 +132,11 @@ function formatMs(value?: number) {
 function median(values: number[]) {
   if (!values.length) return undefined;
   const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.floor(sorted.length / 2)];
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+  }
+  return sorted[mid];
 }
 
 function parseAutoBenchRunIndex(source: string) {
@@ -123,6 +144,27 @@ function parseAutoBenchRunIndex(source: string) {
   if (!matched) return null;
   const index = Number(matched[1]);
   return Number.isFinite(index) ? index : null;
+}
+
+function isColdBenchEligibleSource(source: string) {
+  return parseAutoBenchRunIndex(source) === null;
+}
+
+function sanitizePerfResults(raw: unknown, limit: number): StoreWebViewPerfResult[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((item): item is StoreWebViewPerfResult => {
+      if (!item || typeof item !== 'object') return false;
+      const maybeResult = item as Partial<StoreWebViewPerfResult>;
+      return (
+        typeof maybeResult.id === 'string' &&
+        typeof maybeResult.source === 'string' &&
+        typeof maybeResult.totalMs === 'number' &&
+        typeof maybeResult.marker === 'string' &&
+        typeof maybeResult.timestamp === 'number'
+      );
+    })
+    .slice(0, limit);
 }
 
 function buildAutoBenchSummary(results: StoreWebViewPerfResult[]): StoreWebViewAutoBenchSummary | null {
@@ -321,8 +363,11 @@ const StoreWebViewScreen: React.FC = () => {
   const replayRequestCacheRef = useRef<Map<string, number>>(new Map());
   const autoBenchNextRunTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoBenchRunningRef = useRef<boolean>(false);
+  const coldBenchArmedRef = useRef<boolean>(false);
+  const coldBenchCompletionLoggedRef = useRef<boolean>(false);
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
+  const [isWebViewLoading, setIsWebViewLoading] = useState<boolean>(ENABLE_STORE_WEBVIEW_LOADING_MASK);
   const [useLocalFallback, setUseLocalFallback] = useState<boolean>(false);
   const [reloadKey, setReloadKey] = useState<number>(0);
   const [customerName, setCustomerName] = useState<string>('고객님');
@@ -330,6 +375,11 @@ const StoreWebViewScreen: React.FC = () => {
   const [perfResultLines, setPerfResultLines] = useState<string[]>([]);
   const [isAutoBenchRunning, setIsAutoBenchRunning] = useState<boolean>(false);
   const [autoBenchResults, setAutoBenchResults] = useState<StoreWebViewPerfResult[]>([]);
+  const [isColdBenchHydrating, setIsColdBenchHydrating] = useState<boolean>(__DEV__);
+  const [isColdBenchArmed, setIsColdBenchArmed] = useState<boolean>(false);
+  const [coldBenchResults, setColdBenchResults] = useState<StoreWebViewPerfResult[]>([]);
+  const [lastColdBenchResults, setLastColdBenchResults] = useState<StoreWebViewPerfResult[]>([]);
+  const [isPerfPanelVisible, setIsPerfPanelVisible] = useState<boolean>(false);
 
   useEffect(() => {
     let mounted = true;
@@ -380,6 +430,76 @@ const StoreWebViewScreen: React.FC = () => {
     });
   }, []);
 
+  useEffect(() => {
+    coldBenchArmedRef.current = isColdBenchArmed;
+    if (!isColdBenchArmed) {
+      coldBenchCompletionLoggedRef.current = false;
+    }
+  }, [isColdBenchArmed]);
+
+  useEffect(() => {
+    if (!__DEV__) return;
+
+    let cancelled = false;
+
+    const restoreColdBenchState = async () => {
+      try {
+        const [storedResultsRaw, storedArmedRaw, storedLastResultsRaw] = await Promise.all([
+          AsyncStorage.getItem(COLD_BENCH_RESULTS_STORAGE_KEY),
+          AsyncStorage.getItem(COLD_BENCH_ARMED_STORAGE_KEY),
+          AsyncStorage.getItem(COLD_BENCH_LAST_RESULTS_STORAGE_KEY),
+        ]);
+
+        if (cancelled) return;
+
+        if (storedResultsRaw) {
+          const parsed = JSON.parse(storedResultsRaw) as unknown;
+          setColdBenchResults(sanitizePerfResults(parsed, COLD_BENCH_TOTAL_RUNS));
+        }
+
+        if (storedLastResultsRaw) {
+          const parsed = JSON.parse(storedLastResultsRaw) as unknown;
+          setLastColdBenchResults(sanitizePerfResults(parsed, COLD_BENCH_TOTAL_RUNS));
+        }
+
+        // 콜드 벤치는 연속 측정 모드로 동작해 시작 버튼 없이 다음 사이클을 수집한다.
+        setIsColdBenchArmed(storedArmedRaw !== '0');
+      } catch (error) {
+        console.warn('[StoreWebViewPerf] failed to restore cold benchmark state:', error);
+      } finally {
+        if (!cancelled) {
+          setIsColdBenchHydrating(false);
+        }
+      }
+    };
+
+    restoreColdBenchState();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!__DEV__ || isColdBenchHydrating) return;
+    AsyncStorage.setItem(COLD_BENCH_RESULTS_STORAGE_KEY, JSON.stringify(coldBenchResults)).catch((error) => {
+      console.warn('[StoreWebViewPerf] failed to persist cold benchmark results:', error);
+    });
+  }, [coldBenchResults, isColdBenchHydrating]);
+
+  useEffect(() => {
+    if (!__DEV__ || isColdBenchHydrating) return;
+    AsyncStorage.setItem(COLD_BENCH_LAST_RESULTS_STORAGE_KEY, JSON.stringify(lastColdBenchResults)).catch((error) => {
+      console.warn('[StoreWebViewPerf] failed to persist last cold benchmark results:', error);
+    });
+  }, [isColdBenchHydrating, lastColdBenchResults]);
+
+  useEffect(() => {
+    if (!__DEV__ || isColdBenchHydrating) return;
+    AsyncStorage.setItem(COLD_BENCH_ARMED_STORAGE_KEY, isColdBenchArmed ? '1' : '0').catch((error) => {
+      console.warn('[StoreWebViewPerf] failed to persist cold benchmark armed flag:', error);
+    });
+  }, [isColdBenchArmed, isColdBenchHydrating]);
+
   const webViewUri = useMemo(() => getStoreWebViewUri(), []);
   const originWhitelist = useMemo(() => getStoreWebViewOriginWhitelist(), []);
   const effectiveOriginWhitelist = useMemo(
@@ -423,6 +543,25 @@ const StoreWebViewScreen: React.FC = () => {
     triggerAutoBenchRun(1);
   }, [isAutoBenchRunning, triggerAutoBenchRun]);
 
+  const startColdBench = useCallback(async () => {
+    if (!__DEV__ || isColdBenchHydrating) return;
+
+    setColdBenchResults([]);
+    setIsColdBenchArmed(true);
+    setPerfResultLines([]);
+    coldBenchCompletionLoggedRef.current = false;
+    emitNativeLog(`${WEBVIEW_PERF_LOG_PREFIX}[COLD_BENCH] armed runs=${COLD_BENCH_TOTAL_RUNS}`);
+
+    try {
+      await Promise.all([
+        AsyncStorage.setItem(COLD_BENCH_RESULTS_STORAGE_KEY, JSON.stringify([])),
+        AsyncStorage.setItem(COLD_BENCH_ARMED_STORAGE_KEY, '1'),
+      ]);
+    } catch (error) {
+      console.warn('[StoreWebViewPerf] failed to initialize cold benchmark state:', error);
+    }
+  }, [isColdBenchHydrating]);
+
   useEffect(() => {
     if (!__DEV__) return;
 
@@ -436,6 +575,15 @@ const StoreWebViewScreen: React.FC = () => {
         `T2->T3=${formatMs(result.t2ToT3Ms)}`;
 
       setPerfResultLines((prev) => [resultLine, ...prev].slice(0, AUTO_BENCH_TOTAL_RUNS));
+
+      if (coldBenchArmedRef.current && isColdBenchEligibleSource(result.source)) {
+        setColdBenchResults((prev) => {
+          if (prev.some((item) => item.id === result.id) || prev.length >= COLD_BENCH_TOTAL_RUNS) {
+            return prev;
+          }
+          return [...prev, result];
+        });
+      }
 
       if (!autoBenchRunningRef.current || runIndex === null) {
         return;
@@ -473,9 +621,37 @@ const StoreWebViewScreen: React.FC = () => {
     });
   }, [triggerAutoBenchRun]);
 
+  useEffect(() => {
+    if (!__DEV__ || !isColdBenchArmed) return;
+    if (coldBenchResults.length < COLD_BENCH_TOTAL_RUNS) return;
+    if (coldBenchCompletionLoggedRef.current) return;
+
+    coldBenchCompletionLoggedRef.current = true;
+    const completed = coldBenchResults.slice(0, COLD_BENCH_TOTAL_RUNS);
+    setLastColdBenchResults(completed);
+    setColdBenchResults([]);
+    // 완료 즉시 다음 사이클 대기(0/2)로 리셋되어 시작 버튼을 다시 누를 필요가 없다.
+    setIsColdBenchArmed(true);
+
+    const summary = buildAutoBenchSummary(completed);
+    if (summary) {
+      emitNativeLog(
+        `${WEBVIEW_PERF_LOG_PREFIX}[COLD_BENCH_SUMMARY] runs=${summary.count} totalMedian=${formatMs(summary.totalMedian)} T0->T1 median=${formatMs(summary.t0ToT1Median)} T1->T2 median=${formatMs(summary.t1ToT2Median)} T2->T3 median=${formatMs(summary.t2ToT3Median)}`
+      );
+    }
+    emitNativeLog(`${WEBVIEW_PERF_LOG_PREFIX}[COLD_BENCH] reset_to_waiting 0/${COLD_BENCH_TOTAL_RUNS}`);
+    coldBenchCompletionLoggedRef.current = false;
+  }, [coldBenchResults, isColdBenchArmed]);
+
   const autoBenchSummary = useMemo(() => {
     return buildAutoBenchSummary(autoBenchResults);
   }, [autoBenchResults]);
+
+  const lastColdBenchSummary = useMemo(() => {
+    return buildAutoBenchSummary(lastColdBenchResults);
+  }, [lastColdBenchResults]);
+
+  const appPerfVariantLabel = useMemo(() => getStoreWebViewPerfVariantLabel(), []);
 
   const autoBenchReportText = useMemo(() => {
     if (!autoBenchSummary) return '';
@@ -483,6 +659,7 @@ const StoreWebViewScreen: React.FC = () => {
     const header = [
       '[StoreWebView Auto Benchmark]',
       `runs=${autoBenchSummary.count}/${AUTO_BENCH_TOTAL_RUNS}`,
+      `app_variant=${appPerfVariantLabel}`,
       `total median=${formatMs(autoBenchSummary.totalMedian)}`,
       `T0->T1 median=${formatMs(autoBenchSummary.t0ToT1Median)}`,
       `T1->T2 median=${formatMs(autoBenchSummary.t1ToT2Median)}`,
@@ -505,24 +682,53 @@ const StoreWebViewScreen: React.FC = () => {
       .map((item) => {
         const runIndex = parseAutoBenchRunIndex(item.source);
         const runLabel = runIndex ? `#${runIndex}` : item.source;
-        return `${runLabel} total=${formatMs(item.totalMs)} T0->T1=${formatMs(item.t0ToT1Ms)} T1->T2=${formatMs(item.t1ToT2Ms)} T2->T3=${formatMs(item.t2ToT3Ms)}`;
+        return `${runLabel} total=${formatMs(item.totalMs)} T0->T1=${formatMs(item.t0ToT1Ms)} T1->T2=${formatMs(item.t1ToT2Ms)} T2->T3=${formatMs(item.t2ToT3Ms)} marker=${item.marker}`;
       });
 
     return [...header, ...perRun].join('\n');
-  }, [autoBenchResults, autoBenchSummary]);
+  }, [appPerfVariantLabel, autoBenchResults, autoBenchSummary]);
 
-  const handleShareAutoBenchReport = useCallback(async () => {
-    if (!autoBenchReportText) return;
+  const coldBenchReportText = useMemo(() => {
+    if (!lastColdBenchSummary) return '';
+
+    const header = [
+      '[StoreWebView Cold Benchmark]',
+      `runs=${lastColdBenchSummary.count}/${COLD_BENCH_TOTAL_RUNS}`,
+      `app_variant=${appPerfVariantLabel}`,
+      `total median=${formatMs(lastColdBenchSummary.totalMedian)}`,
+      `T0->T1 median=${formatMs(lastColdBenchSummary.t0ToT1Median)}`,
+      `T1->T2 median=${formatMs(lastColdBenchSummary.t1ToT2Median)}`,
+      `T2->T3 median=${formatMs(lastColdBenchSummary.t2ToT3Median)}`,
+      '',
+      '[Per Run]',
+    ];
+
+    const perRun = [...lastColdBenchResults]
+      .sort((a, b) => a.timestamp - b.timestamp)
+      .map((item, index) => {
+        return `#${index + 1} total=${formatMs(item.totalMs)} T0->T1=${formatMs(item.t0ToT1Ms)} T1->T2=${formatMs(item.t1ToT2Ms)} T2->T3=${formatMs(item.t2ToT3Ms)} marker=${item.marker}`;
+      });
+
+    return [...header, ...perRun].join('\n');
+  }, [appPerfVariantLabel, lastColdBenchResults, lastColdBenchSummary]);
+
+  const combinedBenchReportText = useMemo(() => {
+    if (!autoBenchReportText || !coldBenchReportText) return '';
+    return [autoBenchReportText, '', coldBenchReportText].join('\n');
+  }, [autoBenchReportText, coldBenchReportText]);
+
+  const handleShareCombinedBenchReport = useCallback(async () => {
+    if (!combinedBenchReportText) return;
 
     try {
       await Share.share({
-        title: 'Store WebView Auto Benchmark',
-        message: autoBenchReportText,
+        title: 'Store WebView Benchmark Report',
+        message: combinedBenchReportText,
       });
     } catch (error) {
-      console.warn('[StoreWebViewPerf] failed to share auto benchmark report:', error);
+      console.warn('[StoreWebViewPerf] failed to share combined benchmark report:', error);
     }
-  }, [autoBenchReportText]);
+  }, [combinedBenchReportText]);
 
   const sendBridgeResponse = useCallback(
     (
@@ -695,7 +901,7 @@ const StoreWebViewScreen: React.FC = () => {
       }
 
       if (request.action === 'TRACK_EVENT') {
-        const payload = request.payload as { name?: unknown; params?: unknown } | undefined;
+        const payload = request.payload as TrackEventPayload | undefined;
         const name = typeof payload?.name === 'string' ? payload.name : '';
         if (!name) {
           sendBridgeResponse(request, {
@@ -708,7 +914,11 @@ const StoreWebViewScreen: React.FC = () => {
 
         console.log('[StoreWebViewBridge] TRACK_EVENT', name, payload?.params ?? null);
         if (name === 'store_core_content_ready' || name === 'store_view_opened') {
-          markStoreWebViewT3(name);
+          const params = payload?.params as TrackEventParams | undefined;
+          const perfVariant =
+            typeof params?.perfVariant === 'string' ? params.perfVariant.trim() : '';
+          const marker = perfVariant ? `${name}|${perfVariant}` : name;
+          markStoreWebViewT3(marker);
         }
         sendBridgeResponse(request, {
           ok: true,
@@ -783,6 +993,7 @@ const StoreWebViewScreen: React.FC = () => {
 
   const handleReload = useCallback(() => {
     setHasError(false);
+    setIsWebViewLoading(ENABLE_STORE_WEBVIEW_LOADING_MASK);
     setUseLocalFallback(false);
     setReloadKey(prev => prev + 1);
   }, []);
@@ -799,7 +1010,7 @@ const StoreWebViewScreen: React.FC = () => {
         allowsBackForwardNavigationGestures
         sharedCookiesEnabled
         thirdPartyCookiesEnabled
-        cacheEnabled
+        cacheEnabled={ENABLE_STORE_WEBVIEW_CACHE}
         setSupportMultipleWindows={false}
         automaticallyAdjustContentInsets={false}
         contentInsetAdjustmentBehavior="never"
@@ -810,9 +1021,13 @@ const StoreWebViewScreen: React.FC = () => {
         onMessage={handleWebMessage}
         onLoadStart={() => {
           setHasError(false);
+          if (ENABLE_STORE_WEBVIEW_LOADING_MASK) {
+            setIsWebViewLoading(true);
+          }
           markStoreWebViewT1(currentPageUrlRef.current || webViewUri);
         }}
         onLoadEnd={(event) => {
+          setIsWebViewLoading(false);
           markStoreWebViewT2(event.nativeEvent.url || currentPageUrlRef.current);
         }}
         onNavigationStateChange={(navState) => {
@@ -823,6 +1038,7 @@ const StoreWebViewScreen: React.FC = () => {
         }}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onError={() => {
+          setIsWebViewLoading(false);
           if (!useLocalFallback) {
             setUseLocalFallback(true);
             return;
@@ -841,7 +1057,13 @@ const StoreWebViewScreen: React.FC = () => {
         </View>
       )}
 
-      {__DEV__ && (
+      {ENABLE_STORE_WEBVIEW_LOADING_MASK && isWebViewLoading && !hasError && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="small" color={Colors.primaryColor} />
+        </View>
+      )}
+
+      {__DEV__ && isPerfPanelVisible && (
         <View style={styles.perfDebugPanel}>
           <Text style={styles.perfDebugTitle}>WebView Perf Debug</Text>
           <View style={styles.perfActionRow}>
@@ -857,16 +1079,43 @@ const StoreWebViewScreen: React.FC = () => {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={handleShareAutoBenchReport}
-              disabled={isAutoBenchRunning || !autoBenchSummary}
+              onPress={handleShareCombinedBenchReport}
+              disabled={isAutoBenchRunning || !combinedBenchReportText}
               style={[
                 styles.perfActionButton,
                 styles.perfActionButtonSecondary,
-                isAutoBenchRunning || !autoBenchSummary ? styles.perfActionButtonDisabled : null,
+                isAutoBenchRunning || !combinedBenchReportText ? styles.perfActionButtonDisabled : null,
               ]}
             >
-              <Text style={styles.perfActionButtonText}>결과 공유</Text>
+              <Text style={styles.perfActionButtonText}>통합 결과 공유</Text>
             </TouchableOpacity>
+          </View>
+
+          <View style={[styles.perfActionRow, styles.perfActionRowSecondary]}>
+            <TouchableOpacity
+              onPress={startColdBench}
+              disabled={isColdBenchHydrating}
+              style={[
+                styles.perfActionButton,
+                styles.perfActionButtonWarning,
+                isColdBenchHydrating ? styles.perfActionButtonDisabled : null,
+              ]}
+            >
+              <Text style={styles.perfActionButtonText}>
+                {isColdBenchHydrating
+                  ? '콜드측정 준비 중...'
+                  : isColdBenchArmed
+                    ? `콜드측정 대기 ${coldBenchResults.length}/${COLD_BENCH_TOTAL_RUNS}`
+                    : `콜드측정 ${COLD_BENCH_TOTAL_RUNS}회 시작`}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.perfHintBlock}>
+            <Text style={styles.perfHintTitle}>Cold 측정 가이드</Text>
+            <Text style={styles.perfHintLine}>
+              앱 강제 종료 - 재실행 - 상점 탭 1회 진입을 2번 반복하면 자동으로 0/2 재대기됩니다.
+            </Text>
           </View>
 
           {autoBenchSummary && (
@@ -889,6 +1138,26 @@ const StoreWebViewScreen: React.FC = () => {
             </View>
           )}
 
+          {lastColdBenchSummary && (
+            <View style={styles.perfSummaryBlock}>
+              <Text style={styles.perfSummaryTitle}>
+                Cold Summary ({lastColdBenchSummary.count}/{COLD_BENCH_TOTAL_RUNS})
+              </Text>
+              <Text style={styles.perfSummaryLine}>
+                total median: {formatMs(lastColdBenchSummary.totalMedian)}
+              </Text>
+              <Text style={styles.perfSummaryLine}>
+                T0-&gt;T1 median: {formatMs(lastColdBenchSummary.t0ToT1Median)}
+              </Text>
+              <Text style={styles.perfSummaryLine}>
+                T1-&gt;T2 median: {formatMs(lastColdBenchSummary.t1ToT2Median)}
+              </Text>
+              <Text style={styles.perfSummaryLine}>
+                T2-&gt;T3 median: {formatMs(lastColdBenchSummary.t2ToT3Median)}
+              </Text>
+            </View>
+          )}
+
           {perfResultLines.length > 0 && (
             <View style={styles.perfResultBlock}>
               <Text style={styles.perfResultTitle}>Recent RESULT</Text>
@@ -905,7 +1174,25 @@ const StoreWebViewScreen: React.FC = () => {
               {line}
             </Text>
           ))}
+
+          <View style={styles.perfPanelFooter}>
+            <TouchableOpacity
+              onPress={() => setIsPerfPanelVisible(false)}
+              style={styles.perfCloseButton}
+            >
+              <Text style={styles.perfCloseButtonText}>닫기</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+      )}
+
+      {__DEV__ && !isPerfPanelVisible && (
+        <TouchableOpacity
+          onPress={() => setIsPerfPanelVisible(true)}
+          style={styles.perfLauncherButton}
+        >
+          <Text style={styles.perfLauncherButtonText}>검사</Text>
+        </TouchableOpacity>
       )}
     </SafeAreaView>
   );
@@ -948,6 +1235,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   perfDebugPanel: {
     position: 'absolute',
     left: 10,
@@ -962,6 +1259,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 8,
   },
+  perfActionRowSecondary: {
+    marginTop: -2,
+  },
   perfActionButton: {
     flex: 1,
     borderRadius: 8,
@@ -973,6 +1273,9 @@ const styles = StyleSheet.create({
   perfActionButtonSecondary: {
     marginLeft: 8,
     backgroundColor: '#059669',
+  },
+  perfActionButtonWarning: {
+    backgroundColor: '#D97706',
   },
   perfActionButtonDisabled: {
     opacity: 0.7,
@@ -998,6 +1301,23 @@ const styles = StyleSheet.create({
     color: '#F3F4F6',
     fontSize: 10,
     lineHeight: 13,
+  },
+  perfHintBlock: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.2)',
+    paddingTop: 6,
+    marginBottom: 8,
+  },
+  perfHintTitle: {
+    color: '#FDE68A',
+    fontSize: 10,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  perfHintLine: {
+    color: '#D1D5DB',
+    fontSize: 9,
+    lineHeight: 12,
   },
   perfResultBlock: {
     borderTopWidth: 1,
@@ -1027,6 +1347,35 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 13,
     marginBottom: 2,
+  },
+  perfPanelFooter: {
+    marginTop: 6,
+    alignItems: 'flex-end',
+  },
+  perfCloseButton: {
+    borderRadius: 6,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  perfCloseButtonText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  perfLauncherButton: {
+    position: 'absolute',
+    right: 12,
+    bottom: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  perfLauncherButtonText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
   },
 });
 

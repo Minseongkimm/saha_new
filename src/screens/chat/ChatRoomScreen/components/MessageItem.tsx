@@ -59,7 +59,9 @@ const MessageItem: React.FC<MessageItemProps> = memo(({ item, expertImage, exper
 }, (prevProps, nextProps) => {
   // 커스텀 비교: message 내용이 같으면 재렌더링 안 함
   return prevProps.item.message === nextProps.item.message &&
-         prevProps.item.id === nextProps.item.id;
+         prevProps.item.id === nextProps.item.id &&
+         prevProps.item.sender_type === nextProps.item.sender_type &&
+         prevProps.expertName === nextProps.expertName;
 });
 
 const styles = StyleSheet.create({

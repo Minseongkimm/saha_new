@@ -10,6 +10,7 @@ export const AI_CONFIG = {
   NEW_YEAR_FORTUNE_MODEL: 'gpt-4o',
   TODAY_FORTUNE_MODEL: 'gpt-4o-mini',
   CHAT_MODEL: 'gpt-4o-mini',
+  ROUTER_MODEL: 'gpt-4o-mini',
   
   TEMPERATURE: 0.7,
   TOP_P: 1.0,
@@ -23,6 +24,8 @@ export const AI_CONFIG = {
   SUMMARY_MODEL: 'gpt-4o-mini',
   SUMMARY_TEMPERATURE: 0.3,
   SUMMARY_MAX_TOKENS: 200,
+  ROUTER_TEMPERATURE: 0.1,
+  ROUTER_MAX_TOKENS: 120,
 };
 
 export function getEnvVar(key: string, required: boolean = true): string {
@@ -40,4 +43,3 @@ export function log(level: string, message: string, data?: unknown): void {
   const prefix = `[${timestamp}] [${level.toUpperCase()}]`;
   console.log(prefix, message, data ? JSON.stringify(data) : '');
 }
-

@@ -3,6 +3,23 @@ import { STORE_WEBVIEW_URL, WEBVIEW_APP_UA_SUFFIX } from '../../config/env';
 
 // 실기기 성능 측정 중에는 __DEV__에서도 배포 URL을 사용해 WebView fallback을 피한다.
 const USE_DEPLOYED_STORE_WEBVIEW_IN_DEV = true;
+export const ENABLE_STORE_WEBVIEW_PRELOAD = true;
+export const ENABLE_STORE_WEBVIEW_NETWORK_WARMUP = false;
+export const STORE_WEBVIEW_PRELOAD_KEEP_ALIVE_MS = 0;
+export const ENABLE_STORE_TAB_LAZY = false;
+export const ENABLE_STORE_WEBVIEW_CACHE = true;
+export const ENABLE_STORE_WEBVIEW_LOADING_MASK = true;
+
+export function getStoreWebViewPerfVariantLabel(): string {
+  return [
+    `preload=${ENABLE_STORE_WEBVIEW_PRELOAD ? 1 : 0}`,
+    `tab_lazy=${ENABLE_STORE_TAB_LAZY ? 1 : 0}`,
+    `loading_mask=${ENABLE_STORE_WEBVIEW_LOADING_MASK ? 1 : 0}`,
+    `cache=${ENABLE_STORE_WEBVIEW_CACHE ? 1 : 0}`,
+    `network_warmup=${ENABLE_STORE_WEBVIEW_NETWORK_WARMUP ? 1 : 0}`,
+    `preload_keep_alive_ms=${STORE_WEBVIEW_PRELOAD_KEEP_ALIVE_MS}`,
+  ].join(',');
+}
 
 export const ANDROID_APP_USER_AGENT =
   `Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 ` +

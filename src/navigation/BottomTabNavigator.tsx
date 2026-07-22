@@ -5,8 +5,15 @@ import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../constants/colors';
 import HomeScreen from '../screens/saju/HomeScreen';
-import ChatListScreen from '../screens/chat/ChatListScreen';
+import ChatRoomScreen from '../screens/chat/ChatRoomScreen';
 import StoreWebViewScreen, { markStoreWebViewT0 } from '../screens/store/StoreWebViewScreen';
+import StoreWebViewPreloader from '../screens/store/StoreWebViewPreloader';
+import StoreWebViewNetworkWarmup from '../screens/store/StoreWebViewNetworkWarmup';
+import {
+  ENABLE_STORE_TAB_LAZY,
+  ENABLE_STORE_WEBVIEW_NETWORK_WARMUP,
+  ENABLE_STORE_WEBVIEW_PRELOAD,
+} from '../screens/store/storeWebViewConfig';
 import MyInfoScreen from '../screens/user/MyInfoScreen';
 import { isIPad } from '../utils/platform';
 
@@ -43,6 +50,7 @@ const BottomTabNavigator: React.FC = () => {
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
+          tabBarHideOnKeyboard: true,
           tabBarStyle: {
             backgroundColor: '#FFFFFF',
             borderTopWidth: 1,
@@ -74,7 +82,8 @@ const BottomTabNavigator: React.FC = () => {
         />
         <Tab.Screen
           name="Chat"
-          component={ChatListScreen}
+          component={ChatRoomScreen}
+          initialParams={{ directEntry: true }}
           options={{
             tabBarLabel: '대화',
             tabBarIcon: ({ color }) => (
@@ -91,6 +100,7 @@ const BottomTabNavigator: React.FC = () => {
             },
           }}
           options={{
+            lazy: ENABLE_STORE_TAB_LAZY,
             tabBarLabel: '상점',
             tabBarIcon: ({ color }) => (
               <Icon name="storefront" size={TAB_ICON_SIZE} color={color} />
@@ -108,6 +118,8 @@ const BottomTabNavigator: React.FC = () => {
           }}
         />
       </Tab.Navigator>
+      {ENABLE_STORE_WEBVIEW_PRELOAD ? <StoreWebViewPreloader /> : null}
+      {ENABLE_STORE_WEBVIEW_NETWORK_WARMUP ? <StoreWebViewNetworkWarmup /> : null}
     </>
   );
 };

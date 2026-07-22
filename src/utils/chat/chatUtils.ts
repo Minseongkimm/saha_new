@@ -31,33 +31,24 @@ export const getExpertByCategory = async (category: string): Promise<{ id: strin
   }
 };
 
-/**
- * 전문가와 채팅 시작
- * @param navigation - 네비게이션 객체
- * @param expertId - 전문가 ID
- * @param partnerData - 상대방 정보 (선택사항)
- */
-export const startChatWithExpert = async (
+export const createChatRoomWithExpert = async (
   navigation: any,
   expertId: string,
   partnerData?: any
-) => {
-  // BirthInfo 검사: 없으면 입력 화면으로
+): Promise<{ roomId: string; expert: any; partnerData?: any } | null> => {
   const ok = await ensureBirthInfoOrNavigate(navigation);
-  if (!ok) return;
+  if (!ok) return null;
 
   const { status, user } = await getCurrentUserSafely();
   if (status === 'network_error') {
-    // 네트워크 문제일 때는 유저에게 알림을 띄우지 않고 조용히 종료
-    return;
+    return null;
   }
   if (status === 'unauthenticated' || !user) {
     Alert.alert('오류', '로그인이 필요합니다.');
-    return;
+    return null;
   }
 
   try {
-    // 1. 전문가 정보 가져오기 (ID로 조회)
     const { data: expert, error: expertError } = await withSupabaseRetry<any>(async () => {
       return await supabase
         .from('experts')
@@ -68,7 +59,7 @@ export const startChatWithExpert = async (
 
     if (expertError || !expert) {
       Alert.alert('오류', '전문가 정보를 찾을 수 없습니다.');
-      return;
+      return null;
     }
 
     const isLoveCategory: boolean = expert.category === 'love';
@@ -95,20 +86,42 @@ export const startChatWithExpert = async (
     });
 
     if (error || !newRoom) throw error || new Error('Failed to create chat room');
-    const chatRoomId = newRoom.id;
     markChatListNeedsRefresh();
 
-    // 4. 채팅방으로 이동
-    navigation.navigate('ChatRoom', {
-      roomId: chatRoomId,
-      expert: expert,
-      partnerData: partnerData // 상대방 정보 전달
-    });
-
+    return {
+      roomId: newRoom.id,
+      expert,
+      partnerData,
+    };
   } catch (error) {
-    console.error('Error starting chat:', error);
+    console.error('Error creating chat room:', error);
     Alert.alert('오류', '채팅을 시작할 수 없습니다.');
+    return null;
   }
+};
+
+/**
+ * 전문가와 채팅 시작
+ * @param navigation - 네비게이션 객체
+ * @param expertId - 전문가 ID
+ * @param partnerData - 상대방 정보 (선택사항)
+ */
+export const startChatWithExpert = async (
+  navigation: any,
+  expertId: string,
+  partnerData?: any,
+  options?: { initialMessage?: string }
+): Promise<boolean> => {
+  const chatRoom = await createChatRoomWithExpert(navigation, expertId, partnerData);
+  if (!chatRoom) return false;
+
+  navigation.navigate('ChatRoom', {
+    roomId: chatRoom.roomId,
+    expert: chatRoom.expert,
+    partnerData: chatRoom.partnerData,
+    initialMessage: options?.initialMessage
+  });
+  return true;
 };
 
 interface EndChatOptions {
