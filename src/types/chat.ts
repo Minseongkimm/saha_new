@@ -23,4 +23,6 @@ export interface ChatMessageDB {
 // UI에서 사용되는 확장된 메시지 타입
 export interface ChatMessage extends ChatMessageDB {
   follow_up_questions?: string[];
+  display_name?: string;
+  display_image?: any;
 }

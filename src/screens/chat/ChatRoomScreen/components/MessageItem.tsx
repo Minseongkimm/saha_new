@@ -18,6 +18,8 @@ interface MessageItemProps {
 }
 
 const MessageItem: React.FC<MessageItemProps> = memo(({ item, expertImage, expertName }) => {
+  const displayImage = item.display_image ?? expertImage;
+  const displayName = item.display_name ?? expertName;
   const formattedText = useMemo(() => {
     return formatBoldText(item.message);
   }, [item.message]);
@@ -33,8 +35,8 @@ const MessageItem: React.FC<MessageItemProps> = memo(({ item, expertImage, exper
     <View style={styles.messageContainer}>
       {item.sender_type === 'expert' && (
         <View style={styles.expertInfo}>
-          <Image source={expertImage} style={styles.messageExpertImage} />
-          <Text style={styles.expertName}>{expertName}</Text>
+          <Image source={displayImage} style={styles.messageExpertImage} />
+          <Text style={styles.expertName}>{displayName}</Text>
         </View>
       )}
       <View style={[
@@ -61,6 +63,7 @@ const MessageItem: React.FC<MessageItemProps> = memo(({ item, expertImage, exper
   return prevProps.item.message === nextProps.item.message &&
          prevProps.item.id === nextProps.item.id &&
          prevProps.item.sender_type === nextProps.item.sender_type &&
+         prevProps.item.display_name === nextProps.item.display_name &&
          prevProps.expertName === nextProps.expertName;
 });
 

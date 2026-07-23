@@ -2,7 +2,7 @@
  * useChatRoom - 채팅방 메인 로직 훅
  * 메시지 관리, 실시간 구독, 환영 메시지 생성, 사용자 정보 조회
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../../../../utils/database/supabaseClient';
 import { getCachedMessages, setCachedMessages } from '../../../../utils/chat/chatCache';
 import { markChatListNeedsRefresh } from '../../../../utils/chat/chatListCache';
@@ -23,6 +23,7 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
   const [loading, setLoading] = useState(true);
   const [userBirthInfo, setUserBirthInfo] = useState<BirthInfo | null>(null);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
+  const shouldAutoScrollRef = useRef(true);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
   const [freeMessageInfo, setFreeMessageInfo] = useState<{ usedCount: number; dailyLimit: number; available: boolean }>({
     usedCount: 0,
@@ -31,13 +32,18 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
   });
   const flatListRef = useRef<any>(null);
 
-  const scrollToBottom = (animated: boolean) => {
-    if (!shouldAutoScroll) return;
+  const updateShouldAutoScroll = useCallback((value: boolean) => {
+    shouldAutoScrollRef.current = value;
+    setShouldAutoScroll(value);
+  }, []);
+
+  const scrollToBottom = useCallback((animated: boolean) => {
+    if (!shouldAutoScrollRef.current) return;
     
     requestAnimationFrame(() => {
       flatListRef.current?.scrollToEnd({ animated });
     });
-  };
+  }, []);
 
   // 초기 인사말 생성 (ExpertAIService 사용)
   const generateWelcomeMessage = async () => {
@@ -86,7 +92,8 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
       );
       
       // DB에 인사말 저장
-      const { id: _ignoreId, ...dbWelcomeMessage } = finalMessage as any;
+      const dbWelcomeMessage = { ...finalMessage } as any;
+      delete dbWelcomeMessage.id;
       await supabase
         .from('chat_messages')
         .insert(dbWelcomeMessage);
@@ -244,7 +251,7 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
     loading,
     userBirthInfo,
     shouldAutoScroll,
-    setShouldAutoScroll,
+    setShouldAutoScroll: updateShouldAutoScroll,
     flatListRef,
     scrollToBottom,
     currentBalance,

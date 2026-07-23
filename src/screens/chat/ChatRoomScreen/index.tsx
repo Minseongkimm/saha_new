@@ -22,6 +22,8 @@ import {
   AppState,
   AppStateStatus,
   Alert,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Colors } from '../../../constants/colors';
@@ -97,19 +99,36 @@ interface DirectInlineActiveChatProps {
   ) => void;
 }
 
+interface ChatConversationBodyProps {
+  messages: ChatMessage[];
+  isAiResponding: boolean;
+  expert: Expert;
+  flatListRef: React.RefObject<FlatList<ChatMessage>>;
+  shouldAutoScroll: boolean;
+  setShouldAutoScroll: (value: boolean) => void;
+  scrollToBottom: (animated: boolean) => void;
+  loading: boolean;
+  onSendMessage: (message: string) => void;
+  onSendMessageWithText: (message: string) => void;
+  messageWrapperStyle?: StyleProp<ViewStyle>;
+  inputWrapperStyle?: StyleProp<ViewStyle>;
+}
+
 const ROUTING_STATUS_MESSAGES = [
-  '고민의 결을 살펴보는 중',
-  '사주책을 펼쳐보는 중',
-  '어울리는 도사님을 찾는 중',
+  '질문의 흐름을 살펴보고 있어요',
+  '어울리는 도사님을 연결하고 있어요',
 ];
-const MIN_ROUTING_MS = 2100;
-const CHAT_START_DELAY_MS = 850;
+const ROUTING_STATUS_INTERVAL_MS = 1500;
+const MIN_ROUTING_MS = 3000;
+const CHAT_START_DELAY_MS = 800;
 
 const ASSIGNMENT_DESCRIPTIONS: Record<ChatRouteCategory, string> = {
   comprehensive: '인생의 큰 흐름과 지금의 선택을 함께 짚어드릴게요.',
   love: '마음의 거리와 관계의 흐름을 섬세하게 살펴드릴게요.',
   career: '일과 진로의 흐름을 차분히 짚어드릴게요.',
 };
+const SAHA_HELPER_NAME = '사바 도우미';
+const SAHA_HELPER_IMAGE = require('../../../../assets/logo/logo_icon.png');
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -124,6 +143,60 @@ const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) =>
   }
 
   return <ActiveChatRoomScreen navigation={navigation} route={route} />;
+};
+
+const ChatConversationBody: React.FC<ChatConversationBodyProps> = ({
+  messages,
+  isAiResponding,
+  expert,
+  flatListRef,
+  shouldAutoScroll,
+  setShouldAutoScroll,
+  scrollToBottom,
+  loading,
+  onSendMessage,
+  onSendMessageWithText,
+  messageWrapperStyle,
+  inputWrapperStyle,
+}) => {
+  const messageList = (
+    <MessageList
+      messages={messages}
+      isAiResponding={isAiResponding}
+      expert={expert}
+      flatListRef={flatListRef}
+      shouldAutoScroll={shouldAutoScroll}
+      setShouldAutoScroll={setShouldAutoScroll}
+      scrollToBottom={scrollToBottom}
+      loading={loading}
+    />
+  );
+
+  return (
+    <>
+      {messageWrapperStyle ? (
+        <View style={messageWrapperStyle}>{messageList}</View>
+      ) : messageList}
+
+      <View style={inputWrapperStyle ?? styles.inputContainer}>
+        <InitialQuestions
+          expert={expert}
+          messages={messages}
+          onSendMessage={onSendMessageWithText}
+        />
+
+        <FollowUpQuestions
+          messages={messages}
+          onSendMessage={onSendMessageWithText}
+        />
+
+        <MessageInput
+          isAiResponding={isAiResponding}
+          onSendMessage={onSendMessage}
+        />
+      </View>
+    </>
+  );
 };
 
 const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
@@ -326,7 +399,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
       ? Math.max(statusBarHeight - 8, 0)
       : (IS_IPAD ? 4 : 0);
   const leftWidth = IS_IPAD ? 80 : 60;
-  const rightWidth = IS_IPAD ? 220 : 168;
+  const rightWidth = IS_IPAD ? 200 : 150;
 
   const fetchSidebarChats = useCallback(async () => {
     try {
@@ -620,7 +693,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
               />
               <Text style={styles.balanceText}>{currentBalance.toLocaleString()}</Text>
             </View>
-            <TouchableOpacity style={styles.headerIconButton} onPress={openSidebar}>
+            <TouchableOpacity style={[styles.headerIconButton, styles.headerMenuButton]} onPress={openSidebar}>
               <Icon name="menu" size={IS_IPAD ? 30 : 22} color="#000000" />
             </TouchableOpacity>
           </View>
@@ -638,7 +711,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
         keyboardVerticalOffset={0}
         enabled={Platform.OS === 'ios' || isKeyboardVisible}
       >
-        <MessageList
+        <ChatConversationBody
           messages={messages}
           isAiResponding={isAiResponding}
           expert={expert}
@@ -647,25 +720,9 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
           setShouldAutoScroll={setShouldAutoScroll}
           scrollToBottom={scrollToBottom}
           loading={loading}
+          onSendMessage={sendMessage}
+          onSendMessageWithText={sendMessageWithText}
         />
-        
-        <View style={styles.inputContainer}>
-          <InitialQuestions
-            expert={expert}
-            messages={messages}
-            onSendMessage={sendMessageWithText}
-          />
-          
-          <FollowUpQuestions
-            messages={messages}
-            onSendMessage={sendMessageWithText}
-          />
-          
-          <MessageInput
-            isAiResponding={isAiResponding}
-            onSendMessage={sendMessage}
-          />
-        </View>
       </KeyboardAvoidingView>
 
       <InsufficientBalanceBottomSheet
@@ -875,55 +932,50 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
       sender_type: item.role === 'user' ? 'user' : 'expert',
       message: item.text,
       created_at: new Date().toISOString(),
+      ...(item.role === 'assignment'
+        ? { display_name: SAHA_HELPER_NAME, display_image: SAHA_HELPER_IMAGE }
+        : {}),
     }));
 
+  let didHideInitialMessage = false;
   const visibleMessages = activeChat.initialMessage
-    ? messages.filter((item, index) => !(
-        index === 0 &&
-        item.sender_type === 'user' &&
-        item.message.trim() === activeChat.initialMessage?.trim()
-      ))
+    ? messages.filter((item) => {
+        const isInitialMessageCopy =
+          !didHideInitialMessage &&
+          item.sender_type === 'user' &&
+          item.message.trim() === activeChat.initialMessage?.trim();
+
+        if (isInitialMessageCopy) {
+          didHideInitialMessage = true;
+          return false;
+        }
+
+        return true;
+      })
     : messages;
   const mergedMessages = [...draftChatMessages, ...visibleMessages];
 
   return (
-    <>
-      <View style={styles.directEntryMessageArea}>
-        <MessageList
-          messages={mergedMessages}
-          isAiResponding={isAiResponding}
-          expert={activeChat.expert}
-          flatListRef={flatListRef}
-          shouldAutoScroll={shouldAutoScroll}
-          setShouldAutoScroll={setShouldAutoScroll}
-          scrollToBottom={scrollToBottom}
-          loading={loading}
-        />
-      </View>
-      <View
-        style={[
-          styles.inputContainer,
-          styles.inputContainerCompact,
-          Platform.OS === 'android' && isKeyboardVisible
-            ? { marginBottom: Math.max(0, keyboardHeight + (IS_IPAD ? 18 : 14)) }
-            : undefined,
-        ]}
-      >
-        <InitialQuestions
-          expert={activeChat.expert}
-          messages={messages}
-          onSendMessage={sendMessageWithText}
-        />
-        <FollowUpQuestions
-          messages={messages}
-          onSendMessage={sendMessageWithText}
-        />
-        <MessageInput
-          isAiResponding={isAiResponding}
-          onSendMessage={sendMessage}
-        />
-      </View>
-    </>
+    <ChatConversationBody
+      messages={mergedMessages}
+      isAiResponding={isAiResponding}
+      expert={activeChat.expert}
+      flatListRef={flatListRef}
+      shouldAutoScroll={shouldAutoScroll}
+      setShouldAutoScroll={setShouldAutoScroll}
+      scrollToBottom={scrollToBottom}
+      loading={loading}
+      onSendMessage={sendMessage}
+      onSendMessageWithText={sendMessageWithText}
+      messageWrapperStyle={styles.directEntryMessageArea}
+      inputWrapperStyle={[
+        styles.inputContainer,
+        styles.inputContainerCompact,
+        Platform.OS === 'android' && isKeyboardVisible
+          ? { marginBottom: Math.max(0, keyboardHeight + (IS_IPAD ? 18 : 14)) }
+          : undefined,
+      ]}
+    />
   );
 };
 
@@ -1145,7 +1197,12 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
     setDraftMessages((prev) => [
       ...prev,
       { id: `user-${Date.now()}`, text: trimmed, role: 'user' },
-      { id: statusMessageId, text: ROUTING_STATUS_MESSAGES[0], role: 'status' },
+      {
+        id: statusMessageId,
+        text: ROUTING_STATUS_MESSAGES[0],
+        role: 'status',
+        expertName: SAHA_HELPER_NAME,
+      },
     ]);
 
     const statusTimers = ROUTING_STATUS_MESSAGES.slice(1).map((statusText, index) => (
@@ -1157,7 +1214,7 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
               : item
           )
         );
-      }, (index + 1) * 700)
+      }, (index + 1) * ROUTING_STATUS_INTERVAL_MS)
     ));
 
     try {
@@ -1183,7 +1240,7 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
                 ...item,
                 text: buildAssignmentMessage(assignedExpert, route.category),
                 role: 'assignment',
-                expertName: assignedExpert.name,
+                expertName: SAHA_HELPER_NAME,
               }
             : item
         )
@@ -1216,7 +1273,9 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
       {item.role !== 'user' && item.expertName ? (
         <View style={styles.directDraftExpertInfo}>
           <Image
-            source={require('../../../../assets/people/hoosi_guy.jpg')}
+            source={item.expertName === SAHA_HELPER_NAME
+              ? SAHA_HELPER_IMAGE
+              : require('../../../../assets/people/hoosi_guy.jpg')}
             style={styles.directDraftExpertImage}
           />
           <Text style={styles.directDraftExpertName}>{item.expertName}</Text>
@@ -1245,7 +1304,7 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
   const headerContentHeight = Platform.OS === 'android' ? 46 : (IS_IPAD ? 54 : 44);
   const headerTopPadding = 0;
   const leftWidth = IS_IPAD ? 80 : 60;
-  const rightWidth = IS_IPAD ? 220 : 168;
+  const rightWidth = IS_IPAD ? 200 : 150;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1268,7 +1327,7 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
               />
               <Text style={styles.balanceText}>{currentBalance.toLocaleString()}</Text>
             </View>
-            <TouchableOpacity style={styles.headerIconButton} onPress={openSidebar}>
+            <TouchableOpacity style={[styles.headerIconButton, styles.headerMenuButton]} onPress={openSidebar}>
               <Icon name="menu" size={IS_IPAD ? 30 : 22} color="#000000" />
             </TouchableOpacity>
           </View>
@@ -1428,6 +1487,10 @@ const styles = StyleSheet.create({
   headerIconButton: {
     padding: IS_IPAD ? 12 : 8,
   },
+  headerMenuButton: {
+    paddingRight: IS_IPAD ? 2 : 0,
+    marginRight: IS_IPAD ? -2 : -4,
+  },
   headerTitleContainer: {
     position: 'absolute',
     left: 0,
@@ -1478,9 +1541,9 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   freeMessageText: {
-    fontSize: IS_IPAD ? 14 : 10,
+    fontSize: IS_IPAD ? 15 : 11,
     color: '#666',
-    marginTop: IS_IPAD ? 4 : 2,
+    marginTop: IS_IPAD ? 1 : -1,
   },
   keyboardAvoidingView: {
     flex: 1,

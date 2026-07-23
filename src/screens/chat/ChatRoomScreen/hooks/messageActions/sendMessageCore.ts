@@ -67,14 +67,13 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
   let userMessageId: string | null = null;
   
   try {
+    setShouldAutoScroll(true);
     const userMessageResult = await sendUserMessage(roomId, messageText, setMessages, scrollToBottom);
     userMessageId = userMessageResult.userMessageId;
     tempUserMessageId = userMessageResult.tempUserMessageId;
     
     if (!userMessageId) throw new Error('사용자 메시지 저장 실패');
-    
-    setShouldAutoScroll(true);
-    
+
     const preparedMessages = prepareMessagesForAI(messages, messageText);
     const tempAiMessageId = `temp_ai_${Date.now()}`;
     
@@ -130,5 +129,4 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
     throw error;
   }
 }
-
 

@@ -3,7 +3,16 @@
  * FlatList를 사용하여 메시지 목록을 렌더링하고 스크롤 관리
  */
 import React, { useCallback, useMemo } from 'react';
-import { FlatList, View, Text, Image, StyleSheet, Platform } from 'react-native';
+import {
+  FlatList,
+  View,
+  Text,
+  Image,
+  StyleSheet,
+  Platform,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+} from 'react-native';
 import { ChatMessage } from '../../../../types/chat';
 import { getExpertImage } from '../../../../utils/expert/getExpertImage';
 import MessageItem from './MessageItem';
@@ -34,6 +43,14 @@ const MessageList: React.FC<MessageListProps> = ({
   loading
 }) => {
   const expertImage = useMemo(() => getExpertImage(expert.image_name), [expert.image_name]);
+  const updateAutoScrollFromPosition = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    const distanceFromBottom = contentSize.height - (contentOffset.y + layoutMeasurement.height);
+    const isNearBottom = distanceFromBottom < 80;
+    if (isNearBottom !== shouldAutoScroll) {
+      setShouldAutoScroll(isNearBottom);
+    }
+  }, [setShouldAutoScroll, shouldAutoScroll]);
   
   const renderMessage = useCallback(({ item }: { item: ChatMessage }) => {
     // 빈 메시지이고 AI 응답 중이면 타이핑 인디케이터 표시
@@ -92,15 +109,21 @@ const MessageList: React.FC<MessageListProps> = ({
       keyExtractor={(item) => item.id || item.created_at}
       style={styles.messagesList}
       showsVerticalScrollIndicator={false}
-      onContentSizeChange={() => scrollToBottom(false)}
-      onLayout={() => scrollToBottom(false)}
+      onContentSizeChange={() => {
+        if (shouldAutoScroll) {
+          scrollToBottom(false);
+        }
+      }}
+      onLayout={() => {
+        if (shouldAutoScroll) {
+          scrollToBottom(false);
+        }
+      }}
+      onScroll={updateAutoScrollFromPosition}
+      scrollEventThrottle={16}
       onScrollBeginDrag={() => setShouldAutoScroll(false)}
-      onScrollEndDrag={() => {
-        setTimeout(() => setShouldAutoScroll(true), 1000);
-      }}
-      onMomentumScrollEnd={() => {
-        setTimeout(() => setShouldAutoScroll(true), 1000);
-      }}
+      onScrollEndDrag={updateAutoScrollFromPosition}
+      onMomentumScrollEnd={updateAutoScrollFromPosition}
       ListEmptyComponent={loading ? ListEmptyThinking : null}
     />
   );
