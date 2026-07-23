@@ -62,13 +62,12 @@ export const createChatRoomWithExpert = async (
       return null;
     }
 
-    const isLoveCategory: boolean = expert.category === 'love';
     const partnerSajuId: string | null = partnerData?.partnerId ?? partnerData?.partnerSajuId ?? null;
-    const chatContext: string = isLoveCategory
-      ? partnerSajuId
-        ? 'love_compatibility'
-        : 'love_personal'
-      : 'general';
+    const chatContext: string = partnerSajuId
+      ? 'love_compatibility'
+      : expert.category === 'love'
+        ? 'love_personal'
+        : 'general';
 
     const { data: newRoom, error } = await withSupabaseRetry<any>(async () => {
       return await supabase

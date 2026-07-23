@@ -4,8 +4,8 @@
  * OpenAI 스트리밍 핵심 유틸리티
  */
 
-import { OpenAIMessage } from './types.ts';
-import { StreamingError } from './error-handler.ts';
+import { OpenAIMessage } from "./types.ts";
+import { StreamingError } from "./error-handler.ts";
 
 export interface OpenAIStreamingConfig {
   apiKey: string;
@@ -19,7 +19,7 @@ export interface OpenAIStreamingConfig {
 }
 
 export async function createOpenAIStream(
-  config: OpenAIStreamingConfig
+  config: OpenAIStreamingConfig,
 ): Promise<ReadableStream> {
   const {
     apiKey,
@@ -33,25 +33,33 @@ export async function createOpenAIStream(
   } = config;
 
   if (!apiKey) {
-    throw new StreamingError('OpenAI API key is required', 500);
+    throw new StreamingError("OpenAI API key is required", 500);
   }
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
+  const isGpt5Family = model.startsWith("gpt-5");
+  const requestBody: Record<string, unknown> = {
+    model,
+    messages,
+    stream: true,
+  };
+
+  if (isGpt5Family) {
+    requestBody.max_completion_tokens = maxTokens;
+  } else {
+    requestBody.temperature = temperature;
+    requestBody.max_tokens = maxTokens;
+    requestBody.top_p = topP;
+    requestBody.frequency_penalty = frequencyPenalty;
+    requestBody.presence_penalty = presencePenalty;
+  }
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens: maxTokens,
-      top_p: topP,
-      frequency_penalty: frequencyPenalty,
-      presence_penalty: presencePenalty,
-      stream: true,
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
@@ -59,12 +67,12 @@ export async function createOpenAIStream(
     throw new StreamingError(
       `OpenAI API error: ${response.statusText}`,
       response.status,
-      JSON.stringify(errorData)
+      JSON.stringify(errorData),
     );
   }
 
   if (!response.body) {
-    throw new StreamingError('No response body from OpenAI', 500);
+    throw new StreamingError("No response body from OpenAI", 500);
   }
 
   return response.body;
@@ -77,36 +85,36 @@ export function transformToSSE(openaiStream: ReadableStream): ReadableStream {
 
   return new ReadableStream({
     async start(controller) {
-      let buffer = '';
+      let buffer = "";
 
       try {
         while (true) {
           const { done, value } = await reader.read();
-          
+
           if (done) {
-            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
             controller.close();
             break;
           }
 
           buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
 
           for (const line of lines) {
             const trimmedLine = line.trim();
-            
-            if (!trimmedLine || trimmedLine === 'data: [DONE]') {
+
+            if (!trimmedLine || trimmedLine === "data: [DONE]") {
               continue;
             }
 
-            if (trimmedLine.startsWith('data: ')) {
-              controller.enqueue(encoder.encode(trimmedLine + '\n\n'));
+            if (trimmedLine.startsWith("data: ")) {
+              controller.enqueue(encoder.encode(trimmedLine + "\n\n"));
             }
           }
         }
       } catch (error) {
-        console.error('Stream transformation error:', error);
+        console.error("Stream transformation error:", error);
         controller.error(error);
       }
     },
@@ -116,4 +124,3 @@ export function transformToSSE(openaiStream: ReadableStream): ReadableStream {
     },
   });
 }
-

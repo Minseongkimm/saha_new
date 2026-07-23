@@ -125,7 +125,12 @@ export async function processAiResponse(params: ProcessAiResponseParams): Promis
       : msg
   ));
   
-  const { id: _ignoreTempId, follow_up_questions: _ignoreFollowUp, ...dbAiMessage } = tempAiMessage as any;
+  const dbAiMessage = {
+    chat_room_id: tempAiMessage.chat_room_id,
+    sender_type: tempAiMessage.sender_type,
+    message: tempAiMessage.message,
+    created_at: tempAiMessage.created_at,
+  };
   const { data: insertedAiMessage, error: aiMessageError } = await withSupabaseRetry<{ id: string }>(async () => {
     return await supabase
       .from('chat_messages')
@@ -169,4 +174,3 @@ function safeParseJson<T>(value: string): T | null {
     return null;
   }
 }
-

@@ -6,22 +6,34 @@
 
 // OpenAI 모델별 토큰 비용 (2024년 기준)
 export const TOKEN_COSTS: Record<string, { input: number; output: number }> = {
-  'gpt-4o': {
-    input: 0.005 / 1000,    // $0.005 per 1K tokens (입력)
-    output: 0.015 / 1000    // $0.015 per 1K tokens (출력)
+  "gpt-4o": {
+    input: 0.005 / 1000, // $0.005 per 1K tokens (입력)
+    output: 0.015 / 1000, // $0.015 per 1K tokens (출력)
   },
-  'gpt-4o-mini': {
-    input: 0.00015 / 1000,  // $0.00015 per 1K tokens (입력)
-    output: 0.0006 / 1000   // $0.0006 per 1K tokens (출력)
+  "gpt-4o-mini": {
+    input: 0.00015 / 1000, // $0.00015 per 1K tokens (입력)
+    output: 0.0006 / 1000, // $0.0006 per 1K tokens (출력)
   },
-  'gpt-4': {
-    input: 0.03 / 1000,     // $0.03 per 1K tokens (입력)
-    output: 0.06 / 1000      // $0.06 per 1K tokens (출력)
+  "gpt-5.6-luna": {
+    input: 0.001 / 1000, // $1.00 per 1M tokens (입력)
+    output: 0.006 / 1000, // $6.00 per 1M tokens (출력)
   },
-  'gpt-3.5-turbo': {
-    input: 0.0005 / 1000,   // $0.0005 per 1K tokens (입력) - 수정됨
-    output: 0.0015 / 1000   // $0.0015 per 1K tokens (출력) - 수정됨
-  }
+  "gpt-5.6-terra": {
+    input: 0.0025 / 1000, // $2.50 per 1M tokens (입력)
+    output: 0.015 / 1000, // $15.00 per 1M tokens (출력)
+  },
+  "gpt-5.6-sol": {
+    input: 0.005 / 1000, // $5.00 per 1M tokens (입력)
+    output: 0.03 / 1000, // $30.00 per 1M tokens (출력)
+  },
+  "gpt-4": {
+    input: 0.03 / 1000, // $0.03 per 1K tokens (입력)
+    output: 0.06 / 1000, // $0.06 per 1K tokens (출력)
+  },
+  "gpt-3.5-turbo": {
+    input: 0.0005 / 1000, // $0.0005 per 1K tokens (입력) - 수정됨
+    output: 0.0015 / 1000, // $0.0015 per 1K tokens (출력) - 수정됨
+  },
 };
 
 /**
@@ -32,14 +44,14 @@ export const TOKEN_COSTS: Record<string, { input: number; output: number }> = {
  * @returns 계산된 비용 (USD)
  */
 export function calculateTokenCost(
-  model: string, 
-  promptTokens: number, 
-  completionTokens: number
+  model: string,
+  promptTokens: number,
+  completionTokens: number,
 ): number {
-  const costs = TOKEN_COSTS[model] || TOKEN_COSTS['gpt-4o'];
+  const costs = TOKEN_COSTS[model] || TOKEN_COSTS["gpt-4o"];
   const inputCost = promptTokens * costs.input;
   const outputCost = completionTokens * costs.output;
-  
+
   return Math.round((inputCost + outputCost) * 1000000) / 1000000; // 소수점 6자리까지
 }
 
@@ -50,14 +62,18 @@ export function calculateTokenCost(
  * @returns 포맷팅된 토큰 정보
  */
 export function formatTokenUsage(usage: any, model: string) {
-  const cost = calculateTokenCost(model, usage.prompt_tokens, usage.completion_tokens);
-  
+  const cost = calculateTokenCost(
+    model,
+    usage.prompt_tokens,
+    usage.completion_tokens,
+  );
+
   return {
     promptTokens: usage.prompt_tokens,
     completionTokens: usage.completion_tokens,
     totalTokens: usage.total_tokens,
     costUsd: cost,
-    model: model
+    model: model,
   };
 }
 

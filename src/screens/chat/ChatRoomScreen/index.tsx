@@ -47,6 +47,7 @@ import { Expert, getExpertCategoryLabel } from '../../../types/expert';
 import { getExpertImage } from '../../../utils/expert/getExpertImage';
 import { removeBoldMarkup } from '../../../utils/text/removeBoldMarkup';
 import { ChatRouteCategory, routeChatCategory } from '../../../utils/chat/routeChatCategory';
+import { classifyInfoIntent } from '../../../utils/chat/classifyInfoIntent';
 import { fetchUserBalance } from '../../../utils/payments/balance';
 import { checkFreeMessageAvailable } from '../../../utils/payments/freeMessage';
 import { getCurrentUserSafely } from '../../../utils/user/authUtils';
@@ -136,6 +137,8 @@ const ASSIGNMENT_DESCRIPTIONS: Record<ChatRouteCategory, string> = {
 const SAHA_HELPER_NAME = '사바 도우미';
 const SAHA_HELPER_IMAGE = require('../../../../assets/logo/logo_icon.png');
 const INFO_CAPTURE_THANKS_MESSAGE = '입력 감사합니다. 정보를 참고해서 말씀드리겠습니다. 무엇이 궁금하신가요?';
+const INFO_CLASSIFYING_MESSAGE = '상담 흐름을 살펴보고 있어요';
+const INFO_CLASSIFYING_MIN_MS = 1500;
 const PARTNER_CONNECTED_MESSAGE = (name?: string) => (
   `좋아요. ${name || '상대방'}님의 정보를 참고해서 이어서 봐드릴게요.`
 );
@@ -147,42 +150,147 @@ const buildAssignmentMessage = (expert: Expert, category: ChatRouteCategory) => 
   return `${expert.name}님이 상담을 도와주실 거예요.\n${categoryLabel}의 눈으로 먼저 읽어보고, 대화가 깊어지면 다른 고민도 자연스럽게 이어서 봐드릴게요.\n${ASSIGNMENT_DESCRIPTIONS[category]}`;
 };
 
-const detectInfoCaptureIntent = (text: string): 'birth_info' | 'partner_info' | null => {
+type InfoCaptureIntent = 'birth_info' | 'partner_info';
+type InfoCaptureDecision =
+  | { mode: 'none' }
+  | { mode: 'direct'; intent: InfoCaptureIntent }
+  | { mode: 'classify'; hints: InfoCaptureHints };
+
+interface InfoCaptureHints {
+  hasPartnerSignal: boolean;
+  hasCompatibilitySignal: boolean;
+  hasBirthEvidence: boolean;
+  hasGanjiInfo: boolean;
+}
+
+const getInfoCaptureDecision = (text: string): InfoCaptureDecision => {
   const normalized = text.replace(/\s+/g, '').toLowerCase();
-  const hasPartnerSignal = /(우리|상대|남친|여친|남자친구|여자친구|애인|남편|아내|배우자|썸|그사람|걔|연애상대)/.test(normalized);
+  const hasPartnerSignal = /(우리|상대|남친|여친|남자친구|여자친구|애인|남편|아내|배우자|썸|그사람|걔|오빠|좋아하는사람|헤어진사람|헤어진인연|연애상대|재회|고백|읽씹|연락두절|연락운|연락|헤어져|헤어저|헤어지|사귄|유부남|다시인연)/.test(normalized);
+  const birthDatePattern = '(?:\\d{2,4}년[\\s\\S]{0,30}\\d{1,2}월[\\s\\S]{0,15}\\d{1,2}일|\\d{1,2}월\\s*\\d{1,2}일)';
+  const partnerSubjectPattern = '(?:상대|남친|여친|남자친구|여자친구|애인|남편|아내|배우자|썸|그\\s*사람|오빠|좋아하는\\s*사람|헤어진\\s*사람|헤어진\\s*인연|어머니|엄마|아버지|아빠|딸|아들|아이|자식|아기|친구|전남친|전여친|전남자친구|전여자친구|전애인)';
+  const hasPartnerSubjectSignal =
+    new RegExp(`${partnerSubjectPattern}\\s*(은|는|이|가|도|의|인데|입니다|이고)?`).test(text);
+  const hasOtherPersonSubjectSignal =
+    hasPartnerSubjectSignal;
+  const hasPartnerBirthEvidence =
+    new RegExp(`${partnerSubjectPattern}[\\s\\S]{0,60}${birthDatePattern}`).test(text) ||
+    new RegExp(`${birthDatePattern}[\\s\\S]{0,40}${partnerSubjectPattern}`).test(text);
+  const hasSelfBirthEvidence =
+    new RegExp(`(?:저는|나는|제가|내가|제)[\\s\\S]{0,60}${birthDatePattern}`).test(text) ||
+    new RegExp(`${birthDatePattern}[\\s\\S]{0,30}(?:출생|생입니다|생이에요|태어났)`).test(text);
   const hasExplicitCompatibilitySignal = /(궁합|속궁합|관계궁합|연애궁합)/.test(normalized);
   const hasSoftCompatibilitySignal = /(잘맞|잘맞아)/.test(normalized);
+  const hasBirthContext = /(출생|태어났|태어난|생년월일|생일|양력|음력|윤달|몇년생|몇 년생)/.test(text);
+  const hasYear = /\d{2,4}년/.test(text);
+  const hasMonthDay = /\d{1,2}월\s*\d{1,2}일/.test(text);
+  const hasBirthTime = /(오전|오후|새벽|밤|저녁|아침)\s*\d{1,2}시|\d{1,2}시\s*\d{1,2}분/.test(text);
+  const hasGanjiInfo =
+    /(일주|월주|년주|시주|일간|천간|지지|사주정보)/.test(text) ||
+    /(갑|을|병|정|무|기|경|신|임|계)(자|축|인|묘|진|사|오|미|신|유|술|해)(년|월|일|시|일주|시주|월주|년주)/.test(text);
+  const hasDateWithTime = hasYear && hasMonthDay && hasBirthTime;
+  const hasBirthEvidence = (hasBirthContext && (hasYear || hasMonthDay || hasBirthTime)) || hasDateWithTime;
+  const hasCompatibilitySignal = hasExplicitCompatibilitySignal || hasSoftCompatibilitySignal;
 
-  if (
-    hasExplicitCompatibilitySignal ||
-    (hasPartnerSignal && hasSoftCompatibilitySignal) ||
-    (hasPartnerSignal && /(봐줘|봐주|알려줘|어때|흐름|관계|연애|사주)/.test(normalized))
-  ) {
-    return 'partner_info';
+  if (hasSelfBirthEvidence && hasPartnerBirthEvidence) {
+    return {
+      mode: 'classify',
+      hints: {
+        hasPartnerSignal,
+        hasCompatibilitySignal,
+        hasBirthEvidence,
+        hasGanjiInfo,
+      },
+    };
   }
 
-  const hasBirthInfo =
-    /\d{2,4}년/.test(text) ||
-    /\d{1,2}월\s*\d{1,2}일/.test(text) ||
-    /(오전|오후|새벽|밤|저녁|아침)?\s*\d{1,2}시/.test(text) ||
-    /(갑|을|병|정|무|기|경|신|임|계)(자|축|인|묘|진|사|오|미|신|유|술|해)(년|월|일|시|일주|시주|월주|년주)?/.test(text) ||
-    /(일주|월주|년주|시주|일간|천간|지지|사주정보|출생|태어났|태어난|생년월일|양력|음력|윤달)/.test(text);
+  if (hasSelfBirthEvidence) {
+    return { mode: 'direct', intent: 'birth_info' };
+  }
 
-  if (!hasBirthInfo) return null;
+  if (hasPartnerBirthEvidence) {
+    return { mode: 'direct', intent: 'partner_info' };
+  }
 
-  return hasPartnerSignal ? 'partner_info' : 'birth_info';
+  if (!hasOtherPersonSubjectSignal && hasBirthEvidence) {
+    return { mode: 'direct', intent: 'birth_info' };
+  }
+
+  const maybeInfoCandidate =
+    hasBirthContext ||
+    hasGanjiInfo ||
+    hasPartnerSignal ||
+    hasCompatibilitySignal;
+
+  if (!maybeInfoCandidate) {
+    return { mode: 'none' };
+  }
+
+  return {
+    mode: 'classify',
+    hints: {
+      hasPartnerSignal,
+      hasCompatibilitySignal,
+      hasBirthEvidence,
+      hasGanjiInfo,
+    },
+  };
 };
 
-const createInfoCaptureMessages = (
+const resolveInfoCaptureIntent = async (
+  text: string,
+  decision: InfoCaptureDecision = getInfoCaptureDecision(text)
+): Promise<InfoCaptureIntent | null> => {
+  if (decision.mode === 'none') {
+    return null;
+  }
+  if (decision.mode === 'direct') {
+    return decision.intent;
+  }
+
+  const result = await classifyInfoIntent(text);
+  if (result.source !== 'llm' || result.confidence < 0.72) {
+    return null;
+  }
+
+  if (result.intent === 'self_birth_info') {
+    return decision.hints.hasBirthEvidence || decision.hints.hasGanjiInfo ? 'birth_info' : null;
+  }
+  if (result.intent === 'partner_birth_info') {
+    const hasPartnerInfoEvidence = decision.hints.hasPartnerSignal && (
+      decision.hints.hasBirthEvidence || decision.hints.hasGanjiInfo
+    );
+    return hasPartnerInfoEvidence ? 'partner_info' : null;
+  }
+  if (result.intent === 'partner_selection_needed') {
+    return decision.hints.hasPartnerSignal || decision.hints.hasCompatibilitySignal ? 'partner_info' : null;
+  }
+
+  return null;
+};
+
+const createInfoCaptureUserMessage = (
+  roomId: string,
+  text: string,
+  now: number,
+  userDraftId: string
+): ChatMessage => ({
+  id: userDraftId,
+  chat_room_id: roomId,
+  sender_type: 'user',
+  message: text.trim(),
+  created_at: new Date(now).toISOString(),
+});
+
+const createInfoCaptureHelperMessage = (
   roomId: string,
   text: string,
   kind: 'birth_info' | 'partner_info',
   expert: Expert,
-  partners: PartnerSaju[] = []
-): ChatMessage[] => {
-  const now = Date.now();
-  const userDraftId = `info_capture_user_${now}`;
-  const helperDraftId = `info_capture_helper_${now}`;
+  partners: PartnerSaju[] = [],
+  now: number = Date.now(),
+  helperDraftId: string = `info_capture_helper_${now}`,
+  userDraftId?: string
+): ChatMessage => {
   const helperMessage = kind === 'partner_info'
     ? '상대방 정보가 있으면 더 정확한 궁합 상담이 됩니다.\n누구와의 흐름을 함께 볼까요?'
     : '정확히 반영하려면 출생 정보를 입력해주세요.\n아래 버튼을 눌러서 입력해주세요.';
@@ -204,28 +312,62 @@ const createInfoCaptureMessages = (
       ]
     : undefined;
 
+  return {
+    id: helperDraftId,
+    chat_room_id: roomId,
+    sender_type: 'expert',
+    message: helperMessage,
+    created_at: new Date(now + 1).toISOString(),
+    display_name: SAHA_HELPER_NAME,
+    display_image: SAHA_HELPER_IMAGE,
+    action_label: kind === 'birth_info' ? '입력하기' : undefined,
+    action_kind: kind,
+    action_payload: { roomId, expert, originalText: text.trim(), userDraftId },
+    action_options: actionOptions,
+  };
+};
+
+const createInfoCaptureMessages = (
+  roomId: string,
+  text: string,
+  kind: 'birth_info' | 'partner_info',
+  expert: Expert,
+  partners: PartnerSaju[] = []
+): ChatMessage[] => {
+  const now = Date.now();
+  const userDraftId = `info_capture_user_${now}`;
+  const helperDraftId = `info_capture_helper_${now}`;
+
   return [
-    {
-      id: userDraftId,
-      chat_room_id: roomId,
-      sender_type: 'user',
-      message: text.trim(),
-      created_at: new Date(now).toISOString(),
-    },
-    {
-      id: helperDraftId,
-      chat_room_id: roomId,
-      sender_type: 'expert',
-      message: helperMessage,
-      created_at: new Date(now + 1).toISOString(),
-      display_name: SAHA_HELPER_NAME,
-      display_image: SAHA_HELPER_IMAGE,
-      action_label: kind === 'birth_info' ? '입력하기' : undefined,
-      action_kind: kind,
-      action_payload: { roomId, expert, originalText: text.trim(), userDraftId },
-      action_options: actionOptions,
-    },
+    createInfoCaptureUserMessage(roomId, text, now, userDraftId),
+    createInfoCaptureHelperMessage(roomId, text, kind, expert, partners, now, helperDraftId, userDraftId),
   ];
+};
+
+const streamUiMessageText = async (
+  setUiMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
+  messageId: string,
+  fullText: string,
+  minDurationMs: number = INFO_CLASSIFYING_MIN_MS
+) => {
+  const startedAt = Date.now();
+  const stepMs = Math.max(35, Math.floor(minDurationMs / Math.max(fullText.length, 1)));
+
+  for (let index = 1; index <= fullText.length; index += 1) {
+    setUiMessages((prev) =>
+      prev.map((message) =>
+        message.id === messageId
+          ? { ...message, message: fullText.slice(0, index) }
+          : message
+      )
+    );
+    await sleep(stepMs);
+  }
+
+  const elapsedMs = Date.now() - startedAt;
+  if (elapsedMs < minDurationMs) {
+    await sleep(minDurationMs - elapsedMs);
+  }
 };
 
 const sortMessagesByCreatedAt = (items: ChatMessage[]) => (
@@ -507,7 +649,60 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
   }, [activePartnerData, expert, isDirectMode, navigation, roomId, sendMessageWithText]);
 
   const handleChatSendMessage = useCallback(async (text: string) => {
-    const intent = detectInfoCaptureIntent(text);
+    const decision = getInfoCaptureDecision(text);
+
+    if (decision.mode === 'classify') {
+      const now = Date.now();
+      const userDraftId = `info_capture_user_${now}`;
+      const helperDraftId = `info_capture_checking_${now}`;
+      setUiMessages((prev) => [
+        ...prev,
+        createInfoCaptureUserMessage(roomId, text, now, userDraftId),
+        {
+          id: helperDraftId,
+          chat_room_id: roomId,
+          sender_type: 'expert',
+          message: '',
+          created_at: new Date(now + 1).toISOString(),
+          display_name: SAHA_HELPER_NAME,
+          display_image: SAHA_HELPER_IMAGE,
+        },
+      ]);
+
+      const [intent] = await Promise.all([
+        resolveInfoCaptureIntent(text, decision),
+        streamUiMessageText(setUiMessages, helperDraftId, INFO_CLASSIFYING_MESSAGE),
+      ]);
+
+      if (intent && !(intent === 'partner_info' && activePartnerData)) {
+        const partners = intent === 'partner_info' ? await loadPartnerOptions() : [];
+        setUiMessages((prev) =>
+          prev.map((message) =>
+            message.id === helperDraftId
+              ? createInfoCaptureHelperMessage(
+                  roomId,
+                  text,
+                  intent,
+                  expert,
+                  partners,
+                  now,
+                  helperDraftId,
+                  userDraftId
+                )
+              : message
+          )
+        );
+        return;
+      }
+
+      setUiMessages((prev) =>
+        prev.filter((message) => message.id !== userDraftId && message.id !== helperDraftId)
+      );
+      sendMessage(text);
+      return;
+    }
+
+    const intent = await resolveInfoCaptureIntent(text, decision);
     if (intent && !(intent === 'partner_info' && activePartnerData)) {
       const partners = intent === 'partner_info' ? await loadPartnerOptions() : [];
       setUiMessages((prev) => [
@@ -1227,7 +1422,65 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
     text: string,
     options?: { includeUserMessage?: boolean }
   ) => {
-    const intent = detectInfoCaptureIntent(text);
+    const decision = getInfoCaptureDecision(text);
+    const includeUserMessage = options?.includeUserMessage !== false;
+
+    if (decision.mode === 'classify') {
+      const now = Date.now();
+      const userDraftId = `info_capture_user_${now}`;
+      const helperDraftId = `info_capture_checking_${now}`;
+      setUiMessages((prev) => [
+        ...prev,
+        ...(includeUserMessage
+          ? [createInfoCaptureUserMessage(activeChat.roomId, text, now, userDraftId)]
+          : []),
+        {
+          id: helperDraftId,
+          chat_room_id: activeChat.roomId,
+          sender_type: 'expert',
+          message: '',
+          created_at: new Date(now + 1).toISOString(),
+          display_name: SAHA_HELPER_NAME,
+          display_image: SAHA_HELPER_IMAGE,
+        },
+      ]);
+
+      const [intent] = await Promise.all([
+        resolveInfoCaptureIntent(text, decision),
+        streamUiMessageText(setUiMessages, helperDraftId, INFO_CLASSIFYING_MESSAGE),
+      ]);
+
+      if (intent && !(intent === 'partner_info' && activePartnerData)) {
+        const partners = intent === 'partner_info' ? await loadPartnerOptions() : [];
+        setUiMessages((prev) =>
+          prev.map((message) =>
+            message.id === helperDraftId
+              ? createInfoCaptureHelperMessage(
+                  activeChat.roomId,
+                  text,
+                  intent,
+                  activeChat.expert,
+                  partners,
+                  now,
+                  helperDraftId,
+                  includeUserMessage ? userDraftId : undefined
+                )
+              : message
+          )
+        );
+        return;
+      }
+
+      setUiMessages((prev) =>
+        prev.filter((message) =>
+          message.id !== helperDraftId && (!includeUserMessage || message.id !== userDraftId)
+        )
+      );
+      sendMessage(text);
+      return;
+    }
+
+    const intent = await resolveInfoCaptureIntent(text, decision);
     if (intent && !(intent === 'partner_info' && activePartnerData)) {
       const partners = intent === 'partner_info' ? await loadPartnerOptions() : [];
       const nextUiMessages = createInfoCaptureMessages(activeChat.roomId, text, intent, activeChat.expert, partners);

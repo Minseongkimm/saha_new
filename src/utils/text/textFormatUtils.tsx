@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TextStyle, Platform, View } from 'react-native';
+import { Text, TextStyle, Platform } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { removeCommasFromMessage } from './removeCommas';
 import { removeBoldMarkup } from './removeBoldMarkup';
@@ -91,13 +91,28 @@ export const extractFollowUpQuestions = (text: string): string[] => {
   const sectionMatch2: RegExpMatchArray | null = text.match(/다음으로\s*(?:궁)?금하신\s*점(?:은|이)?\s*무엇(?:인지요|인가요|일까요)\??\s*([\s\S]*)$/);
   const section: string | null = sectionMatch1?.[1] ?? sectionMatch2?.[1] ?? null;
   if (!section) return questions;
-  const itemRegex: RegExp = /^\s*\d+\.\s*(.+)$/gm;
-  let match: RegExpExecArray | null;
-  while ((match = itemRegex.exec(section)) !== null) {
-    const cleaned: string = removeBoldMarkup(match[1].trim());
-    if (cleaned) questions.push(cleaned);
+  const lines = section
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    const cleaned = removeBoldMarkup(
+      line
+        .replace(/^\s*(?:\d+[.)]|[-•*])\s*/, '')
+        .replace(/^\[(.*)\]$/, '$1')
+        .trim()
+    );
+    const isPlaceholder =
+      cleaned === '...' ||
+      cleaned === '질문' ||
+      cleaned.includes('내외') ||
+      cleaned.includes('짧은 질문');
+    if (cleaned && !isPlaceholder && !cleaned.includes('팔로업 질문')) {
+      questions.push(cleaned);
+    }
   }
-  return questions.slice(0, 4);
+  return questions.slice(0, 2);
 };
 
 /**
