@@ -55,6 +55,8 @@ import {
   hasUserReceivedReviewReward,
   grantReviewReward,
 } from '../../../utils/reviewReward/reviewReward';
+import { getPartnerList } from '../../../utils/partner/partnerDatabase';
+import { PartnerSaju, RELATIONSHIP_STATUS_LABELS, RelationshipStatus } from '../../../types/partner';
 
 const IS_IPAD = isIPad();
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -79,6 +81,7 @@ interface ActiveDirectChat {
   roomId: string;
   expert: Expert;
   initialMessage?: string;
+  partnerData?: any;
 }
 
 interface DirectDraftMessage {
@@ -86,9 +89,11 @@ interface DirectDraftMessage {
   text: string;
   role: 'user' | 'status' | 'assignment';
   expertName?: string;
+  createdAt: string;
 }
 
 interface DirectInlineActiveChatProps {
+  navigation: any;
   activeChat: ActiveDirectChat;
   draftMessages: DirectDraftMessage[];
   isKeyboardVisible: boolean;
@@ -110,6 +115,7 @@ interface ChatConversationBodyProps {
   loading: boolean;
   onSendMessage: (message: string) => void;
   onSendMessageWithText: (message: string) => void;
+  onMessageActionPress?: (item: ChatMessage, option?: NonNullable<ChatMessage['action_options']>[number]) => void;
   messageWrapperStyle?: StyleProp<ViewStyle>;
   inputWrapperStyle?: StyleProp<ViewStyle>;
 }
@@ -129,6 +135,10 @@ const ASSIGNMENT_DESCRIPTIONS: Record<ChatRouteCategory, string> = {
 };
 const SAHA_HELPER_NAME = '사바 도우미';
 const SAHA_HELPER_IMAGE = require('../../../../assets/logo/logo_icon.png');
+const INFO_CAPTURE_THANKS_MESSAGE = '입력 감사합니다. 정보를 참고해서 말씀드리겠습니다. 무엇이 궁금하신가요?';
+const PARTNER_CONNECTED_MESSAGE = (name?: string) => (
+  `좋아요. ${name || '상대방'}님의 정보를 참고해서 이어서 봐드릴게요.`
+);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -136,6 +146,111 @@ const buildAssignmentMessage = (expert: Expert, category: ChatRouteCategory) => 
   const categoryLabel = getExpertCategoryLabel(expert.category);
   return `${expert.name}님이 상담을 도와주실 거예요.\n${categoryLabel}의 눈으로 먼저 읽어보고, 대화가 깊어지면 다른 고민도 자연스럽게 이어서 봐드릴게요.\n${ASSIGNMENT_DESCRIPTIONS[category]}`;
 };
+
+const detectInfoCaptureIntent = (text: string): 'birth_info' | 'partner_info' | null => {
+  const normalized = text.replace(/\s+/g, '').toLowerCase();
+  const hasPartnerSignal = /(우리|상대|남친|여친|남자친구|여자친구|애인|남편|아내|배우자|썸|그사람|걔|연애상대)/.test(normalized);
+  const hasExplicitCompatibilitySignal = /(궁합|속궁합|관계궁합|연애궁합)/.test(normalized);
+  const hasSoftCompatibilitySignal = /(잘맞|잘맞아)/.test(normalized);
+
+  if (
+    hasExplicitCompatibilitySignal ||
+    (hasPartnerSignal && hasSoftCompatibilitySignal) ||
+    (hasPartnerSignal && /(봐줘|봐주|알려줘|어때|흐름|관계|연애|사주)/.test(normalized))
+  ) {
+    return 'partner_info';
+  }
+
+  const hasBirthInfo =
+    /\d{2,4}년/.test(text) ||
+    /\d{1,2}월\s*\d{1,2}일/.test(text) ||
+    /(오전|오후|새벽|밤|저녁|아침)?\s*\d{1,2}시/.test(text) ||
+    /(갑|을|병|정|무|기|경|신|임|계)(자|축|인|묘|진|사|오|미|신|유|술|해)(년|월|일|시|일주|시주|월주|년주)?/.test(text) ||
+    /(일주|월주|년주|시주|일간|천간|지지|사주정보|출생|태어났|태어난|생년월일|양력|음력|윤달)/.test(text);
+
+  if (!hasBirthInfo) return null;
+
+  return hasPartnerSignal ? 'partner_info' : 'birth_info';
+};
+
+const createInfoCaptureMessages = (
+  roomId: string,
+  text: string,
+  kind: 'birth_info' | 'partner_info',
+  expert: Expert,
+  partners: PartnerSaju[] = []
+): ChatMessage[] => {
+  const now = Date.now();
+  const userDraftId = `info_capture_user_${now}`;
+  const helperDraftId = `info_capture_helper_${now}`;
+  const helperMessage = kind === 'partner_info'
+    ? '상대방 정보가 있으면 더 정확한 궁합 상담이 됩니다.\n누구와의 흐름을 함께 볼까요?'
+    : '정확히 반영하려면 출생 정보를 입력해주세요.\n아래 버튼을 눌러서 입력해주세요.';
+  const actionOptions = kind === 'partner_info'
+    ? [
+        ...partners.map((partner) => ({
+          label: partner.partner_name || '이름 없음',
+          description: RELATIONSHIP_STATUS_LABELS[
+            (partner.relationship_status || 'interested') as RelationshipStatus
+          ],
+          action_kind: 'select_partner' as const,
+          action_payload: { roomId, expert, partner, originalText: text.trim(), userDraftId },
+        })),
+        {
+          label: partners.length > 0 ? '다른 사람 입력하기' : '상대방 정보 입력하기',
+          action_kind: 'partner_info' as const,
+          action_payload: { roomId, expert, originalText: text.trim(), userDraftId },
+        },
+      ]
+    : undefined;
+
+  return [
+    {
+      id: userDraftId,
+      chat_room_id: roomId,
+      sender_type: 'user',
+      message: text.trim(),
+      created_at: new Date(now).toISOString(),
+    },
+    {
+      id: helperDraftId,
+      chat_room_id: roomId,
+      sender_type: 'expert',
+      message: helperMessage,
+      created_at: new Date(now + 1).toISOString(),
+      display_name: SAHA_HELPER_NAME,
+      display_image: SAHA_HELPER_IMAGE,
+      action_label: kind === 'birth_info' ? '입력하기' : undefined,
+      action_kind: kind,
+      action_payload: { roomId, expert, originalText: text.trim(), userDraftId },
+      action_options: actionOptions,
+    },
+  ];
+};
+
+const sortMessagesByCreatedAt = (items: ChatMessage[]) => (
+  [...items].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+);
+
+const loadPartnerOptions = async (): Promise<PartnerSaju[]> => {
+  try {
+    return await getPartnerList() as PartnerSaju[];
+  } catch (error) {
+    console.error('Partner option lookup failed:', error);
+    return [];
+  }
+};
+
+const buildChatPartnerData = (partner: PartnerSaju) => ({
+  partnerInfo: {
+    ...(partner.birth_info || {}),
+    name: partner.partner_name || partner.birth_info?.name || '',
+    relationshipStatus: partner.relationship_status,
+  },
+  partnerSajuData: partner.saju_data,
+  partnerId: partner.id,
+  compatibilityResult: partner.compatibility_result,
+});
 
 const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
   if (route.params?.directEntry === true) {
@@ -156,6 +271,7 @@ const ChatConversationBody: React.FC<ChatConversationBodyProps> = ({
   loading,
   onSendMessage,
   onSendMessageWithText,
+  onMessageActionPress,
   messageWrapperStyle,
   inputWrapperStyle,
 }) => {
@@ -169,6 +285,7 @@ const ChatConversationBody: React.FC<ChatConversationBodyProps> = ({
       setShouldAutoScroll={setShouldAutoScroll}
       scrollToBottom={scrollToBottom}
       loading={loading}
+      onMessageActionPress={onMessageActionPress}
     />
   );
 
@@ -200,7 +317,7 @@ const ChatConversationBody: React.FC<ChatConversationBodyProps> = ({
 };
 
 const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
-  const { roomId, expert, partnerData, initialMessage } = route.params;
+  const { roomId, expert, partnerData, initialMessage, infoCaptureMessage } = route.params;
   const isDirectMode: boolean = route.params?.directMode === true;
   const onDirectNewChat: (() => void) | undefined = route.params?.onDirectNewChat;
   const onDirectSelectChat: ((roomId: string, expert: Expert) => void) | undefined = route.params?.onDirectSelectChat;
@@ -230,6 +347,8 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
   const [isSidebarVisible, setIsSidebarVisible] = useState<boolean>(false);
   const [sidebarChats, setSidebarChats] = useState<SidebarChatItem[]>([]);
   const [isSidebarLoading, setIsSidebarLoading] = useState<boolean>(false);
+  const [uiMessages, setUiMessages] = useState<ChatMessage[]>([]);
+  const [activePartnerData, setActivePartnerData] = useState<any>(partnerData);
   const sidebarTranslateX = useRef(new Animated.Value(SIDEBAR_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
 
@@ -254,9 +373,35 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
   const hasEndedRef = useRef<boolean>(false);
   const allowRoomSwitchRef = useRef<boolean>(false);
   const initialMessageSentRef = useRef<boolean>(false);
+  const handledInfoActionIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  useEffect(() => {
+    if (partnerData) {
+      setActivePartnerData(partnerData);
+    }
+  }, [partnerData]);
+
+  useEffect(() => {
+    if (!infoCaptureMessage) return;
+    setUiMessages((prev) => {
+      if (prev.some((item) => item.id === `info_capture_done_${roomId}`)) return prev;
+      return [
+        ...prev,
+        {
+          id: `info_capture_done_${roomId}`,
+          chat_room_id: roomId,
+          sender_type: 'expert',
+          message: infoCaptureMessage,
+          created_at: new Date().toISOString(),
+          display_name: SAHA_HELPER_NAME,
+          display_image: SAHA_HELPER_IMAGE,
+        },
+      ];
+    });
+  }, [infoCaptureMessage, roomId]);
 
   const {
     isAiResponding,
@@ -279,8 +424,103 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
       });
       setShowInsufficientBalanceSheet(true);
     },
-    partnerData
+    partnerData: activePartnerData
   });
+
+  const handleInfoCaptureAction = useCallback(async (
+    item: ChatMessage,
+    option?: NonNullable<ChatMessage['action_options']>[number]
+  ) => {
+    const actionKind = option?.action_kind ?? item.action_kind;
+    const actionPayload = option?.action_payload ?? item.action_payload;
+    const actionId = `${item.id}:${actionKind}:${option?.label ?? item.action_label ?? 'default'}`;
+    if (handledInfoActionIdsRef.current.has(actionId)) return;
+    handledInfoActionIdsRef.current.add(actionId);
+    setUiMessages((prev) =>
+      prev.map((message) =>
+        message.id === item.id
+          ? { ...message, action_label: undefined, action_options: undefined }
+          : message
+      )
+    );
+    const returnToChat = {
+      roomId,
+      expert,
+      partnerData: activePartnerData,
+      directMode: isDirectMode,
+      infoCaptureMessage: INFO_CAPTURE_THANKS_MESSAGE,
+    };
+
+    if (actionKind === 'select_partner') {
+      const selectedPartner = actionPayload?.partner;
+      if (!selectedPartner?.id) return;
+
+      try {
+        const { error } = await supabase
+          .from('chat_rooms')
+          .update({
+            partner_saju_id: selectedPartner.id,
+            chat_context: 'love_compatibility',
+          })
+          .eq('id', roomId);
+
+        if (error) throw error;
+
+        const nextPartnerData = buildChatPartnerData(selectedPartner);
+        setActivePartnerData(nextPartnerData);
+        setUiMessages((prev) => [
+          ...prev,
+          {
+            id: `partner_connected_${roomId}_${Date.now()}`,
+            chat_room_id: roomId,
+            sender_type: 'expert',
+            message: PARTNER_CONNECTED_MESSAGE(selectedPartner.partner_name),
+            created_at: new Date().toISOString(),
+            display_name: SAHA_HELPER_NAME,
+            display_image: SAHA_HELPER_IMAGE,
+          },
+        ]);
+        if (actionPayload?.originalText) {
+          sendMessageWithText(actionPayload.originalText, {
+            partnerDataOverride: nextPartnerData,
+            suppressUserMessageUiAppend: true,
+          });
+        }
+      } catch (error) {
+        console.error('Partner selection failed:', error);
+        Alert.alert('오류', '상대방 정보를 연결하지 못했습니다.');
+      }
+      return;
+    }
+
+    if (actionKind === 'partner_info') {
+      navigation.navigate('PartnerInput', {
+        expertId: expert.id,
+        returnToChat,
+      });
+      return;
+    }
+
+    navigation.navigate('BirthInfo', {
+      returnToChat,
+    });
+  }, [activePartnerData, expert, isDirectMode, navigation, roomId, sendMessageWithText]);
+
+  const handleChatSendMessage = useCallback(async (text: string) => {
+    const intent = detectInfoCaptureIntent(text);
+    if (intent && !(intent === 'partner_info' && activePartnerData)) {
+      const partners = intent === 'partner_info' ? await loadPartnerOptions() : [];
+      setUiMessages((prev) => [
+        ...prev,
+        ...createInfoCaptureMessages(roomId, text, intent, expert, partners),
+      ]);
+      return;
+    }
+
+    sendMessage(text);
+  }, [activePartnerData, expert, roomId, sendMessage]);
+
+  const displayedMessages = sortMessagesByCreatedAt([...messages, ...uiMessages]);
 
   useEffect(() => {
     if (!initialMessage || initialMessageSentRef.current || loading || isAiResponding) return;
@@ -712,7 +952,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
         enabled={Platform.OS === 'ios' || isKeyboardVisible}
       >
         <ChatConversationBody
-          messages={messages}
+          messages={displayedMessages}
           isAiResponding={isAiResponding}
           expert={expert}
           flatListRef={flatListRef}
@@ -720,8 +960,9 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
           setShouldAutoScroll={setShouldAutoScroll}
           scrollToBottom={scrollToBottom}
           loading={loading}
-          onSendMessage={sendMessage}
+          onSendMessage={handleChatSendMessage}
           onSendMessageWithText={sendMessageWithText}
+          onMessageActionPress={handleInfoCaptureAction}
         />
       </KeyboardAvoidingView>
 
@@ -855,6 +1096,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
 };
 
 const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
+  navigation,
   activeChat,
   draftMessages,
   isKeyboardVisible,
@@ -862,6 +1104,9 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
   onBalanceInfoChange,
 }) => {
   const initialMessageSentRef = useRef<boolean>(false);
+  const handledInfoActionIdsRef = useRef<Set<string>>(new Set());
+  const [uiMessages, setUiMessages] = useState<ChatMessage[]>([]);
+  const [activePartnerData, setActivePartnerData] = useState<any>(activeChat.partnerData);
   const {
     messages,
     setMessages,
@@ -892,7 +1137,111 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
     onBalanceInsufficient: () => {
       Alert.alert('안내', '무료 상담을 모두 사용했거나 사바가 부족합니다.');
     },
+    partnerData: activePartnerData,
   });
+
+  useEffect(() => {
+    setActivePartnerData(activeChat.partnerData);
+  }, [activeChat.partnerData]);
+
+  const handleInfoCaptureAction = useCallback(async (
+    item: ChatMessage,
+    option?: NonNullable<ChatMessage['action_options']>[number]
+  ) => {
+    const actionKind = option?.action_kind ?? item.action_kind;
+    const actionPayload = option?.action_payload ?? item.action_payload;
+    const actionId = `${item.id}:${actionKind}:${option?.label ?? item.action_label ?? 'default'}`;
+    if (handledInfoActionIdsRef.current.has(actionId)) return;
+    handledInfoActionIdsRef.current.add(actionId);
+    setUiMessages((prev) =>
+      prev.map((message) =>
+        message.id === item.id
+          ? { ...message, action_label: undefined, action_options: undefined }
+          : message
+      )
+    );
+    const returnToChat = {
+      roomId: activeChat.roomId,
+      expert: activeChat.expert,
+      partnerData: activePartnerData,
+      directMode: true,
+      infoCaptureMessage: INFO_CAPTURE_THANKS_MESSAGE,
+    };
+
+    if (actionKind === 'select_partner') {
+      const selectedPartner = actionPayload?.partner;
+      if (!selectedPartner?.id) return;
+
+      try {
+        const { error } = await supabase
+          .from('chat_rooms')
+          .update({
+            partner_saju_id: selectedPartner.id,
+            chat_context: 'love_compatibility',
+          })
+          .eq('id', activeChat.roomId);
+
+        if (error) throw error;
+
+        const nextPartnerData = buildChatPartnerData(selectedPartner);
+        setActivePartnerData(nextPartnerData);
+        setUiMessages((prev) => [
+          ...prev,
+          {
+            id: `partner_connected_${activeChat.roomId}_${Date.now()}`,
+            chat_room_id: activeChat.roomId,
+            sender_type: 'expert',
+            message: PARTNER_CONNECTED_MESSAGE(selectedPartner.partner_name),
+            created_at: new Date().toISOString(),
+            display_name: SAHA_HELPER_NAME,
+            display_image: SAHA_HELPER_IMAGE,
+          },
+        ]);
+        if (actionPayload?.originalText) {
+          sendMessageWithText(actionPayload.originalText, {
+            partnerDataOverride: nextPartnerData,
+            suppressUserMessageUiAppend: true,
+          });
+        }
+      } catch (error) {
+        console.error('Direct partner selection failed:', error);
+        Alert.alert('오류', '상대방 정보를 연결하지 못했습니다.');
+      }
+      return;
+    }
+
+    if (actionKind === 'partner_info') {
+      navigation.navigate('PartnerInput', {
+        expertId: activeChat.expert.id,
+        returnToChat,
+      });
+      return;
+    }
+
+    navigation.navigate('BirthInfo', {
+      returnToChat,
+    });
+  }, [activeChat.expert, activeChat.roomId, activePartnerData, navigation, sendMessageWithText]);
+
+  const handleChatSendMessage = useCallback(async (
+    text: string,
+    options?: { includeUserMessage?: boolean }
+  ) => {
+    const intent = detectInfoCaptureIntent(text);
+    if (intent && !(intent === 'partner_info' && activePartnerData)) {
+      const partners = intent === 'partner_info' ? await loadPartnerOptions() : [];
+      const nextUiMessages = createInfoCaptureMessages(activeChat.roomId, text, intent, activeChat.expert, partners);
+      setUiMessages((prev) => [
+        ...prev,
+        ...(options?.includeUserMessage === false
+          ? nextUiMessages.filter((message) => message.sender_type !== 'user')
+          : nextUiMessages),
+      ]);
+      return;
+    }
+
+    sendMessage(text);
+  }, [activeChat.expert, activeChat.roomId, activePartnerData, sendMessage]);
 
   useEffect(() => {
     onBalanceInfoChange(currentBalance, freeMessageInfo);
@@ -902,11 +1251,11 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
     if (!activeChat.initialMessage || initialMessageSentRef.current || loading || isAiResponding) return;
     initialMessageSentRef.current = true;
     const timer = setTimeout(() => {
-      sendMessageWithText(activeChat.initialMessage!);
+      handleChatSendMessage(activeChat.initialMessage!, { includeUserMessage: false });
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [activeChat.initialMessage, isAiResponding, loading, sendMessageWithText]);
+  }, [activeChat.initialMessage, handleChatSendMessage, isAiResponding, loading]);
 
   useEffect(() => {
     if (messages.length === 0) return;
@@ -931,7 +1280,7 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
       chat_room_id: activeChat.roomId,
       sender_type: item.role === 'user' ? 'user' : 'expert',
       message: item.text,
-      created_at: new Date().toISOString(),
+      created_at: item.createdAt,
       ...(item.role === 'assignment'
         ? { display_name: SAHA_HELPER_NAME, display_image: SAHA_HELPER_IMAGE }
         : {}),
@@ -953,7 +1302,7 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
         return true;
       })
     : messages;
-  const mergedMessages = [...draftChatMessages, ...visibleMessages];
+  const mergedMessages = sortMessagesByCreatedAt([...draftChatMessages, ...visibleMessages, ...uiMessages]);
 
   return (
     <ChatConversationBody
@@ -965,8 +1314,9 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
       setShouldAutoScroll={setShouldAutoScroll}
       scrollToBottom={scrollToBottom}
       loading={loading}
-      onSendMessage={sendMessage}
+      onSendMessage={handleChatSendMessage}
       onSendMessageWithText={sendMessageWithText}
+      onMessageActionPress={handleInfoCaptureAction}
       messageWrapperStyle={styles.directEntryMessageArea}
       inputWrapperStyle={[
         styles.inputContainer,
@@ -1193,15 +1543,23 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
 
     const statusMessageId = `status-${Date.now()}`;
     const startedAt = Date.now();
+    const userMessageCreatedAt = new Date(startedAt).toISOString();
+    const statusMessageCreatedAt = new Date(startedAt + 1).toISOString();
     setIsMatching(true);
     setDraftMessages((prev) => [
       ...prev,
-      { id: `user-${Date.now()}`, text: trimmed, role: 'user' },
+      {
+        id: `user-${startedAt}`,
+        text: trimmed,
+        role: 'user',
+        createdAt: userMessageCreatedAt,
+      },
       {
         id: statusMessageId,
         text: ROUTING_STATUS_MESSAGES[0],
         role: 'status',
         expertName: SAHA_HELPER_NAME,
+        createdAt: statusMessageCreatedAt,
       },
     ]);
 
@@ -1296,7 +1654,7 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
         styles.timestampBase,
         item.role === 'user' ? styles.timestampUser : styles.timestampExpert
       ]}>
-        {new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+        {new Date(item.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
       </Text>
     </View>
   );
@@ -1348,6 +1706,7 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
         {activeChat ? (
           <DirectInlineActiveChat
             key={activeChat.roomId}
+            navigation={navigation}
             activeChat={activeChat}
             draftMessages={draftMessages}
             isKeyboardVisible={isKeyboardVisible}
@@ -1474,10 +1833,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexShrink: 0,
     paddingBottom: IS_IPAD ? 14 : 10,
     paddingHorizontal: IS_IPAD ? 20 : 12,
     backgroundColor: 'white',
     position: 'relative',
+    zIndex: 10,
   },
   leftHeader: {
     width: IS_IPAD ? 80 : 60,
@@ -1547,6 +1908,7 @@ const styles = StyleSheet.create({
   },
   keyboardAvoidingView: {
     flex: 1,
+    minHeight: 0,
   },
   inputContainer: {
     backgroundColor: 'white',
@@ -1557,6 +1919,7 @@ const styles = StyleSheet.create({
   },
   directEntryMessageArea: {
     flex: 1,
+    minHeight: 0,
   },
   directEntryEmpty: {
     flex: 1,

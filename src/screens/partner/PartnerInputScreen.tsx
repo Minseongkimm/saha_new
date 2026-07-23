@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,7 @@ import { PartnerBirthInfo } from '../../types/partner';
 import { startChatWithExpert } from '../../utils/chat/chatUtils';
 import { RootStackParamList } from '../../types/navigation';
 import { calculatePartnerSaju, convertSajuResultToSajuInfo } from '../../utils/partner/partnerSajuCalculator';
-import { savePartnerToDatabase } from '../../utils/partner/partnerDatabase';
+import { getPartnerById, savePartnerToDatabase, updatePartnerInDatabase } from '../../utils/partner/partnerDatabase';
 import { SajuCalculator } from '../../utils/saju-calculator/core/SajuCalculator';
 import { SajuInfo } from '../../utils/saju-calculator/types';
 import { supabase } from '../../utils/database/supabaseClient';
@@ -30,7 +30,7 @@ const IS_IPAD = isIPad();
 type PartnerInputScreenProps = StackScreenProps<RootStackParamList, 'PartnerInput'>;
 
 const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
-  const { expertId } = route.params;
+  const { expertId, returnToChat, editPartnerId, returnToSajuInfo } = route.params;
   const [partnerInfo, setPartnerInfo] = useState<PartnerBirthInfo>({
     name: '',
     birthYear: '',
@@ -45,6 +45,39 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
     relationshipStatus: 'interested',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const isEditMode = Boolean(editPartnerId);
+
+  useEffect(() => {
+    const loadPartner = async () => {
+      if (!editPartnerId) return;
+
+      try {
+        setIsLoading(true);
+        const partner = await getPartnerById(editPartnerId);
+        const birthInfo = partner.birth_info || {};
+        setPartnerInfo({
+          name: birthInfo.name || partner.partner_name || '',
+          birthYear: birthInfo.birthYear || '',
+          birthMonth: birthInfo.birthMonth || '',
+          birthDay: birthInfo.birthDay || '',
+          birthHour: birthInfo.birthHour || '',
+          birthMinute: birthInfo.birthMinute || '',
+          gender: birthInfo.gender || '',
+          calendarType: birthInfo.calendarType || 'solar',
+          isLeapMonth: Boolean(birthInfo.isLeapMonth),
+          isTimeUnknown: Boolean(birthInfo.isTimeUnknown),
+          relationshipStatus: partner.relationship_status || 'interested',
+        });
+      } catch (error) {
+        console.error('상대방 정보 로드 오류:', error);
+        Alert.alert('오류', '상대방 정보를 불러오지 못했습니다.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadPartner();
+  }, [editPartnerId]);
 
   const handleSave = async () => {
     // 입력값 검증
@@ -110,8 +143,14 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
         ? sajuCalculator.analyzeCompatibility(userSajuInfo, partnerSajuInfo)
         : null;
 
-      // 3. DB에 상대방 정보 저장 (궁합 결과 포함)
-      const partnerId: string = await savePartnerToDatabase(partnerInfo, partnerSajuData, compatibilityResult);
+      // 3. DB에 상대방 정보 저장 또는 수정 (궁합 결과 포함)
+      let partnerId: string;
+      if (editPartnerId) {
+        await updatePartnerInDatabase(editPartnerId, partnerInfo, partnerSajuData, compatibilityResult);
+        partnerId = editPartnerId;
+      } else {
+        partnerId = await savePartnerToDatabase(partnerInfo, partnerSajuData, compatibilityResult);
+      }
       
       // 4. 채팅 시작 (상대방 정보 + 로컬 궁합 포함)
       const partnerData = {
@@ -121,7 +160,37 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
         compatibilityResult
       };
       
+      if (returnToChat) {
+        const { error: chatRoomUpdateError } = await supabase
+          .from('chat_rooms')
+          .update({
+            partner_saju_id: partnerId,
+            chat_context: 'love_compatibility',
+          })
+          .eq('id', returnToChat.roomId);
+
+        if (chatRoomUpdateError) {
+          console.error('채팅방 상대방 정보 연결 오류:', chatRoomUpdateError);
+        }
+
+        navigation.replace('ChatRoom', {
+          ...returnToChat,
+          partnerData,
+          infoCaptureMessage: returnToChat.infoCaptureMessage,
+        });
+        return;
+      }
+
+      if (returnToSajuInfo || isEditMode) {
+        navigation.replace('SajuInfo');
+        return;
+      }
+
       // 채팅 시작 후 스택을 리셋하여 뒤로가기 시 상대방 입력 화면으로 돌아가지 않도록 함
+      if (!expertId) {
+        navigation.replace('SajuInfo');
+        return;
+      }
       await startChatWithExpert(navigation, expertId, partnerData);
     } catch (error) {
       console.error('상대방 정보 저장 오류:', error);
@@ -134,7 +203,7 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
   return (
     <SafeAreaView style={styles.container}>
       <CustomHeader
-        title="상대방 정보 입력"
+        title={isEditMode ? '상대방 정보 수정' : '상대방 정보 입력'}
         onBackPress={() => safeGoBack(navigation)}
       />
       
@@ -162,7 +231,13 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
               containerStyle={{ justifyContent: 'center', alignItems: 'center' }}
             />
           ) : (
-            <Text style={styles.saveButtonText}>저장하고 채팅 시작</Text>
+            <Text style={styles.saveButtonText}>
+              {returnToChat
+                ? '저장하고 대화로 돌아가기'
+                : isEditMode || returnToSajuInfo
+                  ? '수정 완료'
+                  : '저장하고 채팅 시작'}
+            </Text>
           )}
         </TouchableOpacity>
       </View>

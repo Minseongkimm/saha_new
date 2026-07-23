@@ -21,6 +21,11 @@ interface UseMessageActionsProps {
   partnerData?: any;
 }
 
+interface SendMessageOptions {
+  partnerDataOverride?: any;
+  suppressUserMessageUiAppend?: boolean;
+}
+
 export const useMessageActions = ({
   roomId,
   expert,
@@ -36,7 +41,7 @@ export const useMessageActions = ({
   const [isAiResponding, setIsAiResponding] = useState(false);
   const [hasNewMessageThisSession, setHasNewMessageThisSession] = useState(false);
 
-  const sendMessage = async (message: string) => {
+  const sendMessage = async (message: string, options?: SendMessageOptions) => {
     if (isAiResponding) return;
     
     setIsAiResponding(true);
@@ -54,7 +59,8 @@ export const useMessageActions = ({
         scrollToBottom,
         onBalanceUpdate,
         onBalanceInsufficient,
-        partnerData
+        partnerData: options?.partnerDataOverride ?? partnerData,
+        suppressUserMessageUiAppend: options?.suppressUserMessageUiAppend
       });
     } finally {
       setIsAiResponding(false);

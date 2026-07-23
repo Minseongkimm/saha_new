@@ -9,6 +9,7 @@ export type RootStackParamList = {
     expert: any;
     partnerData?: any;
     initialMessage?: string;
+    infoCaptureMessage?: string;
     directMode?: boolean;
     directEntry?: boolean;
     onDirectNewChat?: () => void;
@@ -21,8 +22,8 @@ export type RootStackParamList = {
   NewYearFortune: undefined;
   Loading: undefined;
   // Charge: undefined; // 결제 기능 임시 비활성화
-  BirthInfo: { userId?: string; redirectTo?: string };
-  PartnerInput: { expertId: string };
+  BirthInfo: { userId?: string; redirectTo?: string; returnToChat?: RootStackParamList['ChatRoom'] };
+  PartnerInput: { expertId?: string; returnToChat?: RootStackParamList['ChatRoom']; editPartnerId?: string; returnToSajuInfo?: boolean };
   Terms: { type: 'terms' | 'privacy' };
   ContactSupport: undefined;
 };

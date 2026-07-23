@@ -6,7 +6,6 @@ import {
   SafeAreaView,
   TouchableOpacity,
   ScrollView,
-  TextInput,
   Alert,
   Modal,
   Platform,
@@ -18,7 +17,7 @@ import { calculateSaju } from '../../utils/saju/ganji_local';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SabaLoader from '../../components/common/SabaLoader';
 import Icon from 'react-native-vector-icons/Ionicons';
-import BirthInfoForm, { BirthInfoFormData } from '../../components/forms/BirthInfoForm';
+import BirthInfoForm from '../../components/forms/BirthInfoForm';
 import { SajuCache } from '../../utils/saju/sajuCache';
 import { TodayFortuneCache } from '../../utils/today-fortune/todayFortuneCache';
 import { clearAllNewYearFortuneCache } from '../../utils/new-year-fortune/newYearFortuneCache';
@@ -26,6 +25,8 @@ import { convertSajuResultToDbFormat } from '../../utils/saju/calculatedSajuUtil
 import { getCurrentUserSafely } from '../../utils/user/authUtils';
 import { safeGoBack } from '../../utils/navigation/safeGoBack';
 import { isIPad } from '../../utils/platform';
+import { deletePartnerFromDatabase, getPartnerList } from '../../utils/partner/partnerDatabase';
+import { PartnerSaju, RELATIONSHIP_STATUS_LABELS, RelationshipStatus } from '../../types/partner';
 
 const IS_IPAD = isIPad();
 
@@ -65,6 +66,7 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [partners, setPartners] = useState<PartnerSaju[]>([]);
 
   const yearScrollRef = useRef<ScrollView>(null);
   const monthScrollRef = useRef<ScrollView>(null);
@@ -95,6 +97,7 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
       }
 
       setUserId(user.id);
+      loadPartnerInfos();
 
       // 사용자 이름은 Auth 메타데이터에서 가져오기
       const userName = user.user_metadata?.name || 
@@ -236,6 +239,15 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
     }
   };
 
+  const loadPartnerInfos = async () => {
+    try {
+      const items = await getPartnerList();
+      setPartners(items as PartnerSaju[]);
+    } catch (error) {
+      console.error('Error loading partner infos:', error);
+    }
+  };
+
   useEffect(() => {
     if (showDatePicker) {
       const yearIndex = parseInt(sajuInfo.birthYear) - 1924;
@@ -306,7 +318,7 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
       };
 
       // 기존 데이터 확인 후 업데이트 또는 삽입
-      const { data: existingData, error: checkError } = await supabase
+      const { data: existingData } = await supabase
         .from('birth_info')
         .select('id')
         .eq('user_id', userId)
@@ -387,24 +399,6 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
     setIsEditing(false);
   };
 
-  const handleTimeUnknownToggle = () => {
-    if (!sajuInfo.timeUnknown) {
-      setSajuInfo({
-        ...sajuInfo, 
-        timeUnknown: true,
-        birthHour: '',
-        birthMinute: ''
-      });
-    } else {
-      setSajuInfo({
-        ...sajuInfo, 
-        timeUnknown: false,
-        birthHour: '14',
-        birthMinute: '30'
-      });
-    }
-  };
-
   const handleDateSelect = (year: string, month: string, day: string) => {
     setSajuInfo({
       ...sajuInfo,
@@ -420,6 +414,54 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
       birthHour: hour,
       birthMinute: minute,
     });
+  };
+
+  const formatBirthDate = (birthInfo: any) => {
+    if (!birthInfo?.birthYear || !birthInfo?.birthMonth || !birthInfo?.birthDay) {
+      return '생년월일 정보 없음';
+    }
+    return `${birthInfo.birthYear}년 ${birthInfo.birthMonth}월 ${birthInfo.birthDay}일`;
+  };
+
+  const formatBirthTime = (birthInfo: any) => {
+    if (birthInfo?.isTimeUnknown || !birthInfo?.birthHour || !birthInfo?.birthMinute) {
+      return '시간 모름';
+    }
+    return `${birthInfo.birthHour}시 ${birthInfo.birthMinute}분`;
+  };
+
+  const formatCalendarType = (birthInfo: any) => (
+    birthInfo?.calendarType === 'lunar' ? '음력' : '양력'
+  );
+
+  const handleEditPartner = (partner: PartnerSaju) => {
+    navigation.navigate('PartnerInput', {
+      editPartnerId: partner.id,
+      returnToSajuInfo: true,
+    });
+  };
+
+  const handleDeletePartner = (partner: PartnerSaju) => {
+    Alert.alert(
+      '상대방 정보 삭제',
+      `${partner.partner_name || '상대방'}님의 정보를 삭제할까요?`,
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deletePartnerFromDatabase(partner.id);
+              setPartners((prev) => prev.filter((item) => item.id !== partner.id));
+            } catch (error) {
+              console.error('Error deleting partner:', error);
+              Alert.alert('오류', '상대방 정보 삭제에 실패했습니다.');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 24 : 0;
@@ -453,10 +495,14 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
           <View style={styles.headerRight} />
         </View>
 
+        <View style={styles.contentContainer}>
         <View style={styles.infoCard}>
           {!isEditing && (
             <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>유저 정보</Text>
+              <View>
+                <Text style={styles.sectionEyebrow}>내 정보</Text>
+                <Text style={styles.cardTitle}>본인 생년월일</Text>
+              </View>
               <TouchableOpacity onPress={() => {
                 setOriginalSajuInfo(sajuInfo);
                 setIsEditing(true);
@@ -506,40 +552,40 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
               </View>
             </View>
           ) : (
-            <View style={styles.infoListContainer}>
-              <View style={styles.infoCardItem}>
-                <Text style={styles.infoLabel}>이름</Text>
-                <Text style={styles.infoValue}>
+            <View style={styles.selfInfoGrid}>
+              <View style={styles.selfInfoItem}>
+                <Text style={styles.selfInfoLabel}>이름</Text>
+                <Text style={styles.selfInfoValue} numberOfLines={1}>
                   {sajuInfo.name || '여행객'}
                 </Text>
               </View>
 
-              <View style={styles.infoCardItem}>
-                <Text style={styles.infoLabel}>생년월일</Text>
+              <View style={styles.selfInfoItem}>
+                <Text style={styles.selfInfoLabel}>생년월일</Text>
                 <Text style={[
-                  styles.infoValue,
+                  styles.selfInfoValue,
                   (!sajuInfo.birthYear || !sajuInfo.birthMonth || !sajuInfo.birthDay) && styles.infoValueEmpty
-                ]}>
+                ]} numberOfLines={1}>
                   {sajuInfo.birthYear && sajuInfo.birthMonth && sajuInfo.birthDay
                     ? `${sajuInfo.birthYear}년 ${sajuInfo.birthMonth}월 ${sajuInfo.birthDay}일`
                     : '입력 필요'}
                 </Text>
               </View>
 
-              <View style={styles.infoCardItem}>
-                <Text style={styles.infoLabel}>성별</Text>
+              <View style={styles.selfInfoItem}>
+                <Text style={styles.selfInfoLabel}>성별</Text>
                 <Text style={[
-                  styles.infoValue,
+                  styles.selfInfoValue,
                   !sajuInfo.gender && styles.infoValueEmpty
                 ]}>
                   {sajuInfo.gender || '입력 필요'}
                 </Text>
               </View>
 
-              <View style={styles.infoCardItem}>
-                <Text style={styles.infoLabel}>음/양력</Text>
+              <View style={styles.selfInfoItem}>
+                <Text style={styles.selfInfoLabel}>음/양력</Text>
                 <Text style={[
-                  styles.infoValue,
+                  styles.selfInfoValue,
                   !sajuInfo.calendarType && styles.infoValueEmpty
                 ]}>
                   {sajuInfo.calendarType || '입력 필요'}
@@ -547,20 +593,20 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
               </View>
 
               {sajuInfo.calendarType === '음력' && (
-                <View style={styles.infoCardItem}>
-                  <Text style={styles.infoLabel}>윤달</Text>
-                  <Text style={styles.infoValue}>
+                <View style={styles.selfInfoItem}>
+                  <Text style={styles.selfInfoLabel}>윤달</Text>
+                  <Text style={styles.selfInfoValue}>
                     {sajuInfo.isLeapMonth ? '네' : '아니오'}
                   </Text>
                 </View>
               )}
 
-              <View style={styles.infoCardItem}>
-                <Text style={styles.infoLabel}>태어난 시간</Text>
+              <View style={styles.selfInfoItem}>
+                <Text style={styles.selfInfoLabel}>태어난 시간</Text>
                 <Text style={[
-                  styles.infoValue,
+                  styles.selfInfoValue,
                   (sajuInfo.timeUnknown || !sajuInfo.birthHour || !sajuInfo.birthMinute) && styles.infoValueEmpty
-                ]}>
+                ]} numberOfLines={1}>
                   {sajuInfo.timeUnknown || !sajuInfo.birthHour || !sajuInfo.birthMinute
                     ? '입력 필요'
                     : `${sajuInfo.birthHour}시 ${sajuInfo.birthMinute}분`}
@@ -568,6 +614,84 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
               </View>
             </View>
           )}
+        </View>
+
+        <View style={styles.partnerSection}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionEyebrow}>상대방 정보</Text>
+              <Text style={styles.sectionTitle}>저장된 상대방</Text>
+            </View>
+            <Text style={styles.partnerCount}>{partners.length}명</Text>
+          </View>
+
+          {partners.length === 0 ? (
+            <View style={styles.emptyPartnerCard}>
+              <Text style={styles.emptyPartnerTitle}>저장된 상대방 정보가 없습니다</Text>
+              <Text style={styles.emptyPartnerText}>
+                대화 중 궁합을 보거나 상대방 정보를 입력하면 여기에 표시됩니다.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.partnerList}>
+              {partners.map((partner) => {
+                const birthInfo = partner.birth_info || {};
+                const relationshipLabel = RELATIONSHIP_STATUS_LABELS[
+                  (partner.relationship_status || 'interested') as RelationshipStatus
+                ];
+                return (
+                  <View key={partner.id} style={styles.partnerCard}>
+                    <View style={styles.partnerCardHeader}>
+                      <View style={styles.partnerTitleBlock}>
+                        <Text style={styles.partnerName} numberOfLines={1}>
+                          {partner.partner_name || '이름 없음'}
+                        </Text>
+                        <Text style={styles.partnerMeta} numberOfLines={1}>
+                          {relationshipLabel}
+                        </Text>
+                      </View>
+                      <View style={styles.partnerActionRow}>
+                        <TouchableOpacity
+                          style={styles.partnerActionButton}
+                          onPress={() => handleEditPartner(partner)}
+                        >
+                          <Text style={styles.partnerActionText}>수정</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.partnerActionButton, styles.partnerDeleteButton]}
+                          onPress={() => handleDeletePartner(partner)}
+                        >
+                          <Text style={[styles.partnerActionText, styles.partnerDeleteText]}>삭제</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+
+                    <View style={styles.partnerInfoGrid}>
+                      <View style={styles.partnerInfoItem}>
+                        <Text style={styles.partnerInfoLabel}>생년월일</Text>
+                        <Text style={styles.partnerInfoValue}>{formatBirthDate(birthInfo)}</Text>
+                      </View>
+                      <View style={styles.partnerInfoItem}>
+                        <Text style={styles.partnerInfoLabel}>태어난 시간</Text>
+                        <Text style={styles.partnerInfoValue}>{formatBirthTime(birthInfo)}</Text>
+                      </View>
+                      <View style={styles.partnerInfoItem}>
+                        <Text style={styles.partnerInfoLabel}>음/양력</Text>
+                        <Text style={styles.partnerInfoValue}>{formatCalendarType(birthInfo)}</Text>
+                      </View>
+                      <View style={styles.partnerInfoItem}>
+                        <Text style={styles.partnerInfoLabel}>성별</Text>
+                        <Text style={styles.partnerInfoValue}>
+                          {birthInfo.gender === 'male' ? '남성' : birthInfo.gender === 'female' ? '여성' : '정보 없음'}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </View>
         </View>
       </ScrollView>
 
@@ -796,9 +920,18 @@ const styles = StyleSheet.create({
   headerRight: {
     width: IS_IPAD ? 56 : 40,
   },
+  contentContainer: {
+    paddingHorizontal: IS_IPAD ? 36 : 18,
+    paddingTop: IS_IPAD ? 24 : 18,
+    paddingBottom: IS_IPAD ? 48 : 34,
+    gap: IS_IPAD ? 22 : 16,
+  },
   infoCard: {
-    padding: IS_IPAD ? 30 : 20,
-    paddingHorizontal: IS_IPAD ? 40 : 25,
+    backgroundColor: '#ffffff',
+    borderRadius: IS_IPAD ? 18 : 14,
+    borderWidth: 1,
+    borderColor: '#ececec',
+    padding: IS_IPAD ? 26 : 18,
   },
   editContainer: {
     paddingTop: 0,
@@ -828,45 +961,171 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: IS_IPAD ? 28 : 20,
+    marginBottom: IS_IPAD ? 18 : 14,
+  },
+  sectionEyebrow: {
+    fontSize: IS_IPAD ? 15 : 11,
+    color: Colors.primaryColor,
+    fontWeight: '700',
+    marginBottom: IS_IPAD ? 6 : 3,
   },
   cardTitle: {
     fontSize: IS_IPAD ? 24 : 18,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: '#1d1d1f',
   },
   editButton: {
-    backgroundColor: Colors.primaryColor,
-    paddingHorizontal: IS_IPAD ? 24 : 16,
-    paddingVertical: IS_IPAD ? 12 : 8,
-    borderRadius: IS_IPAD ? 24 : 20,
+    backgroundColor: '#f4f4f5',
+    paddingHorizontal: IS_IPAD ? 16 : 12,
+    paddingVertical: IS_IPAD ? 8 : 6,
+    borderRadius: IS_IPAD ? 14 : 11,
   },
   editButtonText: {
-    color: 'white',
-    fontSize: IS_IPAD ? 18 : 14,
+    color: '#3f3f46',
+    fontSize: IS_IPAD ? 14 : 11,
+    fontWeight: '700',
+  },
+  selfInfoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: IS_IPAD ? 12 : 8,
+  },
+  selfInfoItem: {
+    width: '48%',
+    backgroundColor: '#fafafa',
+    borderRadius: IS_IPAD ? 14 : 10,
+    borderWidth: 1,
+    borderColor: '#f1f1f1',
+    paddingHorizontal: IS_IPAD ? 16 : 12,
+    paddingVertical: IS_IPAD ? 14 : 10,
+  },
+  selfInfoLabel: {
+    fontSize: IS_IPAD ? 14 : 11,
+    color: '#8e8e93',
+    fontWeight: '600',
+    marginBottom: IS_IPAD ? 6 : 4,
+  },
+  selfInfoValue: {
+    fontSize: IS_IPAD ? 16 : 12,
+    color: '#1d1d1f',
     fontWeight: '600',
   },
-  infoListContainer: {
+  partnerSection: {
+    gap: IS_IPAD ? 16 : 12,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: IS_IPAD ? 4 : 2,
+  },
+  sectionTitle: {
+    fontSize: IS_IPAD ? 24 : 18,
+    fontWeight: '700',
+    color: '#1d1d1f',
+  },
+  partnerCount: {
+    fontSize: IS_IPAD ? 16 : 12,
+    color: '#6b7280',
+    fontWeight: '600',
+    paddingBottom: IS_IPAD ? 3 : 2,
+  },
+  partnerList: {
     gap: IS_IPAD ? 14 : 10,
   },
-  infoCardItem: {
+  partnerCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: IS_IPAD ? 18 : 14,
+    borderWidth: 1,
+    borderColor: '#ececec',
+    padding: IS_IPAD ? 24 : 16,
+  },
+  partnerCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: IS_IPAD ? 26 : 18,
-    paddingVertical: IS_IPAD ? 22 : 16,
-    borderRadius: IS_IPAD ? 20 : 16,
+    marginBottom: IS_IPAD ? 18 : 14,
+  },
+  partnerTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  partnerActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: IS_IPAD ? 8 : 6,
+    marginLeft: IS_IPAD ? 12 : 8,
+  },
+  partnerActionButton: {
+    borderRadius: IS_IPAD ? 14 : 11,
+    backgroundColor: '#f4f4f5',
+    paddingHorizontal: IS_IPAD ? 14 : 10,
+    paddingVertical: IS_IPAD ? 8 : 6,
+  },
+  partnerDeleteButton: {
+    backgroundColor: '#fff1f1',
+  },
+  partnerActionText: {
+    fontSize: IS_IPAD ? 14 : 11,
+    color: '#3f3f46',
+    fontWeight: '700',
+  },
+  partnerDeleteText: {
+    color: '#d92d20',
+  },
+  partnerName: {
+    fontSize: IS_IPAD ? 21 : 16,
+    fontWeight: '700',
+    color: '#1d1d1f',
+    marginBottom: IS_IPAD ? 4 : 2,
+  },
+  partnerMeta: {
+    fontSize: IS_IPAD ? 15 : 12,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  partnerInfoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: IS_IPAD ? 12 : 8,
+  },
+  partnerInfoItem: {
+    width: '48%',
+    backgroundColor: '#fafafa',
+    borderRadius: IS_IPAD ? 14 : 10,
     borderWidth: 1,
-    borderColor: '#f0f0f0',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    borderColor: '#f1f1f1',
+    paddingHorizontal: IS_IPAD ? 16 : 12,
+    paddingVertical: IS_IPAD ? 14 : 10,
+  },
+  partnerInfoLabel: {
+    fontSize: IS_IPAD ? 14 : 11,
+    color: '#8e8e93',
+    fontWeight: '600',
+    marginBottom: IS_IPAD ? 6 : 4,
+  },
+  partnerInfoValue: {
+    fontSize: IS_IPAD ? 16 : 12,
+    color: '#1d1d1f',
+    fontWeight: '600',
+  },
+  emptyPartnerCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: IS_IPAD ? 18 : 14,
+    borderWidth: 1,
+    borderColor: '#ececec',
+    paddingHorizontal: IS_IPAD ? 24 : 18,
+    paddingVertical: IS_IPAD ? 28 : 22,
+  },
+  emptyPartnerTitle: {
+    fontSize: IS_IPAD ? 18 : 14,
+    color: '#1d1d1f',
+    fontWeight: '700',
+    marginBottom: IS_IPAD ? 8 : 6,
+  },
+  emptyPartnerText: {
+    fontSize: IS_IPAD ? 15 : 12,
+    color: '#6b7280',
+    lineHeight: IS_IPAD ? 22 : 18,
   },
   infoRow: {
     flexDirection: 'row',

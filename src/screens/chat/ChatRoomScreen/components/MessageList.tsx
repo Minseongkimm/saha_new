@@ -30,6 +30,7 @@ interface MessageListProps {
   setShouldAutoScroll: (value: boolean) => void;
   scrollToBottom: (animated: boolean) => void;
   loading: boolean;
+  onMessageActionPress?: (item: ChatMessage, option?: NonNullable<ChatMessage['action_options']>[number]) => void;
 }
 
 const MessageList: React.FC<MessageListProps> = ({
@@ -40,7 +41,8 @@ const MessageList: React.FC<MessageListProps> = ({
   shouldAutoScroll,
   setShouldAutoScroll,
   scrollToBottom,
-  loading
+  loading,
+  onMessageActionPress
 }) => {
   const expertImage = useMemo(() => getExpertImage(expert.image_name), [expert.image_name]);
   const updateAutoScrollFromPosition = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -79,9 +81,10 @@ const MessageList: React.FC<MessageListProps> = ({
         item={item} 
         expertImage={expertImage}
         expertName={expert.name}
+        onActionPress={onMessageActionPress}
       />
     );
-  }, [isAiResponding, expertImage, expert.name]);
+  }, [isAiResponding, expertImage, expert.name, onMessageActionPress]);
 
   const ListEmptyThinking = () => (
     <View style={styles.messageContainer}>
@@ -132,6 +135,7 @@ const MessageList: React.FC<MessageListProps> = ({
 const styles = StyleSheet.create({
   messagesList: {
     flex: 1,
+    minHeight: 0,
   },
   messageContainer: {
     marginTop: IS_IPAD ? 14 : 10,

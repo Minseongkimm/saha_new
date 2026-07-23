@@ -2,9 +2,7 @@ import { supabase } from '../database/supabaseClient';
 import { PartnerBirthInfo } from '../../types/partner';
 import { SajuResult } from '../saju/ganji_local';
 import { 
-  getPartnerListCache, 
   setPartnerListCache, 
-  isPartnerListFresh,
   addPartnerToCache,
   updatePartnerInCache,
   removePartnerFromCache
@@ -120,6 +118,55 @@ export const savePartnerToDatabase = async (
     return data.id;
   } catch (error) {
     console.error('DB 저장 오류:', error);
+    throw error;
+  }
+};
+
+/**
+ * 저장된 상대방 사주 정보를 수정
+ */
+export const updatePartnerInDatabase = async (
+  partnerId: string,
+  partnerInfo: PartnerBirthInfo,
+  sajuData: SajuResult,
+  compatibilityResult?: any
+): Promise<void> => {
+  try {
+    const derived = deriveCompatColumns(compatibilityResult);
+    const { data, error } = await supabase
+      .from('partner_saju')
+      .update({
+        partner_name: partnerInfo.name,
+        relationship_status: partnerInfo.relationshipStatus,
+        birth_info: {
+          name: partnerInfo.name,
+          birthYear: partnerInfo.birthYear,
+          birthMonth: partnerInfo.birthMonth,
+          birthDay: partnerInfo.birthDay,
+          birthHour: partnerInfo.birthHour,
+          birthMinute: partnerInfo.birthMinute,
+          gender: partnerInfo.gender,
+          calendarType: partnerInfo.calendarType,
+          isLeapMonth: partnerInfo.isLeapMonth,
+          isTimeUnknown: partnerInfo.isTimeUnknown,
+        },
+        saju_data: sajuData,
+        compatibility_result: compatibilityResult,
+        updated_at: new Date().toISOString(),
+        ...derived
+      })
+      .eq('id', partnerId)
+      .select('*')
+      .single();
+
+    if (error) {
+      console.error('상대방 정보 수정 오류:', error);
+      throw new Error('상대방 정보 수정에 실패했습니다.');
+    }
+
+    updatePartnerInCache(partnerId, data);
+  } catch (error) {
+    console.error('DB 수정 오류:', error);
     throw error;
   }
 };

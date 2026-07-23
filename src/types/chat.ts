@@ -25,4 +25,13 @@ export interface ChatMessage extends ChatMessageDB {
   follow_up_questions?: string[];
   display_name?: string;
   display_image?: any;
+  action_label?: string;
+  action_kind?: 'birth_info' | 'partner_info' | 'select_partner';
+  action_payload?: any;
+  action_options?: {
+    label: string;
+    description?: string;
+    action_kind: 'birth_info' | 'partner_info' | 'select_partner';
+    action_payload?: any;
+  }[];
 }

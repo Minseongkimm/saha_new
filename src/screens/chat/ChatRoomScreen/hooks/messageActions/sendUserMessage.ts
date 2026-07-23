@@ -20,7 +20,8 @@ export async function sendUserMessage(
   roomId: string,
   messageText: string,
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>,
-  scrollToBottom: (animated: boolean) => void
+  scrollToBottom: (animated: boolean) => void,
+  options?: { suppressUiAppend?: boolean }
 ): Promise<SendUserMessageResult> {
   const tempUserMessageId = `temp_user_${Date.now()}`;
   const userMessage = {
@@ -30,13 +31,19 @@ export async function sendUserMessage(
     message: messageText.trim(),
     created_at: new Date().toISOString()
   };
-  setMessages(prev => [...prev, userMessage as ChatMessage]);
-  scrollToBottom(true);
-  const { id: _tempUserId, ...dbUserMessage } = userMessage;
+  if (!options?.suppressUiAppend) {
+    setMessages(prev => [...prev, userMessage as ChatMessage]);
+    scrollToBottom(true);
+  }
   const { data: insertedUserMessage, error: userMessageError } = await withSupabaseRetry<{ id: string }>(async () => {
     return await supabase
       .from('chat_messages')
-      .insert(dbUserMessage)
+      .insert({
+        chat_room_id: userMessage.chat_room_id,
+        sender_type: userMessage.sender_type,
+        message: userMessage.message,
+        created_at: userMessage.created_at,
+      })
       .select('id')
       .single();
   });
@@ -46,4 +53,3 @@ export async function sendUserMessage(
     tempUserMessageId
   };
 }
-

@@ -34,6 +34,7 @@ interface SendMessageCoreParams {
   onBalanceUpdate?: (expected?: RefreshBalanceExpected) => Promise<void>;
   onBalanceInsufficient?: (balanceCheck: { freeMessageInfo?: any; balance?: number }) => void;
   partnerData?: any;
+  suppressUserMessageUiAppend?: boolean;
 }
 
 export async function sendMessageCore(params: SendMessageCoreParams): Promise<void> {
@@ -48,7 +49,8 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
     scrollToBottom,
     onBalanceUpdate,
     onBalanceInsufficient,
-    partnerData
+    partnerData,
+    suppressUserMessageUiAppend
   } = params;
   
   if (!messageText.trim()) return;
@@ -68,7 +70,9 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
   
   try {
     setShouldAutoScroll(true);
-    const userMessageResult = await sendUserMessage(roomId, messageText, setMessages, scrollToBottom);
+    const userMessageResult = await sendUserMessage(roomId, messageText, setMessages, scrollToBottom, {
+      suppressUiAppend: suppressUserMessageUiAppend,
+    });
     userMessageId = userMessageResult.userMessageId;
     tempUserMessageId = userMessageResult.tempUserMessageId;
     
@@ -129,4 +133,3 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
     throw error;
   }
 }
-

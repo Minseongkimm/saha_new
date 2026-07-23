@@ -26,7 +26,7 @@ import { convertSajuResultToDbFormat } from '../../utils/saju/calculatedSajuUtil
 
 interface BirthInfoScreenProps {
   navigation: {
-    replace: (screenName: string) => void;
+    replace: (screenName: string, params?: any) => void;
     goBack: () => void;
     canGoBack?: () => boolean;
     navigate: (screenName: string, params?: any) => void;
@@ -225,7 +225,7 @@ interface SajuResult {
       }
 
       // 기존 birth_info 레코드 확인
-      const { data: existingData, error: checkError } = await supabase
+      const { data: existingData } = await supabase
         .from('birth_info')
         .select('id, name')
         .eq('user_id', userId)
@@ -325,8 +325,11 @@ interface SajuResult {
       // 저장 성공 시 redirectTo가 있으면 해당 화면으로, 없으면 MainTabs로 이동
       setTimeout(() => {
         try {
+          const returnToChat = route.params?.returnToChat;
           const redirectTo = route.params?.redirectTo;
-          if (redirectTo) {
+          if (returnToChat) {
+            navigation.replace('ChatRoom', returnToChat);
+          } else if (redirectTo) {
             navigation.replace(redirectTo);
           } else {
             navigation.replace('MainTabs');
