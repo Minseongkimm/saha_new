@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ interface PartnerInputFormProps {
   showName?: boolean;
   showRelationship?: boolean; // 상대방 정보 입력 시 관계 상태 표시
   isModal?: boolean; // 모달에서 사용할 때 카드 스타일 제거
+  validationErrorField?: 'name' | 'birthDate' | 'gender' | 'birthTime' | null;
 }
 
 const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
@@ -28,8 +29,29 @@ const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
   showName = true,
   showRelationship = false,
   isModal = false,
+  validationErrorField = null,
 }) => {
   const relationshipOptions: RelationshipStatus[] = ['dating', 'married', 'interested', 'breakup'];
+  const nameInputRef = useRef<TextInput>(null);
+  const dateInputRef = useRef<TextInput>(null);
+  const timeInputRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    const targetRef = validationErrorField === 'name'
+      ? nameInputRef
+      : validationErrorField === 'birthDate'
+        ? dateInputRef
+        : validationErrorField === 'birthTime'
+          ? timeInputRef
+          : null;
+
+    if (!targetRef) return;
+    const timer = setTimeout(() => {
+      targetRef.current?.focus();
+    }, 220);
+
+    return () => clearTimeout(timer);
+  }, [validationErrorField]);
 
   return (
     <View style={[styles.container, isModal && styles.modalContainer]}>
@@ -37,9 +59,10 @@ const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
       
       {showName && (
         <View style={styles.inputContainer}>
-          <Text style={styles.label}>이름 *</Text>
+          <Text style={[styles.label, validationErrorField === 'name' && styles.errorLabel]}>이름 *</Text>
           <TextInput
-            style={styles.nameInput}
+            ref={nameInputRef}
+            style={[styles.nameInput, validationErrorField === 'name' && styles.errorInput]}
             value={birthInfo.name}
             onChangeText={(text) => {
               // 한글 자모/완성형, 영문만 허용 (숫자, 특수문자 제거)
@@ -53,6 +76,9 @@ const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
             autoCorrect={false}
             textContentType="none"
           />
+          {validationErrorField === 'name' && (
+            <Text style={styles.errorText}>상대방 이름을 입력해주세요.</Text>
+          )}
         </View>
       )}
 
@@ -90,10 +116,11 @@ const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
       )}
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>생년월일 *</Text>
+        <Text style={[styles.label, validationErrorField === 'birthDate' && styles.errorLabel]}>생년월일 *</Text>
         <View style={styles.dateInputContainer}>
           <TextInput
-            style={styles.dateInput}
+            ref={dateInputRef}
+            style={[styles.dateInput, validationErrorField === 'birthDate' && styles.errorInput]}
             placeholder="1991.10.25"
             value={birthInfo.birthYear || birthInfo.birthMonth || birthInfo.birthDay ? 
               `${birthInfo.birthYear || ''}${birthInfo.birthMonth ? `.${birthInfo.birthMonth}` : ''}${birthInfo.birthDay ? `.${birthInfo.birthDay}` : ''}` 
@@ -149,6 +176,9 @@ const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
             </TouchableOpacity>
           )}
         </View>
+        {validationErrorField === 'birthDate' && (
+          <Text style={styles.errorText}>생년월일을 YYYY.MM.DD 형식으로 입력해주세요.</Text>
+        )}
 
         <Text style={styles.label}>달력</Text>
         <View style={styles.calendarTypeContainer}>
@@ -214,10 +244,14 @@ const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>성별 *</Text>
+        <Text style={[styles.label, validationErrorField === 'gender' && styles.errorLabel]}>성별 *</Text>
         <View style={styles.radioContainer}>
           <TouchableOpacity 
-            style={[styles.radioButton, birthInfo.gender === 'male' && styles.radioButtonSelected]}
+            style={[
+              styles.radioButton,
+              birthInfo.gender === 'male' && styles.radioButtonSelected,
+              validationErrorField === 'gender' && styles.errorOption,
+            ]}
             onPress={() => setBirthInfo({ ...birthInfo, gender: 'male' })}
           >
             <Text style={[styles.radioText, birthInfo.gender === 'male' && styles.radioTextSelected]}>
@@ -226,7 +260,11 @@ const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
           </TouchableOpacity>
           
           <TouchableOpacity 
-            style={[styles.radioButton, birthInfo.gender === 'female' && styles.radioButtonSelected]}
+            style={[
+              styles.radioButton,
+              birthInfo.gender === 'female' && styles.radioButtonSelected,
+              validationErrorField === 'gender' && styles.errorOption,
+            ]}
             onPress={() => setBirthInfo({ ...birthInfo, gender: 'female' })}
           >
             <Text style={[styles.radioText, birthInfo.gender === 'female' && styles.radioTextSelected]}>
@@ -234,13 +272,21 @@ const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
             </Text>
           </TouchableOpacity>
         </View>
+        {validationErrorField === 'gender' && (
+          <Text style={styles.errorText}>성별을 선택해주세요.</Text>
+        )}
       </View>
 
       <View style={styles.inputContainer}>
-        <Text style={styles.label}>태어난 시간</Text>
+        <Text style={[styles.label, validationErrorField === 'birthTime' && styles.errorLabel]}>태어난 시간</Text>
         <View style={styles.timeInputContainer}>
           <TextInput
-            style={[styles.timeInput, birthInfo.isTimeUnknown && styles.disabledInput]}
+            ref={timeInputRef}
+            style={[
+              styles.timeInput,
+              birthInfo.isTimeUnknown && styles.disabledInput,
+              validationErrorField === 'birthTime' && styles.errorInput,
+            ]}
             placeholder="07:40"
             value={birthInfo.birthHour || birthInfo.birthMinute ? 
               `${birthInfo.birthHour || ''}${birthInfo.birthMinute ? `:${birthInfo.birthMinute}` : ''}` 
@@ -291,6 +337,9 @@ const PartnerInputForm: React.FC<PartnerInputFormProps> = ({
             </TouchableOpacity>
           )}
         </View>
+        {validationErrorField === 'birthTime' && (
+          <Text style={styles.errorText}>시간을 입력하려면 시와 분을 모두 입력해주세요.</Text>
+        )}
 
         <TouchableOpacity 
           style={styles.checkboxContainer}
@@ -332,6 +381,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: IS_IPAD ? 11 : 7,
     color: '#333',
+  },
+  errorLabel: {
+    color: '#D94A3A',
+  },
+  errorInput: {
+    borderBottomColor: '#D94A3A',
+  },
+  errorText: {
+    marginTop: IS_IPAD ? 8 : 5,
+    fontSize: IS_IPAD ? 15 : 12,
+    fontWeight: '600',
+    color: '#D94A3A',
+  },
+  errorOption: {
+    borderColor: '#D94A3A',
   },
   nameInput: {
     borderBottomWidth: 1,
@@ -516,4 +580,3 @@ const styles = StyleSheet.create({
 });
 
 export default PartnerInputForm;
-

@@ -301,7 +301,7 @@ export const getPartnerById = async (partnerId: string): Promise<any> => {
       .from('partner_saju')
       .select('*')
       .eq('id', partnerId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('상대방 정보 조회 오류:', error);

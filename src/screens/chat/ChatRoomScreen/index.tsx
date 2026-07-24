@@ -50,7 +50,7 @@ import { classifyInfoIntent } from '../../../utils/chat/classifyInfoIntent';
 import { fetchUserBalance } from '../../../utils/payments/balance';
 import { checkFreeMessageAvailable } from '../../../utils/payments/freeMessage';
 import { getCurrentUserSafely } from '../../../utils/user/authUtils';
-import { getPartnerList } from '../../../utils/partner/partnerDatabase';
+import { getPartnerById, getPartnerList } from '../../../utils/partner/partnerDatabase';
 import { PartnerSaju, RELATIONSHIP_STATUS_LABELS, RelationshipStatus } from '../../../types/partner';
 
 const IS_IPAD = isIPad();
@@ -130,9 +130,11 @@ const ASSIGNMENT_DESCRIPTIONS: Record<ChatRouteCategory, string> = {
 };
 const SAHA_HELPER_NAME = '사바 도우미';
 const SAHA_HELPER_IMAGE = require('../../../../assets/logo/logo_icon.png');
-const INFO_CAPTURE_THANKS_MESSAGE = '입력 감사합니다. 정보를 참고해서 말씀드리겠습니다. 무엇이 궁금하신가요?';
+const INFO_CAPTURE_THANKS_MESSAGE = '입력 감사합니다. 정보를 반영해 이어서 살펴볼게요.';
 const INFO_CLASSIFYING_MESSAGE = '상담 흐름을 살펴보고 있어요';
 const INFO_CLASSIFYING_MIN_MS = 1500;
+const INFO_CAPTURE_ANALYSIS_MESSAGE = '상대방 사주를 정리하고 있어요.\n두 분의 궁합 흐름을 맞춰보고 있으니 잠시만 기다려주세요.';
+const INFO_CAPTURE_ANALYSIS_MIN_MS = 3000;
 const PARTNER_CONNECTED_MESSAGE = (name?: string) => (
   `좋아요. ${name || '상대방'}님의 정보를 참고해서 이어서 봐드릴게요.`
 );
@@ -551,6 +553,26 @@ const buildChatPartnerData = (partner: PartnerSaju) => ({
   compatibilityResult: partner.compatibility_result,
 });
 
+const hydrateRoomPartnerData = async (roomId: string): Promise<any | null> => {
+  try {
+    const { data: room, error: roomError } = await supabase
+      .from('chat_rooms')
+      .select('partner_saju_id')
+      .eq('id', roomId)
+      .maybeSingle();
+
+    if (roomError || !room?.partner_saju_id) {
+      return null;
+    }
+
+    const partner = await getPartnerById(room.partner_saju_id);
+    return partner ? buildChatPartnerData(partner as PartnerSaju) : null;
+  } catch (error) {
+    console.error('hydrateRoomPartnerData failed:', error);
+    return null;
+  }
+};
+
 const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
   if (route.params?.directEntry === true) {
     return <DirectEntryChatRoomScreen navigation={navigation} />;
@@ -616,10 +638,11 @@ const ChatConversationBody: React.FC<ChatConversationBodyProps> = ({
 };
 
 const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
-  const { roomId, expert, partnerData, initialMessage, infoCaptureMessage } = route.params;
-  const isDirectMode: boolean = route.params?.directMode === true;
+  const { roomId, expert, partnerData, initialMessage, infoCaptureMessage, pendingInfoCaptureText } = route.params;
+  const routeDirectMode: boolean = route.params?.directMode === true;
   const onDirectNewChat: (() => void) | undefined = route.params?.onDirectNewChat;
   const onDirectSelectChat: ((roomId: string, expert: Expert) => void) | undefined = route.params?.onDirectSelectChat;
+  const isEmbeddedDirectMode = routeDirectMode && Boolean(onDirectNewChat && onDirectSelectChat);
   const [showInsufficientBalanceSheet, setShowInsufficientBalanceSheet] = useState(false);
   const [showChargeSheet, setShowChargeSheet] = useState(false);
   const [insufficientBalanceInfo, setInsufficientBalanceInfo] = useState<{
@@ -663,16 +686,42 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
   const isEndingRef = useRef<boolean>(false);
   const hasEndedRef = useRef<boolean>(false);
   const initialMessageSentRef = useRef<boolean>(false);
+  const pendingInfoCaptureSentRef = useRef<boolean>(false);
   const handledInfoActionIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+
+  const ensureActivePartnerData = useCallback(async () => {
+    if (activePartnerData) return activePartnerData;
+
+    const hydratedPartnerData = await hydrateRoomPartnerData(roomId);
+    if (hydratedPartnerData) {
+      setActivePartnerData(hydratedPartnerData);
+    }
+    return hydratedPartnerData;
+  }, [activePartnerData, roomId]);
 
   useEffect(() => {
     if (partnerData) {
       setActivePartnerData(partnerData);
     }
   }, [partnerData]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (partnerData || activePartnerData) return undefined;
+
+    hydrateRoomPartnerData(roomId).then((hydratedPartnerData) => {
+      if (mounted && hydratedPartnerData) {
+        setActivePartnerData(hydratedPartnerData);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [activePartnerData, partnerData, roomId]);
 
   useEffect(() => {
     if (!infoCaptureMessage) return;
@@ -717,6 +766,63 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
     partnerData: activePartnerData
   });
 
+  useEffect(() => {
+    if (
+      !pendingInfoCaptureText ||
+      pendingInfoCaptureSentRef.current ||
+      loading ||
+      isAiResponding
+    ) {
+      return undefined;
+    }
+
+    const partnerForReply = partnerData || activePartnerData;
+    if (!partnerForReply) return undefined;
+
+    let mounted = true;
+    pendingInfoCaptureSentRef.current = true;
+    const analysisMessageId = `info_capture_analysis_${roomId}_${Date.now()}`;
+
+    setUiMessages((prev) => [
+      ...prev,
+      {
+        id: analysisMessageId,
+        chat_room_id: roomId,
+        sender_type: 'expert',
+        message: '',
+        created_at: new Date().toISOString(),
+        display_name: SAHA_HELPER_NAME,
+        display_image: SAHA_HELPER_IMAGE,
+      },
+    ]);
+
+    const runPendingReply = async () => {
+      await streamUiMessageText(
+        setUiMessages,
+        analysisMessageId,
+        INFO_CAPTURE_ANALYSIS_MESSAGE,
+        INFO_CAPTURE_ANALYSIS_MIN_MS
+      );
+      if (!mounted) return;
+      sendMessageWithText(pendingInfoCaptureText, {
+        partnerDataOverride: partnerForReply,
+      });
+    };
+
+    runPendingReply();
+
+    return () => {
+      mounted = false;
+    };
+  }, [
+    activePartnerData,
+    isAiResponding,
+    loading,
+    partnerData,
+    pendingInfoCaptureText,
+    sendMessageWithText,
+  ]);
+
   const handleInfoCaptureAction = useCallback(async (
     item: ChatMessage,
     option?: NonNullable<ChatMessage['action_options']>[number]
@@ -737,8 +843,9 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
       roomId,
       expert,
       partnerData: activePartnerData,
-      directMode: isDirectMode,
+      directMode: isEmbeddedDirectMode,
       infoCaptureMessage: INFO_CAPTURE_THANKS_MESSAGE,
+      pendingInfoCaptureText: actionPayload?.originalText,
     };
 
     if (actionKind === 'select_partner') {
@@ -794,7 +901,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
     navigation.navigate('BirthInfo', {
       returnToChat,
     });
-  }, [activePartnerData, expert, isDirectMode, navigation, roomId, sendMessageWithText]);
+  }, [activePartnerData, expert, isEmbeddedDirectMode, navigation, roomId, sendMessageWithText]);
 
   const handleChatSendMessage = useCallback(async (text: string) => {
     const decision = getInfoCaptureDecision(text);
@@ -822,7 +929,18 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
         streamUiMessageText(setUiMessages, helperDraftId, INFO_CLASSIFYING_MESSAGE),
       ]);
 
-      if (intent && !(intent === 'partner_info' && activePartnerData)) {
+      if (intent === 'partner_info') {
+        const existingPartnerData = await ensureActivePartnerData();
+        if (existingPartnerData) {
+          setUiMessages((prev) =>
+            prev.filter((message) => message.id !== userDraftId && message.id !== helperDraftId)
+          );
+          sendMessage(text, { partnerDataOverride: existingPartnerData });
+          return;
+        }
+      }
+
+      if (intent) {
         const partners = intent === 'partner_info' ? await loadPartnerOptions() : [];
         setUiMessages((prev) =>
           prev.map((message) =>
@@ -851,7 +969,15 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
     }
 
     const intent = await resolveInfoCaptureIntent(text, decision);
-    if (intent && !(intent === 'partner_info' && activePartnerData)) {
+    if (intent === 'partner_info') {
+      const existingPartnerData = await ensureActivePartnerData();
+      if (existingPartnerData) {
+        sendMessage(text, { partnerDataOverride: existingPartnerData });
+        return;
+      }
+    }
+
+    if (intent) {
       const partners = intent === 'partner_info' ? await loadPartnerOptions() : [];
       setUiMessages((prev) => [
         ...prev,
@@ -861,7 +987,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
     }
 
     sendMessage(text);
-  }, [activePartnerData, expert, roomId, sendMessage]);
+  }, [ensureActivePartnerData, expert, roomId, sendMessage]);
 
   const displayedMessages = sortMessagesByCreatedAt([...messages, ...uiMessages]);
 
@@ -947,10 +1073,10 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
   }, []);
 
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) : 0;
-  const headerContentHeight = isDirectMode
+  const headerContentHeight = isEmbeddedDirectMode
     ? (Platform.OS === 'android' ? 46 : (IS_IPAD ? 54 : 44))
     : (Platform.OS === 'android' ? 54 : (IS_IPAD ? 60 : 48));
-  const headerTopPadding = isDirectMode
+  const headerTopPadding = isEmbeddedDirectMode
     ? 0
     : Platform.OS === 'android'
       ? Math.max(statusBarHeight + 14, 30)
@@ -1015,13 +1141,13 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
   }, [navigation]);
 
   useEffect(() => {
-    if (isDirectMode) return undefined;
+    if (isEmbeddedDirectMode) return undefined;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       goHome();
       return true;
     });
     return () => subscription.remove();
-  }, [goHome, isDirectMode]);
+  }, [goHome, isEmbeddedDirectMode]);
 
   const chatScreenPanResponder = useMemo(
     () => PanResponder.create({
@@ -1042,7 +1168,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
   const switchChatRoom = useCallback((item: SidebarChatItem) => {
     closeSidebar();
     if (item.id === roomId) return;
-    if (isDirectMode && onDirectSelectChat) {
+    if (isEmbeddedDirectMode && onDirectSelectChat) {
       onDirectSelectChat(item.id, item.expert);
       return;
     }
@@ -1050,7 +1176,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
       roomId: item.id,
       expert: item.expert,
     });
-  }, [closeSidebar, isDirectMode, navigation, onDirectSelectChat, roomId]);
+  }, [closeSidebar, isEmbeddedDirectMode, navigation, onDirectSelectChat, roomId]);
 
   const handleDeleteSidebarChat = useCallback((item: SidebarChatItem) => {
     Alert.alert(
@@ -1068,7 +1194,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
               if (item.id === roomId) {
                 hasEndedRef.current = true;
                 closeSidebar();
-                if (isDirectMode && onDirectNewChat) {
+                if (isEmbeddedDirectMode && onDirectNewChat) {
                   onDirectNewChat();
                   return;
                 }
@@ -1082,7 +1208,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
         },
       ]
     );
-  }, [closeSidebar, goHome, isDirectMode, onDirectNewChat, roomId]);
+  }, [closeSidebar, goHome, isEmbeddedDirectMode, onDirectNewChat, roomId]);
 
   const getLastMessageInfo = (): { text: string | null; createdAt: string | null } => {
     const latestMessages = messagesRef.current;
@@ -1132,10 +1258,10 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
         <View style={[styles.leftHeader, { width: leftWidth }]}>
           <TouchableOpacity
             style={styles.headerIconButton}
-            onPress={isDirectMode && onDirectNewChat ? onDirectNewChat : goHome}
+            onPress={isEmbeddedDirectMode && onDirectNewChat ? onDirectNewChat : goHome}
           >
             <Icon
-              name={isDirectMode ? 'create-outline' : 'arrow-back'}
+              name={isEmbeddedDirectMode ? 'create-outline' : 'arrow-back'}
               size={IS_IPAD ? 28 : 19}
               color="#000000"
             />
@@ -1143,7 +1269,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
         </View>
         <View pointerEvents="none" style={[styles.headerTitleContainer, { top: headerTopPadding, height: headerContentHeight }]}>
           <Text style={styles.headerTitle} numberOfLines={1} ellipsizeMode="tail">
-            {isDirectMode ? '대화' : expert.title}
+            {isEmbeddedDirectMode ? '대화' : expert.title}
           </Text>
         </View>
         <View style={[styles.rightHeader, { width: rightWidth }]}>
@@ -1326,9 +1452,78 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
     partnerData: activePartnerData,
   });
 
+  const ensureActivePartnerData = useCallback(async () => {
+    if (activePartnerData) return activePartnerData;
+
+    const hydratedPartnerData = await hydrateRoomPartnerData(activeChat.roomId);
+    if (hydratedPartnerData) {
+      setActivePartnerData(hydratedPartnerData);
+    }
+    return hydratedPartnerData;
+  }, [activeChat.roomId, activePartnerData]);
+
   useEffect(() => {
     setActivePartnerData(activeChat.partnerData);
   }, [activeChat.partnerData]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (activeChat.partnerData || activePartnerData) return undefined;
+
+    hydrateRoomPartnerData(activeChat.roomId).then((hydratedPartnerData) => {
+      if (mounted && hydratedPartnerData) {
+        setActivePartnerData(hydratedPartnerData);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [activeChat.partnerData, activeChat.roomId, activePartnerData]);
+
+  const handlePartnerSavedFromInput = useCallback((nextPartnerData: any, pendingText?: string) => {
+    setActivePartnerData(nextPartnerData);
+    const now = Date.now();
+    const analysisMessageId = `info_capture_analysis_${activeChat.roomId}_${now}`;
+
+    setUiMessages((prev) => [
+      ...prev,
+      {
+        id: `info_capture_done_${activeChat.roomId}_${now}`,
+        chat_room_id: activeChat.roomId,
+        sender_type: 'expert',
+        message: INFO_CAPTURE_THANKS_MESSAGE,
+        created_at: new Date(now).toISOString(),
+        display_name: SAHA_HELPER_NAME,
+        display_image: SAHA_HELPER_IMAGE,
+      },
+      {
+        id: analysisMessageId,
+        chat_room_id: activeChat.roomId,
+        sender_type: 'expert',
+        message: '',
+        created_at: new Date(now + 1).toISOString(),
+        display_name: SAHA_HELPER_NAME,
+        display_image: SAHA_HELPER_IMAGE,
+      },
+    ]);
+
+    const runPendingReply = async () => {
+      await streamUiMessageText(
+        setUiMessages,
+        analysisMessageId,
+        INFO_CAPTURE_ANALYSIS_MESSAGE,
+        INFO_CAPTURE_ANALYSIS_MIN_MS
+      );
+      if (!pendingText) return;
+      sendMessageWithText(pendingText, {
+        partnerDataOverride: nextPartnerData,
+        suppressUserMessageUiAppend: true,
+      });
+    };
+
+    runPendingReply();
+  }, [activeChat.roomId, sendMessageWithText]);
 
   const handleInfoCaptureAction = useCallback(async (
     item: ChatMessage,
@@ -1352,6 +1547,8 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
       partnerData: activePartnerData,
       directMode: true,
       infoCaptureMessage: INFO_CAPTURE_THANKS_MESSAGE,
+      pendingInfoCaptureText: actionPayload?.originalText,
+      onPartnerSaved: handlePartnerSavedFromInput,
     };
 
     if (actionKind === 'select_partner') {
@@ -1407,7 +1604,7 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
     navigation.navigate('BirthInfo', {
       returnToChat,
     });
-  }, [activeChat.expert, activeChat.roomId, activePartnerData, navigation, sendMessageWithText]);
+  }, [activeChat.expert, activeChat.roomId, activePartnerData, handlePartnerSavedFromInput, navigation, sendMessageWithText]);
 
   const handleChatSendMessage = useCallback(async (
     text: string,
@@ -1441,7 +1638,23 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
         streamUiMessageText(setUiMessages, helperDraftId, INFO_CLASSIFYING_MESSAGE),
       ]);
 
-      if (intent && !(intent === 'partner_info' && activePartnerData)) {
+      if (intent === 'partner_info') {
+        const existingPartnerData = await ensureActivePartnerData();
+        if (existingPartnerData) {
+          setUiMessages((prev) =>
+            prev.filter((message) =>
+              message.id !== helperDraftId && (!includeUserMessage || message.id !== userDraftId)
+            )
+          );
+          sendMessage(text, {
+            partnerDataOverride: existingPartnerData,
+            suppressUserMessageUiAppend: !includeUserMessage,
+          });
+          return;
+        }
+      }
+
+      if (intent) {
         const partners = intent === 'partner_info' ? await loadPartnerOptions() : [];
         setUiMessages((prev) =>
           prev.map((message) =>
@@ -1472,7 +1685,18 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
     }
 
     const intent = await resolveInfoCaptureIntent(text, decision);
-    if (intent && !(intent === 'partner_info' && activePartnerData)) {
+    if (intent === 'partner_info') {
+      const existingPartnerData = await ensureActivePartnerData();
+      if (existingPartnerData) {
+        sendMessage(text, {
+          partnerDataOverride: existingPartnerData,
+          suppressUserMessageUiAppend: options?.includeUserMessage === false,
+        });
+        return;
+      }
+    }
+
+    if (intent) {
       const partners = intent === 'partner_info' ? await loadPartnerOptions() : [];
       const nextUiMessages = createInfoCaptureMessages(activeChat.roomId, text, intent, activeChat.expert, partners);
       setUiMessages((prev) => [
@@ -1485,7 +1709,7 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
     }
 
     sendMessage(text);
-  }, [activeChat.expert, activeChat.roomId, activePartnerData, sendMessage]);
+  }, [activeChat.expert, activeChat.roomId, ensureActivePartnerData, sendMessage]);
 
   useEffect(() => {
     onBalanceInfoChange(currentBalance, freeMessageInfo);

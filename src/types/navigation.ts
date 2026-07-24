@@ -10,10 +10,12 @@ export type RootStackParamList = {
     partnerData?: any;
     initialMessage?: string;
     infoCaptureMessage?: string;
+    pendingInfoCaptureText?: string;
     directMode?: boolean;
     directEntry?: boolean;
     onDirectNewChat?: () => void;
     onDirectSelectChat?: (roomId: string, expert: any) => void;
+    onPartnerSaved?: (partnerData: any, pendingText?: string) => void;
   };
   SajuInfo: undefined;
   NotificationSettings: undefined;

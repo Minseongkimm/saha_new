@@ -10,13 +10,16 @@ import { PartnerBirthInfo } from '../../types/partner';
  */
 export const calculatePartnerSaju = async (partnerInfo: PartnerBirthInfo): Promise<SajuResult> => {
   try {
+    const shouldUseUnknownTime = partnerInfo.isTimeUnknown ||
+      !partnerInfo.birthHour ||
+      !partnerInfo.birthMinute;
     // PartnerBirthInfo를 SajuInput 형태로 변환
     const sajuInput: SajuInput = {
       year: parseInt(partnerInfo.birthYear),
       month: parseInt(partnerInfo.birthMonth),
       day: parseInt(partnerInfo.birthDay),
-      hour: partnerInfo.isTimeUnknown ? null : parseInt(partnerInfo.birthHour),
-      minute: partnerInfo.isTimeUnknown ? null : parseInt(partnerInfo.birthMinute),
+      hour: shouldUseUnknownTime ? null : parseInt(partnerInfo.birthHour),
+      minute: shouldUseUnknownTime ? null : parseInt(partnerInfo.birthMinute),
       isLunar: partnerInfo.calendarType === 'lunar',
       isLeapMonth: partnerInfo.isLeapMonth,
     };
@@ -35,6 +38,9 @@ export const calculatePartnerSaju = async (partnerInfo: PartnerBirthInfo): Promi
  * 상대방 사주 데이터를 DB 저장용 형태로 변환
  */
 export const formatPartnerSajuForDB = (partnerInfo: PartnerBirthInfo, sajuData: SajuResult) => {
+  const isTimeUnknown = partnerInfo.isTimeUnknown ||
+    !partnerInfo.birthHour ||
+    !partnerInfo.birthMinute;
   return {
     partner_name: partnerInfo.name,
     relationship_status: partnerInfo.relationshipStatus,
@@ -43,12 +49,12 @@ export const formatPartnerSajuForDB = (partnerInfo: PartnerBirthInfo, sajuData: 
       birthYear: partnerInfo.birthYear,
       birthMonth: partnerInfo.birthMonth,
       birthDay: partnerInfo.birthDay,
-      birthHour: partnerInfo.birthHour,
-      birthMinute: partnerInfo.birthMinute,
+      birthHour: isTimeUnknown ? '' : partnerInfo.birthHour,
+      birthMinute: isTimeUnknown ? '' : partnerInfo.birthMinute,
       gender: partnerInfo.gender,
       calendarType: partnerInfo.calendarType,
       isLeapMonth: partnerInfo.isLeapMonth,
-      isTimeUnknown: partnerInfo.isTimeUnknown,
+      isTimeUnknown,
     },
     saju_data: sajuData,
   };
@@ -72,4 +78,3 @@ export const convertSajuResultToSajuInfo = (
     gender: genderNum
   };
 };
-

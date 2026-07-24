@@ -45,6 +45,24 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
     });
   }, []);
 
+  const scrollToLatestMessageTop = useCallback((animated: boolean, itemCount: number = messages.length) => {
+    if (itemCount <= 0) return;
+    const latestIndex = itemCount - 1;
+    const scroll = () => {
+      flatListRef.current?.scrollToIndex({
+        index: latestIndex,
+        animated,
+        viewPosition: 0,
+      });
+    };
+
+    requestAnimationFrame(() => {
+      scroll();
+      setTimeout(scroll, 120);
+      setTimeout(scroll, 320);
+    });
+  }, [messages.length]);
+
   // 초기 인사말 생성 (ExpertAIService 사용)
   const generateWelcomeMessage = async () => {
     try {
@@ -127,8 +145,8 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
         await generateWelcomeMessage();
       }
       
-      // 데이터 적용 직후 1회 무애니메이션으로 맨 아래 고정
-      scrollToBottom(false);
+      // 데이터 적용 직후 최신 메시지의 시작점으로 이동
+      scrollToLatestMessageTop(false, ordered.length);
     } catch (error) {
       console.error('Error fetching messages:', error);
     } finally {
@@ -143,8 +161,8 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
     if (cached.length > 0) {
       setMessages(cached);
       setLoading(false);
-      // 캐시 표시 직후 즉시 하단 고정
-      scrollToBottom(false);
+      // 캐시 표시 직후 최신 메시지의 시작점으로 이동
+      scrollToLatestMessageTop(false, cached.length);
       // 백그라운드 새로고침
       fetchMessages();
     } else {
@@ -254,6 +272,7 @@ export const useChatRoom = ({ roomId, expert }: UseChatRoomProps) => {
     setShouldAutoScroll: updateShouldAutoScroll,
     flatListRef,
     scrollToBottom,
+    scrollToLatestMessageTop,
     currentBalance,
     freeMessageInfo,
     refreshBalance

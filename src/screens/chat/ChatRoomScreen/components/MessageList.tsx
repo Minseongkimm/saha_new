@@ -127,6 +127,19 @@ const MessageList: React.FC<MessageListProps> = ({
       onScrollBeginDrag={() => setShouldAutoScroll(false)}
       onScrollEndDrag={updateAutoScrollFromPosition}
       onMomentumScrollEnd={updateAutoScrollFromPosition}
+      onScrollToIndexFailed={(info) => {
+        flatListRef.current?.scrollToOffset({
+          offset: Math.max(info.averageItemLength * info.index, 0),
+          animated: false,
+        });
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({
+            index: info.index,
+            animated: false,
+            viewPosition: 0,
+          });
+        }, 120);
+      }}
       ListEmptyComponent={loading ? ListEmptyThinking : null}
     />
   );

@@ -49,6 +49,7 @@ interface StreamSummaryUpdateParams {
 interface BuildUserPromptParams {
   expertSummary?: string;
   sajuSummary: string;
+  roomContext?: string;
   conversationSummary?: string | null;
   historyLines: string[];
   currentQuestion: string;
@@ -60,8 +61,11 @@ const SYSTEM_PROMPT_EXPERT_PREFIX = "chat_system_prompt_expert_";
 const FALLBACK_SYSTEM_PROMPT =
   "당신은 전문 사주 상담가입니다. 제공된 정보를 바탕으로 공감 가면서도 실생활에 도움이 되는 조언을 전달하세요.";
 const SUMMARY_UPDATE_INTERVAL_MESSAGES = 4;
-const SUMMARY_MAX_CHARS = 900;
+const SUMMARY_MAX_CHARS = 750;
 const SUMMARY_INPUT_MESSAGE_LIMIT = 8;
+const RECENT_HISTORY_MESSAGE_LIMIT = 4;
+const HISTORY_USER_MAX_CHARS = 500;
+const HISTORY_ASSISTANT_MAX_CHARS = 700;
 const DECISION_COUNSELING_GUIDE = `
 ### Runtime Priority
 
@@ -78,6 +82,36 @@ function truncateMessage(content: string, maxLength: number = 120): string {
     return compact;
   }
   return `${compact.slice(0, maxLength - 3)}...`;
+}
+
+function stripFollowUpQuestions(content: string): string {
+  return content
+    .replace(/\n*\s*팔로업\s*질문\s*[:：][\s\S]*$/i, "")
+    .replace(/\n*\s*추천\s*질문\s*[:：][\s\S]*$/i, "")
+    .replace(/\n*\s*다음\s*질문\s*[:：][\s\S]*$/i, "")
+    .replace(/\n*\s*\[\s*["'][\s\S]*$/i, "")
+    .trim();
+}
+
+function extractAssistantHistoryContext(content: string): string {
+  const withoutFollowUps = stripFollowUpQuestions(content);
+  const paragraphs = withoutFollowUps
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.replace(/\s+/g, " ").trim())
+    .filter((paragraph) => paragraph.length > 0);
+
+  if (paragraphs.length === 0) {
+    return truncateMessage(withoutFollowUps, HISTORY_ASSISTANT_MAX_CHARS);
+  }
+
+  const selected = [
+    ...paragraphs.slice(0, 2),
+    paragraphs.length > 2 ? paragraphs[paragraphs.length - 1] : "",
+  ].filter((paragraph, index, array) =>
+    paragraph.length > 0 && array.indexOf(paragraph) === index
+  );
+
+  return truncateMessage(selected.join(" "), HISTORY_ASSISTANT_MAX_CHARS);
 }
 
 function clampConversationSummary(
@@ -408,11 +442,13 @@ function createHistoryLines(messages: OpenAIMessage[]): string[] {
   if (messages.length <= 1) {
     return [];
   }
-  const recent = messages.slice(0, -1).slice(-7);
+  const recent = messages.slice(0, -1).slice(-RECENT_HISTORY_MESSAGE_LIMIT);
   return recent.map((message) => {
     const role = message.role === "assistant" ? "Assistant" : "User";
-    const maxLength = message.role === "assistant" ? 300 : 500;
-    return `- ${role}: ${truncateMessage(message.content, maxLength)}`;
+    const content = message.role === "assistant"
+      ? extractAssistantHistoryContext(message.content)
+      : truncateMessage(message.content, HISTORY_USER_MAX_CHARS);
+    return `- ${role}: ${content}`;
   });
 }
 
@@ -456,6 +492,26 @@ function parseJsonField<T>(value: unknown): T | null {
   return null;
 }
 
+function buildRoomContext(chatRoom: Record<string, unknown> | null): string {
+  const chatContext = typeof chatRoom?.chat_context === "string"
+    ? chatRoom.chat_context
+    : "general";
+  const hasPartner = Boolean(chatRoom?.partner_saju_id);
+  const contextLabelMap: Record<string, string> = {
+    love_compatibility: "궁합 상담",
+    love_personal: "연애 상담",
+    career: "직업/진로 상담",
+    life: "인생 방향 상담",
+    general: "일반 사주 상담",
+  };
+  const label = contextLabelMap[chatContext] ?? chatContext;
+
+  return [
+    `현재 상담 맥락: ${label}`,
+    `상대방 정보: ${hasPartner ? "연결됨" : "없음"}`,
+  ].join("\n");
+}
+
 /**
  * Assemble the user-supplied prompt combining expert, saju, history and question sections.
  */
@@ -463,6 +519,9 @@ function buildUserPrompt(params: BuildUserPromptParams): string {
   const sections: string[] = [];
   if (params.expertSummary && params.expertSummary.length > 0) {
     sections.push(`### Expert\n${params.expertSummary}`);
+  }
+  if (params.roomContext && params.roomContext.length > 0) {
+    sections.push(`### Room Context\n${params.roomContext}`);
   }
   // Saju Snapshot은 System Prompt로 이동했으므로 제거
   // sections.push(`### Saju Snapshot\n${params.sajuSummary}`);
@@ -474,7 +533,7 @@ function buildUserPrompt(params: BuildUserPromptParams): string {
   }
   sections.push(`### Current Question\n${params.currentQuestion}`);
   sections.push(
-    `### 답변 기준\n현재 질문을 우선하고, 최근 흐름에 자연스럽게 이어서 답하세요.`,
+    `### 답변 기준\n현재 질문을 우선하고, 최근 흐름에 자연스럽게 이어서 답하세요.\n"단점은?", "언제?", "조심할 점은?" 같은 짧은 후속 질문은 Room Context와 직전 주제 기준으로 해석하세요.`,
   );
   return sections.join("\n\n");
 }
@@ -897,12 +956,24 @@ function transformToSSEWithTokenTracking(
     async start(controller) {
       let buffer = "";
       let responseText = "";
+      let finishReason: string | null = null;
 
       try {
         while (true) {
           const { done, value } = await reader.read();
 
           if (done) {
+            if (finishReason === "length") {
+              log(
+                "warn",
+                "AI 답변이 토큰 상한에 도달해 중간에 끊겼을 수 있음",
+                {
+                  roomId,
+                  model,
+                  responseLength: responseText.length,
+                },
+              );
+            }
             // 스트리밍 완료 후 텍스트 길이 기반으로 토큰 추정 및 last_message 갱신
             const completedMessageCount = currentMessageCount + 1;
             try {
@@ -973,6 +1044,11 @@ function transformToSSEWithTokenTracking(
                 const piece = jsonData?.choices?.[0]?.delta?.content ??
                   jsonData?.choices?.[0]?.message?.content ??
                   "";
+                const nextFinishReason = jsonData?.choices?.[0]
+                  ?.finish_reason;
+                if (typeof nextFinishReason === "string") {
+                  finishReason = nextFinishReason;
+                }
                 if (piece) {
                   responseText += piece as string;
                 }
@@ -1011,6 +1087,7 @@ ${existingSummary}
 새로운 대화를 반영해 상담 메모리를 업데이트해주세요.
 메모리는 다음 답변에서 이어 말하기 위한 작은 메모입니다. 추측은 최소화하고, 확실한 정보와 상담 흐름만 짧게 남기세요.
 사용자가 실제로 말하지 않은 배경이나 감정은 만들지 마세요. 오래된 내용보다 최근에 해결되지 않은 고민과 다음 행동을 우선하세요.
+짧은 후속 질문을 해석할 수 있도록 현재 상담 주제와 직전 초점을 분명히 남기세요.
 
 새로운 대화:
 ${dialogueText}
@@ -1028,6 +1105,7 @@ ${dialogueText}
     : `다음 대화를 바탕으로 상담 메모리를 만들어주세요.
 메모리는 다음 답변에서 이어 말하기 위한 작은 메모입니다. 추측은 최소화하고, 확실한 정보와 상담 흐름만 짧게 남기세요.
 사용자가 실제로 말하지 않은 배경이나 감정은 만들지 마세요.
+짧은 후속 질문을 해석할 수 있도록 현재 상담 주제와 직전 초점을 분명히 남기세요.
 
 대화:
 ${dialogueText}
@@ -1205,7 +1283,7 @@ Deno.serve(async (req: Request) => {
     const { data: chatRoom } = await supabase
       .from("chat_rooms")
       .select(
-        "conversation_summary, last_summary_message_count, total_message_count, expert_id",
+        "conversation_summary, last_summary_message_count, total_message_count, expert_id, chat_context, partner_saju_id",
       )
       .eq("id", roomId)
       .single();
@@ -1440,6 +1518,9 @@ Deno.serve(async (req: Request) => {
     const userPrompt = buildUserPrompt({
       expertSummary,
       sajuSummary: "", // System Prompt로 이동했으므로 빈 문자열 전달
+      roomContext: buildRoomContext(
+        (chatRoom ?? null) as Record<string, unknown> | null,
+      ),
       conversationSummary: chatRoom?.conversation_summary || null,
       historyLines,
       currentQuestion: lastQuestion,

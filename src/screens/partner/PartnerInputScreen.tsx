@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ import { isIPad } from '../../utils/platform';
 const IS_IPAD = isIPad();
 
 type PartnerInputScreenProps = StackScreenProps<RootStackParamList, 'PartnerInput'>;
+type PartnerInputErrorField = 'name' | 'birthDate' | 'gender' | 'birthTime' | null;
 
 const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
   const { expertId, returnToChat, editPartnerId, returnToSajuInfo } = route.params;
@@ -45,7 +46,25 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
     relationshipStatus: 'interested',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [validationErrorField, setValidationErrorField] = useState<PartnerInputErrorField>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
   const isEditMode = Boolean(editPartnerId);
+
+  const focusInvalidField = (field: Exclude<PartnerInputErrorField, null>) => {
+    setValidationErrorField(field);
+    const scrollYByField: Record<Exclude<PartnerInputErrorField, null>, number> = {
+      name: 0,
+      birthDate: IS_IPAD ? 130 : 86,
+      gender: IS_IPAD ? 430 : 310,
+      birthTime: IS_IPAD ? 560 : 410,
+    };
+    requestAnimationFrame(() => {
+      scrollViewRef.current?.scrollTo({
+        y: scrollYByField[field],
+        animated: true,
+      });
+    });
+  };
 
   useEffect(() => {
     const loadPartner = async () => {
@@ -54,6 +73,11 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
       try {
         setIsLoading(true);
         const partner = await getPartnerById(editPartnerId);
+        if (!partner) {
+          Alert.alert('오류', '상대방 정보를 찾을 수 없습니다.');
+          navigation.goBack();
+          return;
+        }
         const birthInfo = partner.birth_info || {};
         setPartnerInfo({
           name: birthInfo.name || partner.partner_name || '',
@@ -82,23 +106,55 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
   const handleSave = async () => {
     // 입력값 검증
     if (!partnerInfo.name.trim()) {
-      Alert.alert('오류', '상대방 이름을 입력해주세요.');
+      focusInvalidField('name');
       return;
     }
-    if (!partnerInfo.birthYear || !partnerInfo.birthMonth || !partnerInfo.birthDay) {
-      Alert.alert('오류', '생년월일을 입력해주세요.');
+    const year = Number(partnerInfo.birthYear);
+    const month = Number(partnerInfo.birthMonth);
+    const day = Number(partnerInfo.birthDay);
+    const birthDate = new Date(year, month - 1, day);
+    const hasValidDateParts = partnerInfo.birthYear.length === 4 &&
+      partnerInfo.birthMonth.length >= 1 &&
+      partnerInfo.birthDay.length >= 1 &&
+      year >= 1900 &&
+      year <= new Date().getFullYear() &&
+      month >= 1 &&
+      month <= 12 &&
+      day >= 1 &&
+      day <= 31 &&
+      birthDate.getFullYear() === year &&
+      birthDate.getMonth() === month - 1 &&
+      birthDate.getDate() === day;
+    if (!hasValidDateParts) {
+      focusInvalidField('birthDate');
       return;
     }
     if (!partnerInfo.gender) {
-      Alert.alert('오류', '성별을 선택해주세요.');
+      focusInvalidField('gender');
       return;
     }
+    const hasPartialTime = !partnerInfo.isTimeUnknown && (
+      Boolean(partnerInfo.birthHour) !== Boolean(partnerInfo.birthMinute) ||
+      (Boolean(partnerInfo.birthHour) && partnerInfo.birthHour.length < 2) ||
+      (Boolean(partnerInfo.birthMinute) && partnerInfo.birthMinute.length < 2)
+    );
+    if (hasPartialTime) {
+      focusInvalidField('birthTime');
+      return;
+    }
+    const normalizedPartnerInfo: PartnerBirthInfo = {
+      ...partnerInfo,
+      isTimeUnknown: partnerInfo.isTimeUnknown || (!partnerInfo.birthHour && !partnerInfo.birthMinute),
+      birthHour: partnerInfo.birthHour && partnerInfo.birthMinute ? partnerInfo.birthHour : '',
+      birthMinute: partnerInfo.birthHour && partnerInfo.birthMinute ? partnerInfo.birthMinute : '',
+    };
 
     try {
+      setValidationErrorField(null);
       setIsLoading(true);
       
       // 1. 상대방 사주 계산
-      const partnerSajuData = await calculatePartnerSaju(partnerInfo);
+      const partnerSajuData = await calculatePartnerSaju(normalizedPartnerInfo);
 
       // 2. 로컬 궁합 계산 (사용자 사주 + 상대 사주)
       const sajuCalculator = new SajuCalculator();
@@ -135,8 +191,8 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
 
       const partnerSajuInfo: SajuInfo = convertSajuResultToSajuInfo(
         partnerSajuData,
-        parseInt(partnerInfo.birthYear),
-        partnerInfo.gender || 'male'
+        parseInt(normalizedPartnerInfo.birthYear),
+        normalizedPartnerInfo.gender || 'male'
       );
 
       const compatibilityResult = userSajuInfo
@@ -146,15 +202,15 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
       // 3. DB에 상대방 정보 저장 또는 수정 (궁합 결과 포함)
       let partnerId: string;
       if (editPartnerId) {
-        await updatePartnerInDatabase(editPartnerId, partnerInfo, partnerSajuData, compatibilityResult);
+        await updatePartnerInDatabase(editPartnerId, normalizedPartnerInfo, partnerSajuData, compatibilityResult);
         partnerId = editPartnerId;
       } else {
-        partnerId = await savePartnerToDatabase(partnerInfo, partnerSajuData, compatibilityResult);
+        partnerId = await savePartnerToDatabase(normalizedPartnerInfo, partnerSajuData, compatibilityResult);
       }
       
       // 4. 채팅 시작 (상대방 정보 + 로컬 궁합 포함)
       const partnerData = {
-        partnerInfo,
+        partnerInfo: normalizedPartnerInfo,
         partnerSajuData,
         partnerId,
         compatibilityResult
@@ -171,6 +227,12 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
 
         if (chatRoomUpdateError) {
           console.error('채팅방 상대방 정보 연결 오류:', chatRoomUpdateError);
+        }
+
+        if (typeof returnToChat.onPartnerSaved === 'function') {
+          returnToChat.onPartnerSaved(partnerData, returnToChat.pendingInfoCaptureText);
+          navigation.goBack();
+          return;
         }
 
         navigation.replace('ChatRoom', {
@@ -207,14 +269,18 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
         onBackPress={() => safeGoBack(navigation)}
       />
       
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollViewRef} style={styles.content} showsVerticalScrollIndicator={false}>
         <PartnerInputForm
           birthInfo={partnerInfo as any}
-          setBirthInfo={setPartnerInfo as any}
+          setBirthInfo={(info) => {
+            setPartnerInfo(info as PartnerBirthInfo);
+            setValidationErrorField(null);
+          }}
           title=""
           showName={true}
           showRelationship={true}
           isModal={true}
+          validationErrorField={validationErrorField}
         />
       </ScrollView>
 
