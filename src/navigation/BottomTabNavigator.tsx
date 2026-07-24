@@ -29,6 +29,9 @@ const TAB_LABEL_FONT_SIZE: number = IS_IPAD ? 16 : (IS_SMALL_DEVICE ? 10 : 12);
 
 const Tab = createBottomTabNavigator();
 
+// 상점 재개발 전까지 하단 탭에서 제외 (다른 3개 탭이 균등하게 채워지도록 스크린 자체를 렌더링하지 않음)
+const SHOW_STORE_TAB = false;
+
 const BottomTabNavigator: React.FC = () => {
   useFocusEffect(
     React.useCallback(() => {
@@ -91,22 +94,24 @@ const BottomTabNavigator: React.FC = () => {
             ),
           }}
         />
-        <Tab.Screen
-          name="Store"
-          component={StoreWebViewScreen}
-          listeners={{
-            tabPress: () => {
-              markStoreWebViewT0('tab_press_store_tab');
-            },
-          }}
-          options={{
-            lazy: ENABLE_STORE_TAB_LAZY,
-            tabBarLabel: '상점',
-            tabBarIcon: ({ color }) => (
-              <Icon name="storefront" size={TAB_ICON_SIZE} color={color} />
-            ),
-          }}
-        />
+        {SHOW_STORE_TAB && (
+          <Tab.Screen
+            name="Store"
+            component={StoreWebViewScreen}
+            listeners={{
+              tabPress: () => {
+                markStoreWebViewT0('tab_press_store_tab');
+              },
+            }}
+            options={{
+              lazy: ENABLE_STORE_TAB_LAZY,
+              tabBarLabel: '상점',
+              tabBarIcon: ({ color }) => (
+                <Icon name="storefront" size={TAB_ICON_SIZE} color={color} />
+              ),
+            }}
+          />
+        )}
         <Tab.Screen
           name="MyInfo"
           component={MyInfoScreen}

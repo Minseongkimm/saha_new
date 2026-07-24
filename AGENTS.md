@@ -177,6 +177,14 @@ Edge Function 수정 시 가능하면 `deno fmt --check`와 `deno check`를 확�
 - 무선 연결은 `adb mdns services`, `adb connect`, `adb reverse tcp:8081 tcp:8081` 흐름으로 확인한다.
 - 와이파이가 바뀌면 무선 ADB 주소가 바뀔 수 있음을 고려한다.
 
+## 어드민 대시보드 Worklog / 배포 마커
+
+- Worklog(업무 기록)와 배포 마커는 별개 기능이다. 배포 여부를 표시하려고 워크로그 항목을 만들지 않는다.
+- 배포 마커는 `saha-admin-dashboard/data/deploys.json`에 `{ id, date, created_at }`만 저장하는 최소 구조다. 플랫폼 구분 없이 "배포" 하나로만 표시한다.
+- API는 `GET/POST /api/deploys`, `DELETE /api/deploys/:id` (`server.js`). 워크로그 API와 패턴은 같지만 완전히 분리된 라우트/파일이다.
+- 프론트엔드(`public/app.js`)에서 날짜 셀 hover 시 `+`(배포 없음) 또는 "배포" 칩(있음)이 뜨고, 클릭으로 추가/삭제 토글한다. `.calendar-day` 자체가 `<button>`이라 내부 컨트롤은 `<span role="button">`로 만들어야 한다 (버튼 중첩 금지).
+- Worklog 캘린더 요일은 일요일 시작이다 (`renderCalendar`의 `weekdays` 배열과 `sundayOffset` 기준).
+
 ## 현재 참고 문서
 
 - `docs/CODEX_STATE.md`: 현재 결정사항, 어드민 repo 정보
