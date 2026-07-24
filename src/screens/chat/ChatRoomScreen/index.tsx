@@ -18,6 +18,7 @@ import {
   Image,
   StatusBar,
   Keyboard,
+  TouchableWithoutFeedback,
   BackHandler,
   PanResponder,
   AppState,
@@ -49,6 +50,7 @@ import { ChatRouteCategory, routeChatCategory } from '../../../utils/chat/routeC
 import { classifyInfoIntent } from '../../../utils/chat/classifyInfoIntent';
 import { fetchUserBalance } from '../../../utils/payments/balance';
 import { checkFreeMessageAvailable } from '../../../utils/payments/freeMessage';
+import { checkBalanceBeforeSend } from './hooks/messageActions/checkBalanceBeforeSend';
 import { getCurrentUserSafely } from '../../../utils/user/authUtils';
 import { getPartnerById, getPartnerList } from '../../../utils/partner/partnerDatabase';
 import { PartnerSaju, RELATIONSHIP_STATUS_LABELS, RelationshipStatus } from '../../../types/partner';
@@ -99,6 +101,11 @@ interface DirectInlineActiveChatProps {
     balance: number,
     freeMessageInfo: { usedCount: number; dailyLimit: number; available?: boolean }
   ) => void;
+  onBalanceInsufficient: (info: {
+    balance: number;
+    freeMessageUsedCount: number;
+    freeMessageDailyLimit: number;
+  }) => void;
 }
 
 interface ChatConversationBodyProps {
@@ -604,17 +611,21 @@ const ChatConversationBody: React.FC<ChatConversationBodyProps> = ({
   inputWrapperStyle,
 }) => {
   const messageList = (
-    <MessageList
-      messages={messages}
-      isAiResponding={isAiResponding}
-      expert={expert}
-      flatListRef={flatListRef}
-      shouldAutoScroll={shouldAutoScroll}
-      setShouldAutoScroll={setShouldAutoScroll}
-      scrollToBottom={scrollToBottom}
-      loading={loading}
-      onMessageActionPress={onMessageActionPress}
-    />
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <View style={styles.messageListTouchArea}>
+        <MessageList
+          messages={messages}
+          isAiResponding={isAiResponding}
+          expert={expert}
+          flatListRef={flatListRef}
+          shouldAutoScroll={shouldAutoScroll}
+          setShouldAutoScroll={setShouldAutoScroll}
+          scrollToBottom={scrollToBottom}
+          loading={loading}
+          onMessageActionPress={onMessageActionPress}
+        />
+      </View>
+    </TouchableWithoutFeedback>
   );
 
   return (
@@ -1421,6 +1432,7 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
   isKeyboardVisible,
   keyboardHeight,
   onBalanceInfoChange,
+  onBalanceInsufficient,
 }) => {
   const initialMessageSentRef = useRef<boolean>(false);
   const handledInfoActionIdsRef = useRef<Set<string>>(new Set());
@@ -1453,8 +1465,12 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
     setShouldAutoScroll,
     scrollToBottom,
     onBalanceUpdate: refreshBalance,
-    onBalanceInsufficient: () => {
-      Alert.alert('안내', '무료 상담을 모두 사용했거나 사바가 부족합니다.');
+    onBalanceInsufficient: (balanceCheck) => {
+      onBalanceInsufficient({
+        balance: balanceCheck.balance ?? 0,
+        freeMessageUsedCount: balanceCheck.freeMessageInfo?.usedCount ?? 0,
+        freeMessageDailyLimit: balanceCheck.freeMessageInfo?.dailyLimit ?? 0,
+      });
     },
     partnerData: activePartnerData,
   });
@@ -1812,6 +1828,15 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any; route: any }> = ({ 
     usedCount: 0,
     dailyLimit: 1,
   });
+  const [showInsufficientBalanceSheet, setShowInsufficientBalanceSheet] = useState(false);
+  const [showChargeSheet, setShowChargeSheet] = useState(false);
+  const [insufficientBalanceInfo, setInsufficientBalanceInfo] = useState<{
+    balance: number;
+    freeMessageUsedCount: number;
+    freeMessageDailyLimit: number;
+  } | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [isPaymentLoading, setIsPaymentLoading] = useState(false);
   const [activeChat, setActiveChat] = useState<ActiveDirectChat | null>(null);
   const [sidebarChats, setSidebarChats] = useState<SidebarChatItem[]>([]);
   const [isSidebarVisible, setIsSidebarVisible] = useState<boolean>(false);
@@ -2071,9 +2096,58 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any; route: any }> = ({ 
     });
   }, []);
 
+  const handleBalanceInsufficient = useCallback((info: {
+    balance: number;
+    freeMessageUsedCount: number;
+    freeMessageDailyLimit: number;
+  }) => {
+    setInsufficientBalanceInfo(info);
+    setShowInsufficientBalanceSheet(true);
+  }, []);
+
+  const handleCharge = useCallback(() => {
+    setIsTransitioning(true);
+    setShowInsufficientBalanceSheet(false);
+    setTimeout(() => {
+      setShowChargeSheet(true);
+      setIsTransitioning(false);
+    }, 50);
+  }, []);
+
+  const handleChargeSelect = useCallback(async (amount: number) => {
+    setShowChargeSheet(false);
+
+    try {
+      await handleChargeFlow(amount, {
+        onSuccess: () => {
+          loadBalanceInfo();
+        },
+        onError: (error) => {
+          console.error('[DirectEntryChatRoomScreen] 충전 오류:', error);
+        },
+        onLoading: (isLoading) => {
+          setIsPaymentLoading(isLoading);
+        },
+      });
+    } catch (error) {
+      console.error('[DirectEntryChatRoomScreen] handleChargeFlow 예외:', error);
+      setIsPaymentLoading(false);
+    }
+  }, [loadBalanceInfo]);
+
   const handleFirstMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || isMatching) return;
+
+    const balanceCheck = await checkBalanceBeforeSend();
+    if (!balanceCheck.canSend) {
+      handleBalanceInsufficient({
+        balance: balanceCheck.balance ?? 0,
+        freeMessageUsedCount: balanceCheck.freeMessageInfo?.usedCount ?? 0,
+        freeMessageDailyLimit: balanceCheck.freeMessageInfo?.dailyLimit ?? 0,
+      });
+      return;
+    }
 
     const statusMessageId = `status-${Date.now()}`;
     const startedAt = Date.now();
@@ -2158,7 +2232,7 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any; route: any }> = ({ 
       Alert.alert('오류', '상담을 연결하지 못했습니다.');
       setIsMatching(false);
     }
-  }, [fetchExpertForCategory, isMatching, navigation]);
+  }, [fetchExpertForCategory, handleBalanceInsufficient, isMatching, navigation]);
 
   const renderDraftMessage = ({ item }: { item: DirectDraftMessage }) => (
     <View style={styles.directDraftMessageContainer}>
@@ -2246,9 +2320,11 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any; route: any }> = ({ 
             isKeyboardVisible={isKeyboardVisible}
             keyboardHeight={keyboardHeight}
             onBalanceInfoChange={handleBalanceInfoChange}
+            onBalanceInsufficient={handleBalanceInsufficient}
           />
         ) : (
           <>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.directEntryMessageArea}>
             {draftMessages.length === 0 ? (
             <View style={styles.directEntryEmpty}>
@@ -2266,6 +2342,7 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any; route: any }> = ({ 
             />
           )}
           </View>
+          </TouchableWithoutFeedback>
           <View
             style={[
               styles.inputContainer,
@@ -2283,6 +2360,29 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any; route: any }> = ({ 
           </>
         )}
       </KeyboardAvoidingView>
+
+      <InsufficientBalanceBottomSheet
+        visible={showInsufficientBalanceSheet && !isTransitioning}
+        onClose={() => setShowInsufficientBalanceSheet(false)}
+        onCharge={handleCharge}
+        currentBalance={insufficientBalanceInfo?.balance ?? 0}
+        freeMessageUsedCount={insufficientBalanceInfo?.freeMessageUsedCount ?? 0}
+        freeMessageDailyLimit={insufficientBalanceInfo?.freeMessageDailyLimit ?? 0}
+      />
+
+      <ChargeBottomSheet
+        visible={showChargeSheet || isTransitioning}
+        onClose={() => {
+          setShowChargeSheet(false);
+          setIsTransitioning(false);
+        }}
+        onSelectCharge={handleChargeSelect}
+      />
+
+      <PaymentLoadingModal
+        visible={isPaymentLoading}
+        message="결제중입니다"
+      />
 
       <Modal
         visible={isSidebarVisible}
@@ -2355,6 +2455,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: 'white',
+  },
+  messageListTouchArea: {
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
