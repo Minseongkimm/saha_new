@@ -1,7 +1,14 @@
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
-  MainTabs: undefined;
+  MainTabs: {
+    screen?: string;
+    params?: {
+      directEntry?: true;
+      entryCategory?: 'traditional_saju' | 'today_fortune' | 'newyear_fortune';
+      entryRequestId?: string;
+    };
+  } | undefined;
   BannerDetail: undefined;
   ExpertDetail: { expert: any };
   ChatRoom: {

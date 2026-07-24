@@ -13,7 +13,7 @@ import ChatStartBottomSheet from '../../components/bottomsheets/ChatStartBottomS
 import AIGuideSection from '../../components/common/AIGuideSection';
 import { safeGoBack } from '../../utils/navigation/safeGoBack';
 import BottomFixedButton from '../../components/common/BottomFixedButton';
-import { startChatWithExpert, getExpertByCategory } from '../../utils/chat/chatUtils';
+import { getExpertByCategory } from '../../utils/chat/chatUtils';
 import { useTodayFortune } from '../../hooks/useTodayFortune';
 import { getKoreanDateString } from '../../utils/date/koreanDate';
 import { formatBoldText, removeBoldMarks } from '../../utils/text/textFormatUtils';
@@ -134,13 +134,14 @@ const TodayFortuneScreen: React.FC<TodayFortuneScreenProps> = ({ navigation }) =
 
   const onStartChat = async () => {
     setShowChatModal(false);
-    
-    const expert = await getExpertByCategory('today_fortune');
-    if (expert?.id) {
-      startChatWithExpert(navigation, expert.id);
-    } else {
-      Alert.alert('오류', '전문가를 찾을 수 없습니다.');
-    }
+    navigation.navigate('MainTabs', {
+      screen: 'Chat',
+      params: {
+        directEntry: true,
+        entryCategory: 'today_fortune',
+        entryRequestId: Date.now().toString(),
+      },
+    });
   };
 
   // 운세 데이터 렌더링 함수

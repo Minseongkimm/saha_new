@@ -16,7 +16,7 @@ import { safeGoBack } from '../../utils/navigation/safeGoBack';
 import ChatStartBottomSheet from '../../components/bottomsheets/ChatStartBottomSheet';
 import AIGuideSection from '../../components/common/AIGuideSection';
 import BottomFixedButton from '../../components/common/BottomFixedButton';
-import { startChatWithExpert, getExpertByCategory } from '../../utils/chat/chatUtils';
+import { getExpertByCategory } from '../../utils/chat/chatUtils';
 import { useTraditionalSaju } from '../../hooks/useTraditionalSaju';
 import SabaLoader from '../../components/common/SabaLoader';
 import SajuAnalysisLoader from '../../components/common/SajuAnalysisLoader';
@@ -225,13 +225,14 @@ const TraditionalSajuScreen: React.FC<TraditionalSajuScreenProps> = ({ navigatio
         onClose={() => setShowChatModal(false)}
         onStartChat={async () => {
           setShowChatModal(false);
-          
-          const expert = await getExpertByCategory('traditional_saju');
-          if (expert?.id) {
-            startChatWithExpert(navigation, expert.id);
-          } else {
-            Alert.alert('오류', '전문가를 찾을 수 없습니다.');
-          }
+          navigation.navigate('MainTabs', {
+            screen: 'Chat',
+            params: {
+              directEntry: true,
+              entryCategory: 'traditional_saju',
+              entryRequestId: Date.now().toString(),
+            },
+          });
         }}
         title={`${expertName}님과 대화하기`}
         description={`궁금한 점이나 더 자세한 해석이 필요하시다면${'\n'}AI 도사와 대화해보세요.`}

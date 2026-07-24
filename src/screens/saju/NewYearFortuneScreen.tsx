@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Alert,
 } from 'react-native';
 import { Colors } from '../../constants/colors';
@@ -16,7 +15,7 @@ import AIGuideSection from '../../components/common/AIGuideSection';
 import { safeGoBack } from '../../utils/navigation/safeGoBack';
 import BottomFixedButton from '../../components/common/BottomFixedButton';
 import SimpleYearInteraction from '../../components/saju/SimpleYearInteraction';
-import { startChatWithExpert, getExpertByCategory } from '../../utils/chat/chatUtils';
+import { getExpertByCategory } from '../../utils/chat/chatUtils';
 import { useNewYearFortune } from '../../hooks/useNewYearFortune';
 import { formatBoldText, removeBoldMarks } from '../../utils/text/textFormatUtils';
 import SabaLoader from '../../components/common/SabaLoader';
@@ -108,13 +107,14 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
 
   const onStartChat = async () => {
     setShowChatModal(false);
-    
-    const expert = await getExpertByCategory('newyear_fortune');
-    if (expert?.id) {
-      startChatWithExpert(navigation, expert.id);
-    } else {
-      Alert.alert('오류', '전문가를 찾을 수 없습니다.');
-    }
+    navigation.navigate('MainTabs', {
+      screen: 'Chat',
+      params: {
+        directEntry: true,
+        entryCategory: 'newyear_fortune',
+        entryRequestId: Date.now().toString(),
+      },
+    });
   };
 
   // 사주 데이터에서 일간 추출
@@ -135,7 +135,6 @@ const NewYearFortuneScreen: React.FC<NewYearFortuneScreenProps> = ({ navigation 
   const myDayGan = parseGanji(myDayGanji).heavenly;
   const yearGanjiChar = displayData?.yearGanji?.yearGanji || '丙午';
   const yearGan = yearGanjiChar ? yearGanjiChar[0] : '';
-  const yearJi = yearGanjiChar ? yearGanjiChar[1] : '';
 
   // 카테고리 색상 매핑
   const categoryConfig = {

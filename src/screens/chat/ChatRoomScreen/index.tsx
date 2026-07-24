@@ -79,6 +79,8 @@ interface ActiveDirectChat {
   partnerData?: any;
 }
 
+type FortuneEntryCategory = 'traditional_saju' | 'today_fortune' | 'newyear_fortune';
+
 interface DirectDraftMessage {
   id: string;
   text: string;
@@ -122,6 +124,7 @@ const ROUTING_STATUS_MESSAGES = [
 const ROUTING_STATUS_INTERVAL_MS = 1500;
 const MIN_ROUTING_MS = 3000;
 const CHAT_START_DELAY_MS = 800;
+const FORTUNE_ENTRY_CATEGORIES: FortuneEntryCategory[] = ['traditional_saju', 'today_fortune', 'newyear_fortune'];
 
 const ASSIGNMENT_DESCRIPTIONS: Record<ChatRouteCategory, string> = {
   comprehensive: '인생의 큰 흐름과 지금의 선택을 함께 짚어드릴게요.',
@@ -137,6 +140,10 @@ const INFO_CAPTURE_ANALYSIS_MESSAGE = '상대방 사주를 정리하고 있어�
 const INFO_CAPTURE_ANALYSIS_MIN_MS = 3000;
 const PARTNER_CONNECTED_MESSAGE = (name?: string) => (
   `좋아요. ${name || '상대방'}님의 정보를 참고해서 이어서 봐드릴게요.`
+);
+
+const isFortuneEntryCategory = (value: unknown): value is FortuneEntryCategory => (
+  typeof value === 'string' && FORTUNE_ENTRY_CATEGORIES.includes(value as FortuneEntryCategory)
 );
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -575,7 +582,7 @@ const hydrateRoomPartnerData = async (roomId: string): Promise<any | null> => {
 
 const ChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route }) => {
   if (route.params?.directEntry === true) {
-    return <DirectEntryChatRoomScreen navigation={navigation} />;
+    return <DirectEntryChatRoomScreen navigation={navigation} route={route} />;
   }
 
   return <ActiveChatRoomScreen navigation={navigation} route={route} />;
@@ -1797,7 +1804,7 @@ const DirectInlineActiveChat: React.FC<DirectInlineActiveChatProps> = ({
   );
 };
 
-const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+const DirectEntryChatRoomScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, route: tabRoute }) => {
   const [draftMessages, setDraftMessages] = useState<DirectDraftMessage[]>([]);
   const [isMatching, setIsMatching] = useState<boolean>(false);
   const [currentBalance, setCurrentBalance] = useState<number>(0);
@@ -1813,6 +1820,7 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
   const sidebarTranslateX = useRef(new Animated.Value(SIDEBAR_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
+  const handledEntryRequestRef = useRef<string | null>(null);
 
   const loadBalanceInfo = useCallback(async () => {
     const { status, user } = await getCurrentUserSafely();
@@ -1852,21 +1860,37 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
     };
   }, []);
 
-  const fetchExpertForCategory = useCallback(async (category: ChatRouteCategory): Promise<Expert | null> => {
+  const fetchExpertForCategory = useCallback(async (category: Expert['category']): Promise<Expert | null> => {
     const { data, error } = await supabase
       .from('experts')
-      .select('id, name, category, title, image_name, is_online, created_at')
+      .select('*')
       .eq('category', category)
       .eq('is_online', true)
       .limit(1)
       .maybeSingle();
 
-    if (error || !data) {
+    if (data) return data as Expert;
+
+    if (error) {
       console.error('Direct chat expert lookup error:', error, 'Category:', category);
       return null;
     }
 
-    return data as Expert;
+    if (!isFortuneEntryCategory(category)) return null;
+
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('experts')
+      .select('*')
+      .eq('category', category)
+      .limit(1)
+      .maybeSingle();
+
+    if (fallbackError || !fallbackData) {
+      console.error('Fortune entry expert lookup error:', fallbackError, 'Category:', category);
+      return null;
+    }
+
+    return fallbackData as Expert;
   }, []);
 
   const fetchSidebarChats = useCallback(async () => {
@@ -1886,6 +1910,55 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
       setIsSidebarLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    const entryCategory = tabRoute.params?.entryCategory;
+    if (!isFortuneEntryCategory(entryCategory)) return;
+
+    const entryRequestId = tabRoute.params?.entryRequestId || entryCategory;
+    if (handledEntryRequestRef.current === entryRequestId) return;
+    handledEntryRequestRef.current = entryRequestId;
+
+    let mounted = true;
+
+    const openEntryChat = async () => {
+      try {
+        setIsMatching(true);
+        setDraftMessages([]);
+
+        const expert = await fetchExpertForCategory(entryCategory);
+        if (!mounted) return;
+
+        if (!expert) {
+          Alert.alert('안내', '지금 연결 가능한 도사님을 찾지 못했습니다.');
+          return;
+        }
+
+        const createdChat = await createChatRoomWithExpert(navigation, expert.id);
+        if (!mounted || !createdChat) return;
+
+        setActiveChat({
+          roomId: createdChat.roomId,
+          expert: createdChat.expert as Expert,
+        });
+      } catch (error) {
+        console.error('Fortune entry chat open error:', error);
+        Alert.alert('오류', '대화를 연결하지 못했습니다.');
+      } finally {
+        navigation.setParams?.({
+          entryCategory: undefined,
+          entryRequestId: undefined,
+        });
+        if (mounted) setIsMatching(false);
+      }
+    };
+
+    openEntryChat();
+
+    return () => {
+      mounted = false;
+    };
+  }, [fetchExpertForCategory, navigation, tabRoute.params?.entryCategory, tabRoute.params?.entryRequestId]);
 
   const openSidebar = useCallback(() => {
     setIsSidebarVisible(true);
