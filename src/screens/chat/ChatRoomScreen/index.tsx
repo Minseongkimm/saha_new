@@ -2,7 +2,7 @@
  * ChatRoomScreen - 채팅방 메인 화면
  * 채팅방의 전체 레이아웃과 컴포넌트들을 조합하여 구성
  */
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -16,9 +16,10 @@ import {
   FlatList,
   Platform,
   Image,
-  ImageSourcePropType,
   StatusBar,
   Keyboard,
+  BackHandler,
+  PanResponder,
   AppState,
   AppStateStatus,
   Alert,
@@ -37,25 +38,18 @@ import InsufficientBalanceBottomSheet from '../../../components/bottomsheets/Ins
 import ChargeBottomSheet from '../../../components/bottomsheets/ChargeBottomSheet';
 import PaymentLoadingModal from '../../../components/common/PaymentLoadingModal';
 import { handleChargeFlow } from '../../../utils/payments/chargeFlow';
-import { safeGoBack } from '../../../utils/navigation/safeGoBack';
 import { isIPad } from '../../../utils/platform';
-import ConfirmModal from '../../../components/common/ConfirmModal';
 import { createChatRoomWithExpert, endChatRoom } from '../../../utils/chat/chatUtils';
+import { markChatListNeedsRefresh } from '../../../utils/chat/chatListCache';
 import { ChatMessage } from '../../../types/chat';
 import { supabase } from '../../../utils/database/supabaseClient';
 import { Expert, getExpertCategoryLabel } from '../../../types/expert';
-import { getExpertImage } from '../../../utils/expert/getExpertImage';
 import { removeBoldMarkup } from '../../../utils/text/removeBoldMarkup';
 import { ChatRouteCategory, routeChatCategory } from '../../../utils/chat/routeChatCategory';
 import { classifyInfoIntent } from '../../../utils/chat/classifyInfoIntent';
 import { fetchUserBalance } from '../../../utils/payments/balance';
 import { checkFreeMessageAvailable } from '../../../utils/payments/freeMessage';
 import { getCurrentUserSafely } from '../../../utils/user/authUtils';
-import { openStoreForReview, REVIEW_REWARD_SAHA } from '../../../constants/review_reward';
-import {
-  hasUserReceivedReviewReward,
-  grantReviewReward,
-} from '../../../utils/reviewReward/reviewReward';
 import { getPartnerList } from '../../../utils/partner/partnerDatabase';
 import { PartnerSaju, RELATIONSHIP_STATUS_LABELS, RelationshipStatus } from '../../../types/partner';
 
@@ -71,9 +65,9 @@ interface ChatRoomScreenProps {
 interface SidebarChatItem {
   id: string;
   name: string;
+  title: string;
   lastMessage: string;
   timestamp: string;
-  profileImage: ImageSourcePropType;
   expert: Expert;
   sortTime?: string | null;
 }
@@ -142,8 +136,171 @@ const INFO_CLASSIFYING_MIN_MS = 1500;
 const PARTNER_CONNECTED_MESSAGE = (name?: string) => (
   `좋아요. ${name || '상대방'}님의 정보를 참고해서 이어서 봐드릴게요.`
 );
-
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const trimSidebarTitle = (value: string, maxLength = 28): string => {
+  const normalized = removeBoldMarkup(value)
+    .replace(/\s+/g, ' ')
+    .replace(/^(사용자|AI|도사|상담사)\s*[:：]\s*/i, '')
+    .trim();
+  if (!normalized) return '';
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength).trim()}...` : normalized;
+};
+
+const getSidebarSummaryTitle = (summary?: string | null): string => {
+  if (!summary) return '';
+  const lines = removeBoldMarkup(summary)
+    .split('\n')
+    .map((line) => line
+      .replace(/^[-•\s]*/, '')
+      .replace(/^(현재 고민|결정 목표|이어갈 포인트|주요 인물\/관계|감정 상태|이전 조언|반복 금지|요약)\s*[:：]\s*/, '')
+      .trim())
+    .filter((line) => line && line !== '없음');
+
+  return trimSidebarTitle(lines[0] || '');
+};
+
+const fetchSidebarChatItems = async (userId: string): Promise<SidebarChatItem[]> => {
+  const { data: rooms, error: roomError } = await supabase
+    .from('chat_rooms')
+    .select(`
+      id,
+      expert_id,
+      chat_context,
+      partner_saju_id,
+      conversation_summary,
+      last_message,
+      last_message_at,
+      created_at,
+      messages:chat_messages(message, created_at)
+    `)
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .order('created_at', { foreignTable: 'chat_messages', ascending: false })
+    .limit(1, { foreignTable: 'chat_messages' });
+
+  if (roomError) throw roomError;
+  const roomList = rooms || [];
+  if (roomList.length === 0) return [];
+
+  const expertIds = Array.from(new Set(roomList.map((room: any) => room.expert_id)));
+  const { data: experts, error: expertError } = await supabase
+    .from('experts')
+    .select('id, name, category, title, image_name, is_online, created_at')
+    .in('id', expertIds);
+
+  if (expertError) throw expertError;
+  const expertMap: Record<string, Expert> = {};
+  (experts || []).forEach((item: any) => {
+    expertMap[item.id] = item as Expert;
+  });
+
+  const partnerIds = Array.from(new Set(
+    roomList
+      .filter((room: any) => room.chat_context === 'love_compatibility' && room.partner_saju_id)
+      .map((room: any) => room.partner_saju_id)
+  ));
+  const partnerNameMap: Record<string, string> = {};
+  if (partnerIds.length > 0) {
+    const { data: partners } = await supabase
+      .from('partner_saju')
+      .select('id, partner_name')
+      .in('id', partnerIds);
+    (partners || []).forEach((partner: any) => {
+      partnerNameMap[partner.id] = partner.partner_name;
+    });
+  }
+
+  const items: SidebarChatItem[] = roomList
+    .map((room: any) => {
+      const itemExpert = expertMap[room.expert_id];
+      if (!itemExpert) return null;
+
+      const fallbackMsg = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.message ?? '' : '';
+      const fallbackTs = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.created_at ?? null : null;
+      const tsIso: string | null = room.last_message_at || fallbackTs || room.created_at || null;
+      const tsStr = tsIso ? new Date(tsIso).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
+      const lastMessage = room.last_message || fallbackMsg || '아직 대화가 없습니다';
+      const partnerName = room.partner_saju_id ? partnerNameMap[room.partner_saju_id] : undefined;
+      const title = partnerName
+        ? `${partnerName}와 궁합`
+        : getSidebarSummaryTitle(room.conversation_summary) || trimSidebarTitle(lastMessage) || `${itemExpert.name} 상담`;
+
+      return {
+        id: room.id,
+        name: itemExpert.name,
+        title,
+        lastMessage,
+        timestamp: tsStr,
+        expert: itemExpert,
+        sortTime: tsIso || room.created_at,
+      };
+    })
+    .filter(Boolean) as SidebarChatItem[];
+
+  items.sort((a, b) => {
+    const timeA = new Date(a.sortTime || 0).getTime();
+    const timeB = new Date(b.sortTime || 0).getTime();
+    return timeB - timeA;
+  });
+
+  return items;
+};
+
+const deleteChatRoomFully = async (chatRoomId: string): Promise<void> => {
+  const { error: messageError } = await supabase
+    .from('chat_messages')
+    .delete()
+    .eq('chat_room_id', chatRoomId);
+  if (messageError) throw messageError;
+
+  const { error: roomError } = await supabase
+    .from('chat_rooms')
+    .delete()
+    .eq('id', chatRoomId);
+  if (roomError) throw roomError;
+
+  markChatListNeedsRefresh();
+};
+
+interface SidebarChatRowProps {
+  item: SidebarChatItem;
+  active?: boolean;
+  onPress: () => void;
+  onDelete: () => void;
+}
+
+const SidebarChatRow: React.FC<SidebarChatRowProps> = ({ item, active = false, onPress, onDelete }) => {
+  return (
+    <View style={[styles.sidebarChatItem, active ? styles.sidebarChatItemActive : undefined]}>
+      <TouchableOpacity
+        style={styles.sidebarChatPressArea}
+        activeOpacity={0.76}
+        onPress={onPress}
+      >
+        <View style={styles.sidebarChatInfo}>
+          <View style={styles.sidebarChatTop}>
+            <Text style={styles.sidebarChatName} numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text style={styles.sidebarChatTime}>{item.timestamp}</Text>
+          </View>
+          <Text style={styles.sidebarLastMessage} numberOfLines={1}>
+            {removeBoldMarkup(item.lastMessage)}
+          </Text>
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.sidebarMoreButton}
+        activeOpacity={0.72}
+        onPress={onDelete}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Icon name="ellipsis-horizontal" size={IS_IPAD ? 24 : 20} color="#777777" />
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 const buildAssignmentMessage = (expert: Expert, category: ChatRouteCategory) => {
   const categoryLabel = getExpertCategoryLabel(expert.category);
@@ -479,13 +636,6 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
   
   // Android 키보드 상태 추적
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
-  const [showEndModal, setShowEndModal] = useState(false);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [hasReceivedReviewReward, setHasReceivedReviewReward] = useState<boolean>(false);
-  const [showReviewPromptModal, setShowReviewPromptModal] = useState<boolean>(false);
-  const [showReviewConfirmModal, setShowReviewConfirmModal] = useState<boolean>(false);
-  const [pendingReviewConfirm, setPendingReviewConfirm] = useState<boolean>(false);
-  const [isGrantingReview, setIsGrantingReview] = useState<boolean>(false);
   const [isSidebarVisible, setIsSidebarVisible] = useState<boolean>(false);
   const [sidebarChats, setSidebarChats] = useState<SidebarChatItem[]>([]);
   const [isSidebarLoading, setIsSidebarLoading] = useState<boolean>(false);
@@ -510,10 +660,8 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
   } = useChatRoom({ roomId, expert });
 
   const messagesRef = useRef<ChatMessage[]>([]);
-  const pendingNavActionRef = useRef<any>(null);
   const isEndingRef = useRef<boolean>(false);
   const hasEndedRef = useRef<boolean>(false);
-  const allowRoomSwitchRef = useRef<boolean>(false);
   const initialMessageSentRef = useRef<boolean>(false);
   const handledInfoActionIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
@@ -727,32 +875,6 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
     return () => clearTimeout(timer);
   }, [initialMessage, isAiResponding, loading, sendMessageWithText]);
 
-  const loadUserAndReviewRewardStatus = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUserId(user?.id ?? null);
-    if (!user?.id) return;
-    try {
-      const received = await hasUserReceivedReviewReward(user.id);
-      setHasReceivedReviewReward(received);
-    } catch (e) {
-      console.error('loadUserAndReviewRewardStatus error:', e);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadUserAndReviewRewardStatus();
-  }, [loadUserAndReviewRewardStatus]);
-
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
-      if (nextState === 'active' && pendingReviewConfirm) {
-        setShowReviewConfirmModal(true);
-        setPendingReviewConfirm(false);
-      }
-    });
-    return () => subscription.remove();
-  }, [pendingReviewConfirm]);
-
   const handleCharge = () => {
     // 즉시 전환 (첫 번째 닫는 애니메이션을 기다리지 않고 바로 두 번째 열기)
     setIsTransitioning(true);
@@ -831,7 +953,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
   const headerTopPadding = isDirectMode
     ? 0
     : Platform.OS === 'android'
-      ? Math.max(statusBarHeight - 8, 0)
+      ? Math.max(statusBarHeight + 14, 30)
       : (IS_IPAD ? 4 : 0);
   const leftWidth = IS_IPAD ? 80 : 60;
   const rightWidth = IS_IPAD ? 200 : 150;
@@ -845,72 +967,7 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
         return;
       }
 
-      const { data: rooms, error: roomError } = await supabase
-        .from('chat_rooms')
-        .select(`
-          id,
-          expert_id,
-          chat_context,
-          partner_saju_id,
-          last_message,
-          last_message_at,
-          created_at,
-          messages:chat_messages(message, created_at)
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .order('created_at', { foreignTable: 'chat_messages', ascending: false })
-        .limit(1, { foreignTable: 'chat_messages' });
-
-      if (roomError) throw roomError;
-      const roomList = rooms || [];
-      if (roomList.length === 0) {
-        setSidebarChats([]);
-        return;
-      }
-
-      const expertIds = Array.from(new Set(roomList.map((room: any) => room.expert_id)));
-      const { data: experts, error: expertError } = await supabase
-        .from('experts')
-        .select('id, name, category, title, image_name, is_online, created_at')
-        .in('id', expertIds);
-
-      if (expertError) throw expertError;
-      const expertMap: Record<string, Expert> = {};
-      (experts || []).forEach((item: any) => {
-        expertMap[item.id] = item as Expert;
-      });
-
-      const items: SidebarChatItem[] = roomList
-        .map((room: any) => {
-          const itemExpert = expertMap[room.expert_id];
-          if (!itemExpert) return null;
-          const fallbackMsg = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.message ?? '' : '';
-          const fallbackTs = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.created_at ?? null : null;
-          const tsIso: string | null = room.last_message_at || fallbackTs || room.created_at || null;
-          const tsStr = tsIso ? new Date(tsIso).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
-          const displayName = room.chat_context === 'love_compatibility'
-            ? `${itemExpert.name} · 궁합`
-            : itemExpert.name;
-
-          return {
-            id: room.id,
-            name: displayName,
-            lastMessage: room.last_message || fallbackMsg || '아직 대화가 없습니다',
-            timestamp: tsStr,
-            profileImage: itemExpert.image_name ? getExpertImage(itemExpert.image_name) : require('../../../../assets/people/hoosi_guy.jpg'),
-            expert: itemExpert,
-            sortTime: tsIso || room.created_at,
-          };
-        })
-        .filter(Boolean) as SidebarChatItem[];
-
-      items.sort((a, b) => {
-        const timeA = new Date(a.sortTime || 0).getTime();
-        const timeB = new Date(b.sortTime || 0).getTime();
-        return timeB - timeA;
-      });
-      setSidebarChats(items);
+      setSidebarChats(await fetchSidebarChatItems(user.id));
     } catch (error) {
       console.error('fetchSidebarChats error:', error);
       Alert.alert('오류', '대화 목록을 불러오지 못했습니다.');
@@ -953,6 +1010,35 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
     ]).start(() => setIsSidebarVisible(false));
   }, [backdropOpacity, sidebarTranslateX]);
 
+  const goHome = useCallback(() => {
+    navigation.navigate('MainTabs', { screen: 'Home' });
+  }, [navigation]);
+
+  useEffect(() => {
+    if (isDirectMode) return undefined;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      goHome();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [goHome, isDirectMode]);
+
+  const chatScreenPanResponder = useMemo(
+    () => PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => (
+        !isSidebarVisible &&
+        gestureState.dx < -18 &&
+        Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.35
+      ),
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx < -64) {
+          openSidebar();
+        }
+      },
+    }),
+    [isSidebarVisible, openSidebar]
+  );
+
   const switchChatRoom = useCallback((item: SidebarChatItem) => {
     closeSidebar();
     if (item.id === roomId) return;
@@ -960,12 +1046,43 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
       onDirectSelectChat(item.id, item.expert);
       return;
     }
-    allowRoomSwitchRef.current = true;
     navigation.replace('ChatRoom', {
       roomId: item.id,
       expert: item.expert,
     });
   }, [closeSidebar, isDirectMode, navigation, onDirectSelectChat, roomId]);
+
+  const handleDeleteSidebarChat = useCallback((item: SidebarChatItem) => {
+    Alert.alert(
+      '대화 삭제',
+      '이 대화를 삭제하시겠습니까?\n삭제하면 대화 내용도 함께 지워집니다.',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteChatRoomFully(item.id);
+              setSidebarChats((prev) => prev.filter((chat) => chat.id !== item.id));
+              if (item.id === roomId) {
+                hasEndedRef.current = true;
+                closeSidebar();
+                if (isDirectMode && onDirectNewChat) {
+                  onDirectNewChat();
+                  return;
+                }
+                goHome();
+              }
+            } catch (error) {
+              console.error('delete sidebar chat error:', error);
+              Alert.alert('오류', '대화 삭제에 실패했습니다. 잠시 후 다시 시도하세요.');
+            }
+          },
+        },
+      ]
+    );
+  }, [closeSidebar, goHome, isDirectMode, onDirectNewChat, roomId]);
 
   const getLastMessageInfo = (): { text: string | null; createdAt: string | null } => {
     const latestMessages = messagesRef.current;
@@ -997,95 +1114,6 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
     }
   };
 
-  const doNavigateAfterEnd = useCallback(() => {
-    const action = pendingNavActionRef.current;
-    pendingNavActionRef.current = null;
-    if (action) {
-      navigation.dispatch(action);
-    } else {
-      safeGoBack(navigation);
-    }
-  }, [navigation]);
-
-  const handleConfirmEnd = async () => {
-    await executeEndChat('user_exit');
-    setShowEndModal(false);
-    if (hasReceivedReviewReward) {
-      doNavigateAfterEnd();
-    } else {
-      setShowReviewPromptModal(true);
-    }
-  };
-
-  const handleReviewPromptLater = useCallback(() => {
-    setShowReviewPromptModal(false);
-    doNavigateAfterEnd();
-  }, [doNavigateAfterEnd]);
-
-  const handleReviewPromptConfirm = useCallback(async () => {
-    try {
-      await openStoreForReview();
-      setPendingReviewConfirm(true);
-      setShowReviewPromptModal(false);
-    } catch (e) {
-      console.error('openStoreForReview error:', e);
-      Alert.alert('오류', '스토어를 열 수 없습니다.');
-      doNavigateAfterEnd();
-    }
-  }, [doNavigateAfterEnd]);
-
-  const handleConfirmReviewDone = useCallback(async () => {
-    if (!userId) {
-      setShowReviewConfirmModal(false);
-      doNavigateAfterEnd();
-      return;
-    }
-    setShowReviewConfirmModal(false);
-    setIsGrantingReview(true);
-    try {
-      const platform = Platform.OS === 'android' ? 'android' : 'ios';
-      const { newBalance } = await grantReviewReward(userId, platform);
-      setHasReceivedReviewReward(true);
-      Alert.alert(
-        '리워드 지급 완료',
-        `사바 ${REVIEW_REWARD_SAHA}개가 지급되었습니다. (잔액: ${newBalance})`
-      );
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : '리워드 지급에 실패했습니다.';
-      Alert.alert('안내', message);
-    } finally {
-      setIsGrantingReview(false);
-    }
-    doNavigateAfterEnd();
-  }, [userId, doNavigateAfterEnd]);
-
-  const handleCloseReviewConfirmModal = useCallback(() => {
-    setShowReviewConfirmModal(false);
-    doNavigateAfterEnd();
-  }, [doNavigateAfterEnd]);
-
-  const handleCancelEnd = () => {
-    pendingNavActionRef.current = null;
-    setShowEndModal(false);
-  };
-
-  useEffect(() => {
-    if (isDirectMode) return;
-    const unsubscribe = navigation.addListener('beforeRemove', (event: any) => {
-      if (allowRoomSwitchRef.current) {
-        allowRoomSwitchRef.current = false;
-        return;
-      }
-      if (hasEndedRef.current || isEndingRef.current) {
-        return;
-      }
-      event.preventDefault();
-      pendingNavActionRef.current = event.data.action;
-      setShowEndModal(true);
-    });
-    return unsubscribe;
-  }, [isDirectMode, navigation]);
-
   useEffect(() => {
     const onAppStateChange = async (nextState: AppStateStatus) => {
       if (nextState === 'background' || nextState === 'inactive') {
@@ -1099,12 +1127,12 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
   }, []);
   
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} {...chatScreenPanResponder.panHandlers}>
       <View style={[styles.header, { paddingTop: headerTopPadding, minHeight: headerTopPadding + headerContentHeight }]}>
         <View style={[styles.leftHeader, { width: leftWidth }]}>
           <TouchableOpacity
             style={styles.headerIconButton}
-            onPress={isDirectMode && onDirectNewChat ? onDirectNewChat : () => safeGoBack(navigation)}
+            onPress={isDirectMode && onDirectNewChat ? onDirectNewChat : goHome}
           >
             <Icon
               name={isDirectMode ? 'create-outline' : 'arrow-back'}
@@ -1206,7 +1234,12 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
           <SafeAreaView style={styles.sidebar}>
             <View style={styles.sidebarHandle} />
             <View style={styles.sidebarHeader}>
-              <Text style={styles.sidebarTitle}>대화</Text>
+              <View>
+                <Text style={styles.sidebarTitle}>대화 기록</Text>
+                <Text style={styles.sidebarSubtitle}>
+                  {sidebarChats.length > 0 ? `${sidebarChats.length}개의 상담` : '상담 기록'}
+                </Text>
+              </View>
               <TouchableOpacity style={styles.sidebarCloseButton} onPress={closeSidebar}>
                 <Icon name="close" size={IS_IPAD ? 28 : 22} color="#222222" />
               </TouchableOpacity>
@@ -1229,28 +1262,13 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
                 }
                 renderItem={({ item }) => {
                   const isActive = item.id === roomId;
-                  const categoryLabel = getExpertCategoryLabel(item.expert.category);
                   return (
-                    <TouchableOpacity
-                      style={[styles.sidebarChatItem, isActive ? styles.sidebarChatItemActive : undefined]}
+                    <SidebarChatRow
+                      item={item}
+                      active={isActive}
                       onPress={() => switchChatRoom(item)}
-                    >
-                      <Image source={item.profileImage} style={styles.sidebarProfileImage} />
-                      <View style={styles.sidebarChatInfo}>
-                        <View style={styles.sidebarChatTop}>
-                          <Text style={styles.sidebarChatName} numberOfLines={1}>
-                            {item.name}
-                          </Text>
-                          <Text style={styles.sidebarChatTime}>{item.timestamp}</Text>
-                        </View>
-                        <Text style={styles.sidebarChatCategory} numberOfLines={1}>
-                          {categoryLabel}
-                        </Text>
-                        <Text style={styles.sidebarLastMessage} numberOfLines={1}>
-                          {removeBoldMarkup(item.lastMessage)}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
+                      onDelete={() => handleDeleteSidebarChat(item)}
+                    />
                   );
                 }}
               />
@@ -1259,33 +1277,6 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
           </Animated.View>
         </View>
       </Modal>
-      <ConfirmModal
-        visible={showEndModal}
-        onClose={handleCancelEnd}
-        title="대화 종료"
-        message="대화를 종료하고 목록으로 돌아갈까요?"
-        confirmText="종료 후 나가기"
-        onConfirm={handleConfirmEnd}
-      />
-      <ConfirmModal
-        visible={showReviewPromptModal}
-        onClose={handleReviewPromptLater}
-        title="리뷰 작성하고 사바 받기"
-        message={`대화를 종료했어요. 스토어에 리뷰를 남기시면 사바 ${REVIEW_REWARD_SAHA}개를 드려요 (1회 한정).`}
-        cancelText="나중에"
-        confirmText="리뷰 작성하기"
-        onConfirm={handleReviewPromptConfirm}
-      />
-      <ConfirmModal
-        visible={showReviewConfirmModal}
-        onClose={handleCloseReviewConfirmModal}
-        title="리뷰 작성 확인"
-        message="소중한 리뷰 감사합니다. 작성 완료하셨으면 사바를 지급해 드려요."
-        cancelText="아니요"
-        confirmText="완료"
-        onConfirm={handleConfirmReviewDone}
-        confirmDisabled={isGrantingReview}
-      />
     </SafeAreaView>
   );
 };
@@ -1663,69 +1654,7 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
         return;
       }
 
-      const { data: rooms, error: roomError } = await supabase
-        .from('chat_rooms')
-        .select(`
-          id,
-          expert_id,
-          chat_context,
-          partner_saju_id,
-          last_message,
-          last_message_at,
-          created_at,
-          messages:chat_messages(message, created_at)
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .order('created_at', { foreignTable: 'chat_messages', ascending: false })
-        .limit(1, { foreignTable: 'chat_messages' });
-
-      if (roomError) throw roomError;
-      const roomList = rooms || [];
-      if (roomList.length === 0) {
-        setSidebarChats([]);
-        return;
-      }
-
-      const expertIds = Array.from(new Set(roomList.map((room: any) => room.expert_id)));
-      const { data: experts, error: expertError } = await supabase
-        .from('experts')
-        .select('id, name, category, title, image_name, is_online, created_at')
-        .in('id', expertIds);
-
-      if (expertError) throw expertError;
-      const expertMap: Record<string, Expert> = {};
-      (experts || []).forEach((item: any) => {
-        expertMap[item.id] = item as Expert;
-      });
-
-      const items: SidebarChatItem[] = roomList
-        .map((room: any) => {
-          const itemExpert = expertMap[room.expert_id];
-          if (!itemExpert) return null;
-          const fallbackMsg = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.message ?? '' : '';
-          const fallbackTs = Array.isArray(room.messages) && room.messages.length > 0 ? room.messages[0]?.created_at ?? null : null;
-          const tsIso: string | null = room.last_message_at || fallbackTs || room.created_at || null;
-          const tsStr = tsIso ? new Date(tsIso).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '';
-
-          return {
-            id: room.id,
-            name: room.chat_context === 'love_compatibility' ? `${itemExpert.name} · 궁합` : itemExpert.name,
-            lastMessage: room.last_message || fallbackMsg || '아직 대화가 없습니다',
-            timestamp: tsStr,
-            profileImage: itemExpert.image_name ? getExpertImage(itemExpert.image_name) : require('../../../../assets/people/hoosi_guy.jpg'),
-            expert: itemExpert,
-            sortTime: tsIso || room.created_at,
-          };
-        })
-        .filter(Boolean) as SidebarChatItem[];
-
-      items.sort((a, b) => {
-        const timeA = new Date(a.sortTime || 0).getTime();
-        const timeB = new Date(b.sortTime || 0).getTime();
-        return timeB - timeA;
-      });
-      setSidebarChats(items);
+      setSidebarChats(await fetchSidebarChatItems(user.id));
     } catch (error) {
       console.error('fetchSidebarChats error:', error);
       Alert.alert('오류', '대화 목록을 불러오지 못했습니다.');
@@ -1768,6 +1697,34 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
     ]).start(() => setIsSidebarVisible(false));
   }, [backdropOpacity, sidebarTranslateX]);
 
+  const goHome = useCallback(() => {
+    navigation.navigate('MainTabs', { screen: 'Home' });
+  }, [navigation]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      goHome();
+      return true;
+    });
+    return () => subscription.remove();
+  }, [goHome]);
+
+  const directSwipeResponder = useMemo(
+    () => PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => (
+        !isSidebarVisible &&
+        gestureState.dx < -18 &&
+        Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.35
+      ),
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dx < -64) {
+          openSidebar();
+        }
+      },
+    }),
+    [isSidebarVisible, openSidebar]
+  );
+
   const handleNewChat = useCallback(() => {
     setActiveChat(null);
     setDraftMessages([]);
@@ -1778,6 +1735,33 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
     closeSidebar();
     setActiveChat({ roomId, expert });
   }, [closeSidebar]);
+
+  const handleDeleteSidebarChat = useCallback((item: SidebarChatItem) => {
+    Alert.alert(
+      '대화 삭제',
+      '이 대화를 삭제하시겠습니까?\n삭제하면 대화 내용도 함께 지워집니다.',
+      [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteChatRoomFully(item.id);
+              setSidebarChats((prev) => prev.filter((chat) => chat.id !== item.id));
+              if (activeChat?.roomId === item.id) {
+                setActiveChat(null);
+                setDraftMessages([]);
+              }
+            } catch (error) {
+              console.error('delete sidebar chat error:', error);
+              Alert.alert('오류', '대화 삭제에 실패했습니다. 잠시 후 다시 시도하세요.');
+            }
+          },
+        },
+      ]
+    );
+  }, [activeChat?.roomId]);
 
   const handleBalanceInfoChange = useCallback((
     balance: number,
@@ -1918,7 +1902,7 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
   const rightWidth = IS_IPAD ? 200 : 150;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} {...directSwipeResponder.panHandlers}>
       <View style={[styles.header, { paddingTop: headerTopPadding, minHeight: headerTopPadding + headerContentHeight }]}>
         <View style={[styles.leftHeader, { width: leftWidth }]}>
           <TouchableOpacity style={styles.headerIconButton} onPress={handleNewChat}>
@@ -2026,7 +2010,12 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
           <SafeAreaView style={styles.sidebar}>
             <View style={styles.sidebarHandle} />
             <View style={styles.sidebarHeader}>
-              <Text style={styles.sidebarTitle}>대화</Text>
+              <View>
+                <Text style={styles.sidebarTitle}>대화 기록</Text>
+                <Text style={styles.sidebarSubtitle}>
+                  {sidebarChats.length > 0 ? `${sidebarChats.length}개의 상담` : '상담 기록'}
+                </Text>
+              </View>
               <TouchableOpacity style={styles.sidebarCloseButton} onPress={closeSidebar}>
                 <Icon name="close" size={IS_IPAD ? 28 : 22} color="#222222" />
               </TouchableOpacity>
@@ -2048,24 +2037,12 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any }> = ({ navigation }
                   </View>
                 }
                 renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.sidebarChatItem}
+                  <SidebarChatRow
+                    item={item}
+                    active={activeChat?.roomId === item.id}
                     onPress={() => handleSelectChat(item.id, item.expert)}
-                  >
-                    <Image source={item.profileImage} style={styles.sidebarProfileImage} />
-                    <View style={styles.sidebarChatInfo}>
-                      <View style={styles.sidebarChatTop}>
-                        <Text style={styles.sidebarChatName} numberOfLines={1}>{item.name}</Text>
-                        <Text style={styles.sidebarChatTime}>{item.timestamp}</Text>
-                      </View>
-                      <Text style={styles.sidebarChatCategory} numberOfLines={1}>
-                        {getExpertCategoryLabel(item.expert.category)}
-                      </Text>
-                      <Text style={styles.sidebarLastMessage} numberOfLines={1}>
-                        {removeBoldMarkup(item.lastMessage)}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
+                    onDelete={() => handleDeleteSidebarChat(item)}
+                  />
                 )}
               />
             )}
@@ -2269,7 +2246,7 @@ const styles = StyleSheet.create({
   },
   sidebarBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.24)',
+    backgroundColor: 'rgba(0, 0, 0, 0.20)',
   },
   sidebarShell: {
     width: SIDEBAR_WIDTH,
@@ -2278,20 +2255,20 @@ const styles = StyleSheet.create({
     flex: 1,
     width: SIDEBAR_WIDTH,
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: IS_IPAD ? 28 : 22,
-    borderBottomLeftRadius: IS_IPAD ? 28 : 22,
+    borderTopLeftRadius: IS_IPAD ? 26 : 20,
+    borderBottomLeftRadius: IS_IPAD ? 26 : 20,
     shadowColor: '#000000',
     shadowOffset: { width: -6, height: 0 },
-    shadowOpacity: 0.16,
-    shadowRadius: 24,
+    shadowOpacity: 0.14,
+    shadowRadius: 22,
     elevation: 14,
     overflow: 'hidden',
   },
   sidebarHandle: {
-    width: IS_IPAD ? 36 : 28,
+    width: IS_IPAD ? 40 : 30,
     height: 4,
     borderRadius: 2,
-    backgroundColor: '#DED7D0',
+    backgroundColor: '#D7D7D7',
     alignSelf: 'center',
     marginTop: IS_IPAD ? 12 : 10,
   },
@@ -2300,19 +2277,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: IS_IPAD ? 24 : 18,
-    paddingTop: IS_IPAD ? 18 : 14,
-    paddingBottom: IS_IPAD ? 18 : 14,
+    paddingTop: IS_IPAD ? 20 : 16,
+    paddingBottom: IS_IPAD ? 16 : 12,
+    backgroundColor: '#FFFFFF',
   },
   sidebarTitle: {
-    fontSize: IS_IPAD ? 28 : 22,
+    fontSize: IS_IPAD ? 27 : 21,
     fontWeight: '800',
-    color: '#252525',
+    color: '#222222',
+  },
+  sidebarSubtitle: {
+    marginTop: IS_IPAD ? 4 : 2,
+    fontSize: IS_IPAD ? 15 : 12,
+    fontWeight: '600',
+    color: '#8A8A8A',
   },
   sidebarCloseButton: {
-    padding: IS_IPAD ? 8 : 6,
+    width: IS_IPAD ? 42 : 34,
+    height: IS_IPAD ? 42 : 34,
+    borderRadius: IS_IPAD ? 21 : 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F6F6F6',
   },
   sidebarList: {
-    paddingVertical: IS_IPAD ? 12 : 8,
+    paddingHorizontal: IS_IPAD ? 14 : 10,
+    paddingTop: IS_IPAD ? 10 : 8,
+    paddingBottom: IS_IPAD ? 28 : 22,
   },
   sidebarEmptyList: {
     flexGrow: 1,
@@ -2321,51 +2312,53 @@ const styles = StyleSheet.create({
   sidebarChatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: IS_IPAD ? 22 : 16,
-    paddingVertical: IS_IPAD ? 16 : 13,
-    borderLeftWidth: 4,
-    borderLeftColor: 'transparent',
+    minHeight: IS_IPAD ? 76 : 60,
+    backgroundColor: '#FFFFFF',
+    borderRadius: IS_IPAD ? 16 : 12,
+    marginBottom: IS_IPAD ? 8 : 6,
   },
   sidebarChatItemActive: {
-    backgroundColor: '#FFF8F2',
-    borderLeftColor: Colors.primaryColor,
+    backgroundColor: '#FFFFFF',
   },
-  sidebarProfileImage: {
-    width: IS_IPAD ? 58 : 46,
-    height: IS_IPAD ? 58 : 46,
-    borderRadius: IS_IPAD ? 29 : 23,
-    marginRight: IS_IPAD ? 16 : 12,
+  sidebarChatPressArea: {
+    flex: 1,
+    minHeight: IS_IPAD ? 76 : 60,
+    justifyContent: 'center',
+    paddingLeft: IS_IPAD ? 18 : 14,
+    paddingVertical: IS_IPAD ? 8 : 6,
+  },
+  sidebarMoreButton: {
+    width: IS_IPAD ? 50 : 42,
+    minHeight: IS_IPAD ? 76 : 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingRight: IS_IPAD ? 12 : 8,
   },
   sidebarChatInfo: {
-    flex: 1,
     minWidth: 0,
   },
   sidebarChatTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 3,
+    marginBottom: IS_IPAD ? 6 : 4,
   },
   sidebarChatName: {
     flex: 1,
-    fontSize: IS_IPAD ? 19 : 15,
+    fontSize: IS_IPAD ? 18 : 14,
     fontWeight: '700',
-    color: '#252525',
-    marginRight: 10,
+    color: '#222222',
+    marginRight: IS_IPAD ? 12 : 9,
   },
   sidebarChatTime: {
-    fontSize: IS_IPAD ? 14 : 11,
-    color: '#9A928B',
-  },
-  sidebarChatCategory: {
-    fontSize: IS_IPAD ? 15 : 12,
-    fontWeight: '700',
-    color: Colors.primaryColor,
-    marginBottom: 3,
+    fontSize: IS_IPAD ? 13 : 10,
+    color: '#A1A1A1',
+    fontWeight: '600',
   },
   sidebarLastMessage: {
-    fontSize: IS_IPAD ? 16 : 13,
-    color: '#6E6963',
+    fontSize: IS_IPAD ? 15 : 12,
+    color: '#707070',
+    lineHeight: IS_IPAD ? 21 : 17,
   },
   sidebarLoading: {
     flex: 1,
