@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Keyboard } from 'react-native';
 import AnimatedBottomSheet from './AnimatedBottomSheet';
 import { Colors } from '../../constants/colors';
 
@@ -37,6 +37,14 @@ const InsufficientBalanceBottomSheet: React.FC<InsufficientBalanceBottomSheetPro
   const selectedMessage = useMemo(() => {
     if (!visible) return null;
     return dailyMessages[Math.floor(Math.random() * dailyMessages.length)];
+  }, [visible]);
+
+  // 키보드가 열린 채로 이 모달이 뜨면 Android에서 Modal이 밀려 보이는 문제가 있어
+  // 모달을 띄우기 전에 키보드부터 닫는다.
+  useEffect(() => {
+    if (visible) {
+      Keyboard.dismiss();
+    }
   }, [visible]);
   return (
     <AnimatedBottomSheet 

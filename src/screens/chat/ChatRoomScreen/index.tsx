@@ -154,6 +154,30 @@ const isFortuneEntryCategory = (value: unknown): value is FortuneEntryCategory =
 );
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// 키보드가 열려있는 상태에서 바로 모달을 띄우면 Android에서 키보드가 닫히는 애니메이션과
+// 모달의 등장 애니메이션이 겹치면서 위치가 밀려 보이는 문제가 있다.
+// keyboardDidHide 이벤트는 키보드가 화면에서 완전히 사라지는 애니메이션이 끝나기 전에
+// 먼저 오는 경우가 있어서, 이벤트를 받은 뒤에도 추가 여유시간을 두고 모달을 띄운다.
+const KEYBOARD_SETTLE_DELAY_MS = 300;
+const showAfterKeyboardDismiss = (isKeyboardVisible: boolean, openModal: () => void) => {
+  if (!isKeyboardVisible) {
+    openModal();
+    return;
+  }
+
+  let opened = false;
+  const open = () => {
+    if (opened) return;
+    opened = true;
+    subscription.remove();
+    clearTimeout(fallbackTimer);
+    setTimeout(openModal, KEYBOARD_SETTLE_DELAY_MS);
+  };
+  const subscription = Keyboard.addListener('keyboardDidHide', open);
+  const fallbackTimer = setTimeout(open, 400);
+  Keyboard.dismiss();
+};
+
 const trimSidebarTitle = (value: string, maxLength = 28): string => {
   const normalized = removeBoldMarkup(value)
     .replace(/\s+/g, ' ')
@@ -774,12 +798,14 @@ const ActiveChatRoomScreen: React.FC<ChatRoomScreenProps> = ({ navigation, route
     scrollToBottom,
     onBalanceUpdate: refreshBalance,
     onBalanceInsufficient: (balanceCheck) => {
-      setInsufficientBalanceInfo({
-        balance: balanceCheck.balance ?? 0,
-        freeMessageUsedCount: balanceCheck.freeMessageInfo?.usedCount ?? 0,
-        freeMessageDailyLimit: balanceCheck.freeMessageInfo?.dailyLimit ?? 0,
+      showAfterKeyboardDismiss(isKeyboardVisible, () => {
+        setInsufficientBalanceInfo({
+          balance: balanceCheck.balance ?? 0,
+          freeMessageUsedCount: balanceCheck.freeMessageInfo?.usedCount ?? 0,
+          freeMessageDailyLimit: balanceCheck.freeMessageInfo?.dailyLimit ?? 0,
+        });
+        setShowInsufficientBalanceSheet(true);
       });
-      setShowInsufficientBalanceSheet(true);
     },
     partnerData: activePartnerData
   });
@@ -2101,9 +2127,11 @@ const DirectEntryChatRoomScreen: React.FC<{ navigation: any; route: any }> = ({ 
     freeMessageUsedCount: number;
     freeMessageDailyLimit: number;
   }) => {
-    setInsufficientBalanceInfo(info);
-    setShowInsufficientBalanceSheet(true);
-  }, []);
+    showAfterKeyboardDismiss(isKeyboardVisible, () => {
+      setInsufficientBalanceInfo(info);
+      setShowInsufficientBalanceSheet(true);
+    });
+  }, [isKeyboardVisible]);
 
   const handleCharge = useCallback(() => {
     setIsTransitioning(true);
