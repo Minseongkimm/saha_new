@@ -45,12 +45,14 @@ jobs:
 
       # versionCode는 build.gradle에 적힌 값 + 이 워크플로우 실행 횟수(run_number)로 계산해서
       # 항상 이전 업로드보다 커지도록 함 (Play는 versionCode가 항상 증가해야 업로드 허용)
-      - name: Compute versionCode
-        id: version
+      # -Pandroid.injected.version.code 오버라이드가 이 프로젝트에선 안 먹혀서(defaultConfig에 리터럴로
+      # 박혀있는 값이 우선 적용됨), build.gradle 파일 자체의 versionCode 값을 직접 치환하는 방식으로 변경
+      - name: Bump versionCode
         run: |
           BASE=$(grep -oP 'versionCode \K[0-9]+' android/app/build.gradle)
           NEW_VERSION_CODE=$((BASE + ${{ github.run_number }}))
-          echo "code=$NEW_VERSION_CODE" >> "$GITHUB_OUTPUT"
+          sed -i "s/versionCode [0-9]*/versionCode $NEW_VERSION_CODE/" android/app/build.gradle
+          echo "적용된 versionCode: $NEW_VERSION_CODE"
 
       - name: Build release AAB
         working-directory: android
@@ -59,8 +61,7 @@ jobs:
             -PMYAPP_RELEASE_STORE_FILE=saha-release.keystore \
             -PMYAPP_RELEASE_KEY_ALIAS="${{ secrets.ANDROID_KEY_ALIAS }}" \
             -PMYAPP_RELEASE_STORE_PASSWORD="${{ secrets.ANDROID_KEYSTORE_PASSWORD }}" \
-            -PMYAPP_RELEASE_KEY_PASSWORD="${{ secrets.ANDROID_KEY_PASSWORD }}" \
-            -Pandroid.injected.version.code=${{ steps.version.outputs.code }}
+            -PMYAPP_RELEASE_KEY_PASSWORD="${{ secrets.ANDROID_KEY_PASSWORD }}"
 
       # 서비스 계정 JSON 발급: Google Cloud Console에서 서비스 계정 생성 후
       # Play Console > 사용자 및 권한에서 이 계정에 "릴리스 관리자" 권한 부여
@@ -71,5 +72,5 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.saha.ai
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
-          track: ${{ github.event.inputs.track }}
+          tracks: ${{ github.event.inputs.track }}
           status: completed
