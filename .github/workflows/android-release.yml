@@ -77,4 +77,4 @@ jobs:
           releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
           tracks: ${{ github.event.inputs.track }}
           status: completed
-          whatsnewDir: distribution/whatsnew
+          whatsNewDirectory: distribution/whatsnew
