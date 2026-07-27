@@ -39,6 +39,8 @@ export class SajuUtils {
    * @return 암장간 천간들
    */
   static getJijiAmJangan(ji: string): string {
+    // 표기 순서: 초기 → 중기 → 정기
+    // 未 항목에 을(乙)이 빠져 "丁己" 2글자만 나오던 버그 수정 (정확히는 丁乙己 3글자)
     const amjanganMap: { [key: string]: string } = {
       '子': '壬癸',
       '丑': '癸辛己',
@@ -47,7 +49,7 @@ export class SajuUtils {
       '辰': '乙癸戊',
       '巳': '戊庚丙',
       '午': '丙己丁',
-      '未': '丁己',
+      '未': '丁乙己',
       '申': '戊壬庚',
       '酉': '庚辛',
       '戌': '辛丁戊',

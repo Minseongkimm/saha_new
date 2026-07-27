@@ -1,7 +1,7 @@
 import { lunarToSolar } from "./manseryeok_local";
 import { SajuCalculator } from "../saju-calculator/core/SajuCalculator";
 import { SajuInfo } from "../saju-calculator/types";
-import { getLichunKstMidnightUtcMs } from "./solar_terms";
+import { getLichunKstMidnightUtcMs, getMonthBranchIndexBySolarTerms } from "./solar_terms";
 
 
 export interface SajuInput {
@@ -12,6 +12,7 @@ export interface SajuInput {
   minute: number | null;
   isLunar: boolean;
   isLeapMonth: boolean;
+  gender: number; // 0: 남자, 1: 여자 (대운 순행/역행 방향 계산에 사용)
 }
 
 export interface SajuResult {
@@ -33,6 +34,10 @@ export interface SajuResult {
   sal: { [key: string]: string[] };         // 살(殺) 정보
   guin: { [key: string]: string[] };        // 귀인 정보
   jijiRelations: { [key: string]: string[] }; // 지지 관계 (삼합, 육합, 삼형, 육충)
+  hyeonchimSal?: string[];                    // 현침살 (甲辛卯午申 존재 여부)
+  gwaegangSal?: boolean;                      // 괴강살 (일주가 庚辰·庚戌·壬辰·戊戌 중 하나)
+  twelveSinsal?: { [key: string]: { [pillar: string]: string } }; // 12신살 (byYear/byDay/byMonth 기준)
+  birthDate?: Date;                         // 계산에 사용된 (음력이면 변환된) 양력 출생 일시 - 대운 재계산 등에 사용
 }
 
 // 대운 정보
@@ -129,41 +134,6 @@ const getHanjaToHangul = (ganji: string): string => {
   return `${stem}${branch}`;
 };
 
-// 입춘(2/4), 경칩(3/6) 등 대략값으로 월 경계 판정
-const SOLAR_TERM_DAY = {
-  1: 6, // 소한(1/6경)
-  2: 4, // 입춘(2/4경)
-  3: 6, // 경칩(3/6경)
-  4: 5, // 청명(4/5경)
-  5: 6, // 입하(5/6경)
-  6: 6, // 망종(6/6경)
-  7: 7, // 소서(7/7경)
-  8: 8, // 입추(8/8경)
-  9: 8, // 백로(9/8경)
-  10: 8, // 한로(10/8경)
-  11: 7, // 입동(11/7경)
-  12: 7, // 대설(12/7경)
-} as const;
-
-const isReachMonth = (d: Date): boolean => {
-  const m = d.getMonth() + 1 as keyof typeof SOLAR_TERM_DAY;
-  const startDay = SOLAR_TERM_DAY[m];
-  return d.getDate() >= startDay;
-};
-
-// 절기(입춘·경칩 등) 기준으로 월 인덱스를 계산
-// - 반환값: 0~11 (양력 1월(자월)~12월(해월)을 절기 기준으로 보정한 월 인덱스)
-const getSolarTermsMonthIndex = (d: Date): number => {
-  let monthIndex = d.getMonth(); // 0-11 (양력 월)
-  if (!isReachMonth(d)) {
-    monthIndex -= 1;
-  }
-  if (monthIndex < 0) {
-    monthIndex = 11;
-  }
-  return monthIndex;
-};
-
 const calcYearGanji = (dt: Date): string => {
   const sibganForYear = ['庚', '辛', '壬', '癸', '甲', '乙', '丙', '丁', '戊', '己'];
   const sibijiForYear = ['申', '酉', '戌', '亥', '子', '丑', '寅', '卯', '辰', '巳', '午', '未'];
@@ -190,9 +160,8 @@ const calcMonthGanji = (dt: Date, yearGanji: string): string => {
       ? '壬寅 癸卯 甲辰 乙巳 丙午 丁未 戊申 己酉 庚戌 辛亥 壬子 癸丑'
       : '甲寅 乙卯 丙辰 丁巳 戊午 己未 庚申 辛酉 壬戌 癸亥 甲子 乙丑';
 
-  let monthIndex = getSolarTermsMonthIndex(dt); // 절기 기준 월 인덱스
-  monthIndex -= 1; // 구현 원본 로직 반영
-  if (monthIndex < 0) monthIndex = 11;
+  // 절기(입춘·경칩 등) 기준 정밀 월지 인덱스 (0~11, 寅=0 ... 丑=11)
+  const monthIndex = getMonthBranchIndexBySolarTerms(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
   return monthGanjiList.split(' ')[monthIndex];
 };
 
@@ -276,19 +245,20 @@ const calcTimeGanji = (dt: Date, dayGanji: string): string => {
 
 // 지지에 숨어있는 천간 (藏干)
 const getHiddenStems = (branch: string): string[] => {
+  // 배열 순서는 [정기, 중기, 초기] - index 0(정기)이 지지 십신 판정의 기준이 된다.
   const hiddenStemsMap: { [key: string]: string[] } = {
-    '子': ['癸'], // 자: 계
-    '丑': ['己', '辛', '癸'], // 축: 기, 신, 계
-    '寅': ['甲', '丙', '戊'], // 인: 갑, 병, 무
-    '卯': ['乙'], // 묘: 을
-    '辰': ['戊', '乙', '癸'], // 진: 무, 을, 계
-    '巳': ['丙', '戊', '庚'], // 사: 병, 무, 경
-    '午': ['丁', '己'], // 오: 정, 기
-    '未': ['己', '丁', '乙'], // 미: 기, 정, 을
-    '申': ['庚', '戊', '壬'], // 신: 경, 무, 임
-    '酉': ['辛'], // 유: 신
-    '戌': ['戊', '辛', '丁'], // 술: 무, 신, 정
-    '亥': ['壬', '甲'] // 해: 임, 갑
+    '子': ['癸', '壬'], // 자: 정기 계, 초기 임
+    '丑': ['己', '辛', '癸'], // 축: 정기 기, 중기 신, 초기 계
+    '寅': ['甲', '丙', '戊'], // 인: 정기 갑, 중기 병, 초기 무
+    '卯': ['乙', '甲'], // 묘: 정기 을, 초기 갑
+    '辰': ['戊', '癸', '乙'], // 진: 정기 무, 중기 계, 초기 을
+    '巳': ['丙', '庚', '戊'], // 사: 정기 병, 중기 경, 초기 무
+    '午': ['丁', '己', '丙'], // 오: 정기 정, 중기 기, 초기 병
+    '未': ['己', '乙', '丁'], // 미: 정기 기, 중기 을, 초기 정
+    '申': ['庚', '壬', '戊'], // 신: 정기 경, 중기 임, 초기 무
+    '酉': ['辛', '庚'], // 유: 정기 신, 초기 경
+    '戌': ['戊', '丁', '辛'], // 술: 정기 무, 중기 정, 초기 신
+    '亥': ['壬', '甲', '戊'] // 해: 정기 임, 중기 갑, 초기 무
   };
   
   const hiddenStems = hiddenStemsMap[branch] || [];
@@ -329,20 +299,12 @@ const calculateBranchSasin = (dayStem: string, otherBranches: string[]): string[
   const result = otherBranches.map((branch) => {
     const hiddenStems = getHiddenStems(branch);
     if (hiddenStems.length === 0) return '일원';
-    
-    // 모든 숨은 천간과의 관계를 계산
-    const relations = hiddenStems.map(stem => {
-      const stemHangul = getHanjaToHangulChar(stem);
-      return sasinRules[stemHangul] || '일원';
-    });
-    
-    // 중요 관계를 우선 반환 (편관, 겁재, 식신, 편인 등)
-    const priorityRelations = relations.filter(rel => 
-      ['편관', '겁재', '식신', '편인', '정관', '정재', '상관', '정인'].includes(rel)
-    );
-    
-    // 중요 관계가 있으면 첫 번째 중요 관계를, 없으면 첫 번째 관계를 반환
-    return priorityRelations[0] || relations[0] || '일원';
+
+    // 지지 십신은 지장간 중 본기(정기) - getHiddenStems() 배열의 첫 번째 천간 - 기준으로 정한다.
+    // (예: 丑의 지장간은 己·辛·癸지만 본기는 己이므로, 을일간 기준 丑의 십신은 己→편재가 맞다.)
+    const jeonggiStem = hiddenStems[0];
+    const jeonggiHangul = getHanjaToHangulChar(jeonggiStem);
+    return sasinRules[jeonggiHangul] || '일원';
   });
   
   return result;
@@ -463,14 +425,11 @@ const getNapeumFiveElement = (ganji: string): string => {
   return napeumMap[ganji] || "기타";
 };
 
-// 지지암장간 계산
+// 지지암장간 계산 - getHiddenStems()와 같은 표를 재사용한다 (별도 테이블을 두면 서로 어긋날 수 있음 -
+// 예전엔 이 함수의 未 항목에서 을(乙)이 빠져 "丁己" 2글자만 나오는 불일치가 있었음).
+// 화면 표기 순서(초기→중기→정기)는 getHiddenStems()의 [정기,중기,초기] 순서를 뒤집어서 만든다.
 const getJijiAmjangan = (ji: string): string => {
-  const amjanganMap: { [key: string]: string } = {
-    '子': '壬癸', '丑': '癸辛己', '寅': '戊丙甲', '卯': '甲乙',
-    '辰': '乙癸戊', '巳': '戊庚丙', '午': '丙己丁', '未': '丁己',
-    '申': '戊壬庚', '酉': '庚辛', '戌': '辛丁戊', '亥': '戊甲壬'
-  };
-  return amjanganMap[ji] || '';
+  return getHiddenStems(ji).slice().reverse().join('');
 };
 
 // 살(殺) 계산
@@ -515,86 +474,203 @@ const calculateSal = (dayStem: string, pillars: string[]): { [key: string]: stri
   return sal;
 };
 
-// 귀인 계산 (개선된 버전)
+// 귀인 계산
+// 아래 표들은 전통 명리학의 고전적 정의를 따른다. 천덕귀인/월덕귀인은 월지(月支) 기준이며,
+// 나머지(천을·복성·천주·문창·학당·태극·홍염·암록·비인)는 일간(日干) 기준이다.
 const calculateGuin = (dayStem: string, pillars: string[]): { [key: string]: string[] } => {
   const guin: { [key: string]: string[] } = {
     '천을귀인': [],
     '천덕귀인': [],
     '월덕귀인': [],
-    '복성귀인': []
+    '복성귀인': [],
+    '천주귀인': [],
+    '문창귀인': [],
+    '학당귀인': [],
+    '태극귀인': [],
+    '홍염살': [],
+    '암록': [],
+    '비인살': []
   };
 
   const dayStemHangul = getHanjaToHangulChar(dayStem);
-  
-  // 천을귀인 계산 (일간 기준) - 정답 기준으로 수정
+
+  // 천을귀인 (일간 기준)
   const cheonEulGuinMap: { [key: string]: string[] } = {
     '갑': ['丑', '未'], '을': ['子', '申'], '병': ['亥', '酉'], '정': ['戌', '亥'],
     '무': ['丑', '未'], '기': ['申', '子'], '경': ['未', '丑'], '신': ['午', '寅'],
-    '임': ['卯', '巳'], '계': ['辰', '巳']  // 무일간: 丑未 (정답 기준)
+    '임': ['卯', '巳'], '계': ['辰', '巳']
   };
 
-  // 천덕귀인 계산 (일간 기준)
-  const cheonDeokGuinMap: { [key: string]: string[] } = {
-    '갑': ['寅', '申'], '을': ['卯', '酉'], '병': ['辰', '戌'], '정': ['巳', '亥'],
-    '무': ['午', '子'], '기': ['未', '丑'], '경': ['申', '寅'], '신': ['酉', '卯'],
-    '임': ['戌', '辰'], '계': ['亥', '巳']
+  // 천덕귀인 (월지 기준 - 12개월 각각에 고정된 천간/지지 하나)
+  const cheonDeokGuinByMonthJi: { [key: string]: string } = {
+    '寅': '丁', '卯': '申', '辰': '壬', '巳': '辛', '午': '亥', '未': '甲',
+    '申': '癸', '酉': '寅', '戌': '丙', '亥': '乙', '子': '巳', '丑': '庚'
   };
 
-  // 월덕귀인 계산 (월간 기준)
-  const monthStem = pillars[1][0]; // 월주 천간
-  const monthStemHangul = getHanjaToHangulChar(monthStem);
-  const wolDeokGuinMap: { [key: string]: string[] } = {
-    '갑': ['寅', '申'], '을': ['卯', '酉'], '병': ['辰', '戌'], '정': ['巳', '亥'],
-    '무': ['午', '子'], '기': ['未', '丑'], '경': ['申', '寅'], '신': ['酉', '卯'],
-    '임': ['戌', '辰'], '계': ['亥', '巳']
-  };
+  // 월덕귀인 (월지의 삼합 그룹 기준 - 화국/수국/금국/목국별 천간 하나)
+  const wolDeokGuinByMonthGroup: { branches: string[]; stem: string }[] = [
+    { branches: ['寅', '午', '戌'], stem: '丙' },
+    { branches: ['申', '子', '辰'], stem: '壬' },
+    { branches: ['巳', '酉', '丑'], stem: '庚' },
+    { branches: ['亥', '卯', '未'], stem: '甲' }
+  ];
 
-  // 복성귀인 계산 (일간 기준)
+  // 복성귀인 (일간 기준)
   const bokSeongGuinMap: { [key: string]: string[] } = {
     '갑': ['子', '午'], '을': ['丑', '未'], '병': ['寅', '申'], '정': ['卯', '酉'],
     '무': ['辰', '戌'], '기': ['巳', '亥'], '경': ['午', '子'], '신': ['未', '丑'],
     '임': ['申', '寅'], '계': ['酉', '卯']
   };
 
-  // 각 귀인 계산
+  // 천주귀인 (일간 기준 - 식신의 건록 위치)
+  const cheonjuGuinMap: { [key: string]: string } = {
+    '갑': '巳', '을': '午', '병': '巳', '정': '午', '무': '申',
+    '기': '酉', '경': '亥', '신': '子', '임': '寅', '계': '卯'
+  };
+
+  // 문창귀인 (일간 기준)
+  const munchangGuinMap: { [key: string]: string } = {
+    '갑': '巳', '을': '午', '병': '申', '정': '酉', '무': '申',
+    '기': '酉', '경': '亥', '신': '子', '임': '寅', '계': '卯'
+  };
+
+  // 학당귀인 (일간 기준)
+  const hakdangGuinMap: { [key: string]: string } = {
+    '갑': '亥', '을': '午', '병': '寅', '정': '酉', '무': '寅',
+    '기': '酉', '경': '巳', '신': '子', '임': '申', '계': '卯'
+  };
+
+  // 태극귀인 (일간 기준)
+  const taegeukGuinMap: { [key: string]: string[] } = {
+    '갑': ['子', '亥'], '을': ['子', '亥'], '병': ['酉', '子'], '정': ['酉', '子'],
+    '무': ['丑', '辰'], '기': ['丑', '辰'], '경': ['寅', '亥'], '신': ['寅', '亥'],
+    '임': ['巳', '申'], '계': ['巳', '申']
+  };
+
+  // 홍염살 (일간 기준)
+  const hongyeomMap: { [key: string]: string } = {
+    '갑': '午', '을': '午', '병': '寅', '정': '未', '무': '辰',
+    '기': '辰', '경': '戌', '신': '酉', '임': '子', '계': '申'
+  };
+
+  // 암록 (일간 기준 - 건록의 육합 지지)
+  const amrokMap: { [key: string]: string } = {
+    '갑': '亥', '을': '戌', '병': '申', '정': '未', '무': '申',
+    '기': '未', '경': '巳', '신': '辰', '임': '寅', '계': '丑'
+  };
+
+  // 비인살 (일간 기준 - 양인의 충 지지)
+  const biinMap: { [key: string]: string } = {
+    '갑': '酉', '을': '戌', '병': '子', '정': '丑', '무': '子',
+    '기': '丑', '경': '卯', '신': '辰', '임': '午', '계': '未'
+  };
+
+  const monthJi = pillars[2][1]; // 월지 (pillars는 [시,일,월,년] 순서이므로 index 2)
+  const cheonDeokGuinStem = cheonDeokGuinByMonthJi[monthJi];
+  const wolDeokGuinStem = wolDeokGuinByMonthGroup.find(g => g.branches.includes(monthJi))?.stem;
+
   const cheonEulGuin = cheonEulGuinMap[dayStemHangul] || [];
-  const cheonDeokGuin = cheonDeokGuinMap[dayStemHangul] || [];
-  const wolDeokGuin = wolDeokGuinMap[monthStemHangul] || [];
   const bokSeongGuin = bokSeongGuinMap[dayStemHangul] || [];
+  const taegeukGuin = taegeukGuinMap[dayStemHangul] || [];
 
-  // 천을귀인은 사주에 있는 지지 중에서 조건을 만족하는 것만 표시
   pillars.forEach((pillar) => {
+    const gan = pillar[0];
     const ji = pillar[1];
-    const jiHangul = getHanjaToHangulChar(ji);
-    
-    if (cheonEulGuin.includes(ji)) {
-      guin['천을귀인'].push(`${ji}(${jiHangul})`);
-    }
-  });
-
-  // 나머지 귀인들은 사주에 있는 지지 중에서 조건을 만족하는 것만
-  pillars.forEach((pillar) => {
-    const ji = pillar[1];
+    const ganHangul = getHanjaToHangulChar(gan);
     const jiHangul = getHanjaToHangulChar(ji);
 
-    if (cheonDeokGuin.includes(ji)) {
-      guin['천덕귀인'].push(`${ji}(${jiHangul})`);
+    if (cheonEulGuin.includes(ji)) guin['천을귀인'].push(`${ji}(${jiHangul})`);
+    if (bokSeongGuin.includes(ji)) guin['복성귀인'].push(`${ji}(${jiHangul})`);
+    if (taegeukGuin.includes(ji)) guin['태극귀인'].push(`${ji}(${jiHangul})`);
+    if (cheonjuGuinMap[dayStemHangul] === ji) guin['천주귀인'].push(`${ji}(${jiHangul})`);
+    if (munchangGuinMap[dayStemHangul] === ji) guin['문창귀인'].push(`${ji}(${jiHangul})`);
+    if (hakdangGuinMap[dayStemHangul] === ji) guin['학당귀인'].push(`${ji}(${jiHangul})`);
+    if (hongyeomMap[dayStemHangul] === ji) guin['홍염살'].push(`${ji}(${jiHangul})`);
+    if (amrokMap[dayStemHangul] === ji) guin['암록'].push(`${ji}(${jiHangul})`);
+    if (biinMap[dayStemHangul] === ji) guin['비인살'].push(`${ji}(${jiHangul})`);
+
+    // 천덕귀인/월덕귀인은 사주 8글자(천간·지지) 어디에 있어도 인정한다
+    if (cheonDeokGuinStem && (cheonDeokGuinStem === gan || cheonDeokGuinStem === ji)) {
+      const label = cheonDeokGuinStem === gan ? `${gan}(${ganHangul})` : `${ji}(${jiHangul})`;
+      guin['천덕귀인'].push(label);
     }
-    if (wolDeokGuin.includes(ji)) {
-      guin['월덕귀인'].push(`${ji}(${jiHangul})`);
-    }
-    if (bokSeongGuin.includes(ji)) {
-      guin['복성귀인'].push(`${ji}(${jiHangul})`);
+    if (wolDeokGuinStem && wolDeokGuinStem === gan) {
+      guin['월덕귀인'].push(`${gan}(${ganHangul})`);
     }
   });
 
   return guin;
 };
 
-// 지지 관계 계산 (삼합, 육합, 삼형, 육충, 방합)
+// 현침살 - 사주 8글자(천간·지지) 중 甲·辛·卯·午·申가 있으면 해당 글자마다 표시
+const calculateHyeonchimSal = (pillars: string[]): string[] => {
+  const HYEONCHIM_CHARS = ['甲', '辛', '卯', '午', '申'];
+  const result: string[] = [];
+  pillars.forEach((pillar) => {
+    [pillar[0], pillar[1]].forEach((ch) => {
+      if (HYEONCHIM_CHARS.includes(ch)) {
+        result.push(`${ch}(${getHanjaToHangulChar(ch)})`);
+      }
+    });
+  });
+  return result;
+};
+
+// 괴강살 - 일주(日柱)가 庚辰·庚戌·壬辰·戊戌 중 하나면 해당
+const calculateGwaegangSal = (dayGanji: string): boolean => {
+  return ['庚辰', '庚戌', '壬辰', '戊戌'].includes(dayGanji);
+};
+
+// 12신살 - 년지/일지/월지 각각을 기준(삼합 그룹)으로 삼아, 시/일/월/년 4개 지지에 해당하는 신살을 구한다.
+const TWELVE_SINSAL_GROUPS: { branches: string[]; gyeopsalStart: string }[] = [
+  { branches: ['申', '子', '辰'], gyeopsalStart: '巳' },
+  { branches: ['亥', '卯', '未'], gyeopsalStart: '申' },
+  { branches: ['寅', '午', '戌'], gyeopsalStart: '亥' },
+  { branches: ['巳', '酉', '丑'], gyeopsalStart: '寅' }
+];
+const TWELVE_SINSAL_ORDER = [
+  '겁살', '재살', '천살', '지살', '년살', '월살',
+  '망신살', '장성살', '반안살', '역마살', '육해살', '화개살'
+];
+
+const getTwelveSinsalMap = (referenceJi: string): { [ji: string]: string } => {
+  const group = TWELVE_SINSAL_GROUPS.find(g => g.branches.includes(referenceJi));
+  if (!group) return {};
+  const startIdx = SIBIJI_HANJA.indexOf(group.gyeopsalStart as (typeof SIBIJI_HANJA)[number]);
+  const map: { [ji: string]: string } = {};
+  for (let i = 0; i < 12; i++) {
+    const branch = SIBIJI_HANJA[(startIdx + i) % 12];
+    map[branch] = TWELVE_SINSAL_ORDER[i];
+  }
+  return map;
+};
+
+// pillars: [시,일,월,년] 순
+const calculateTwelveSinsal = (pillars: string[]): { [key: string]: { [pillar: string]: string } } => {
+  const [timeJi, dayJi, monthJi, yearJi] = pillars.map(p => p[1]);
+  const buildRow = (referenceJi: string) => {
+    const map = getTwelveSinsalMap(referenceJi);
+    return {
+      time: map[timeJi] || '',
+      day: map[dayJi] || '',
+      month: map[monthJi] || '',
+      year: map[yearJi] || ''
+    };
+  };
+  return {
+    byYear: buildRow(yearJi),
+    byDay: buildRow(dayJi),
+    byMonth: buildRow(monthJi)
+  };
+};
+
+// 지지 관계 계산 (삼합, 반합, 육합, 삼형, 육충, 방합)
+// 아래 그룹/쌍 테이블은 특정 사주 사례가 아니라 전통 명리학의 일반 정의이며,
+// 사주의 4개 지지(시/일/월/년) 중 실제로 존재하는 것만 판정한다.
 const calculateJijiRelations = (pillars: string[]): { [key: string]: string[] } => {
   const relations: { [key: string]: string[] } = {
     '삼합': [],
+    '반합': [],
     '육합': [],
     '삼형': [],
     '육충': [],
@@ -602,130 +678,71 @@ const calculateJijiRelations = (pillars: string[]): { [key: string]: string[] } 
   };
 
   const jijiList = pillars.map(pillar => pillar[1]);
+  const count = (ji: string) => jijiList.filter(j => j === ji).length;
+  const hasAll = (group: string[]) => group.every(ji => jijiList.includes(ji));
+  const hasAny = (group: string[]) => group.filter(ji => jijiList.includes(ji));
 
-  // 실제 사주: 진(辰), 오(午), 진(辰), 진(辰)
-  // 정답에서 충/형 관계가 있다고 나와있음
-
-  // 삼합
-  const samhapGroups = [
-    ['申', '子', '辰'], // 수국 - 진 3개 있음
-    ['亥', '卯', '未'], // 목국
-    ['寅', '午', '戌'], // 화국 - 오 1개 있음
-    ['巳', '酉', '丑']  // 금국
+  // 삼합(三合) - 4국(局): 셋 다 있으면 삼합, 둘만 있으면 반합(半合)
+  const samhapGroups: { group: string[]; name: string }[] = [
+    { group: ['申', '子', '辰'], name: '수국' },
+    { group: ['亥', '卯', '未'], name: '목국' },
+    { group: ['寅', '午', '戌'], name: '화국' },
+    { group: ['巳', '酉', '丑'], name: '금국' }
   ];
+  samhapGroups.forEach(({ group, name }) => {
+    if (hasAll(group)) {
+      relations['삼합'].push(`${group.join('')}(${name})`);
+    } else if (hasAny(group).length >= 2) {
+      relations['반합'].push(`${hasAny(group).join('')}(${name} 반합)`);
+    }
+  });
 
-  // 육합
+  // 방합(方合) - 계절별 방위국: 동방목국/남방화국/서방금국/북방수국
+  const banghapGroups: { group: string[]; name: string }[] = [
+    { group: ['寅', '卯', '辰'], name: '동방목국' },
+    { group: ['巳', '午', '未'], name: '남방화국' },
+    { group: ['申', '酉', '戌'], name: '서방금국' },
+    { group: ['亥', '子', '丑'], name: '북방수국' }
+  ];
+  banghapGroups.forEach(({ group, name }) => {
+    if (hasAll(group)) {
+      relations['방합'].push(`${group.join('')}(${name})`);
+    }
+  });
+
+  // 육합(六合)
   const yukhapPairs = [
     ['子', '丑'], ['寅', '亥'], ['卯', '戌'], ['辰', '酉'],
     ['巳', '申'], ['午', '未']
   ];
-
-  // 삼형
-  const samhyeongGroups = [
-    ['寅', '巳', '申'], // 무은지형
-    ['丑', '戌', '未'], // 지지형
-    ['辰', '辰', '辰']  // 자형 (같은 지지 3개)
-  ];
-
-  // 육충
-  const yukchungPairs = [
-    ['子', '午'], ['丑', '未'], ['寅', '申'], ['卯', '酉'],
-    ['辰', '戌'], ['巳', '亥']
-  ];
-
-  // 방합 (方合)
-  const banghapPairs = [
-    ['寅', '辰'], ['巳', '未'], ['申', '戌'], ['亥', '丑'], ['午', '未']
-  ];
-
-  // 진(辰)이 3개 있으므로 자형 관계
-  const jinCount = jijiList.filter(ji => ji === '辰').length;
-  if (jinCount >= 3) {
-    relations['삼형'].push('辰辰辰(자형)');
-  }
-
-  // 삼합 확인 - 진이 3개이므로 수국 삼합으로 취급
-  if (jinCount >= 3) {
-    relations['삼합'].push('辰辰辰(수국)');
-  }
-
-  // 육합 확인
   yukhapPairs.forEach(pair => {
-    if (jijiList.includes(pair[0]) && jijiList.includes(pair[1])) {
+    if (hasAll(pair)) {
       relations['육합'].push(pair.join(', '));
     }
   });
 
-  // 육충 확인
+  // 육충(六沖)
+  const yukchungPairs = [
+    ['子', '午'], ['丑', '未'], ['寅', '申'], ['卯', '酉'],
+    ['辰', '戌'], ['巳', '亥']
+  ];
   yukchungPairs.forEach(pair => {
-    if (jijiList.includes(pair[0]) && jijiList.includes(pair[1])) {
+    if (hasAll(pair)) {
       relations['육충'].push(pair.join(', '));
     }
   });
 
-  return relations;
-};
-
-// 대운 계산 (정확한 나이 계산 포함)
-const calculateDaewoon = (yearGanji: string, monthGanji: string, dayGanji: string, timeGanji: string, birthYear: number, birthMonth: number, birthDay: number, gender: number): DaewoonInfo[] => {
-  const daewoon: DaewoonInfo[] = [];
-  const tenArray = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
-  const twelveArray = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
-
-  let ganPtr = tenArray.indexOf(monthGanji[0]);
-  let jiPtr = twelveArray.indexOf(monthGanji[1]);
-
-  // 대운 방향 결정: 양년생 남자/음년생 여자는 순행, 음년생 남자/양년생 여자는 역행
-  const isYangYear = ['甲', '丙', '戊', '庚', '壬'].includes(yearGanji[0]);
-  const isForward = (gender === 0 && isYangYear) || (gender === 1 && !isYangYear);
-  const direction = isForward ? 1 : -1;
-
-  // 대운 시작 나이 계산 (정확한 계산)
-  // 대운 시작 나이는 월령(월주)에서 다음 절기까지의 일수를 계산하여 결정
-  // 임시로 정답 기준으로 설정 (실제로는 복잡한 절기 계산 필요)
-  const firstAge = 2; // 정답 기준: 2세부터 시작
-
-  for (let index = 0; index < 8; index++) {
-    const age = index * 10 + firstAge;
-    const year = birthYear + age - 1;
-
-    // 대운 간지 계산
-    if (direction === 1) {
-      ganPtr = (ganPtr + 1) % 10;
-      jiPtr = (jiPtr + 1) % 12;
-    } else {
-      ganPtr = (ganPtr - 1 + 10) % 10;
-      jiPtr = (jiPtr - 1 + 12) % 12;
+  // 삼형(三刑) - 무은지형/지세지형(3자 모두 필요), 무례지형(2자 쌍), 자형(같은 지지 2개 이상)
+  if (hasAll(['寅', '巳', '申'])) relations['삼형'].push('寅巳申(무은지형)');
+  if (hasAll(['丑', '戌', '未'])) relations['삼형'].push('丑戌未(지세지형)');
+  if (hasAll(['子', '卯'])) relations['삼형'].push('子卯(무례지형)');
+  ['辰', '午', '酉', '亥'].forEach(ji => {
+    if (count(ji) >= 2) {
+      relations['삼형'].push(`${ji}${ji}(자형)`);
     }
+  });
 
-    const ganji = tenArray[ganPtr] + twelveArray[jiPtr];
-    daewoon.push({
-      age: age,
-      year: year,
-      ganji: ganji,
-      gan: tenArray[ganPtr],
-      ji: twelveArray[jiPtr]
-    });
-  }
-
-  return daewoon;
-};
-
-// 신살 계산 (SajuCalculator 사용)
-const calculateSinsal = (yearGanji: string, monthGanji: string, dayGanji: string, timeGanji: string): { [key: string]: string[] } => {
-  // SajuCalculator를 사용하여 신살 계산
-  const sajuCalculator = new SajuCalculator();
-  const sajuInfo = {
-    yearGanji: yearGanji,
-    monthGanji: monthGanji,
-    dayGanji: dayGanji,
-    timeGanji: timeGanji,
-    birthYear: 0, // 신살 계산에는 불필요
-    gender: 0 // 신살 계산에는 불필요
-  };
-  
-  const analysis = sajuCalculator.analyzeSaju(sajuInfo);
-  return analysis.sinsal;
+  return relations;
 };
 
 export const calculateSaju = (input: SajuInput): SajuResult => {
@@ -787,7 +804,8 @@ export const calculateSaju = (input: SajuInput): SajuResult => {
     dayGanji: dayHanjaGanji,
     timeGanji: timeHanjaGanji,
     birthYear: input.year,
-    gender: 0 // 기본값 0 (남자)
+    gender: input.gender,
+    birthDate: dt
   };
   
   // SajuCalculator로 고급 분석 수행
@@ -809,9 +827,14 @@ export const calculateSaju = (input: SajuInput): SajuResult => {
   // 살(殺) 계산 (기존 로직 유지)
   const sal = calculateSal(dayHanjaGanji[0], pillars);
   
-  // 귀인 계산 (기존 로직 유지)
+  // 귀인 계산 (기존 로직 유지 + 이번에 확장)
   const guin = calculateGuin(dayHanjaGanji[0], pillars);
-  
+
+  // 현침살 / 괴강살 / 12신살
+  const hyeonchimSal = calculateHyeonchimSal(pillars);
+  const gwaegangSal = calculateGwaegangSal(dayHanjaGanji);
+  const twelveSinsal = calculateTwelveSinsal(pillars);
+
   return {
     yearHangulGanji: getHanjaToHangul(yearHanjaGanji),
     monthHangulGanji: getHanjaToHangul(monthHanjaGanji),
@@ -827,7 +850,11 @@ export const calculateSaju = (input: SajuInput): SajuResult => {
     jijiAmjangan,
     sal,
     guin,
-    jijiRelations
+    jijiRelations,
+    hyeonchimSal,
+    gwaegangSal,
+    twelveSinsal,
+    birthDate: dt
   };
 };
 

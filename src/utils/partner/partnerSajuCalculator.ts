@@ -19,6 +19,7 @@ export const calculatePartnerSaju = async (partnerInfo: PartnerBirthInfo): Promi
       minute: partnerInfo.isTimeUnknown ? null : parseInt(partnerInfo.birthMinute),
       isLunar: partnerInfo.calendarType === 'lunar',
       isLeapMonth: partnerInfo.isLeapMonth,
+      gender: partnerInfo.gender === 'male' ? 0 : 1,
     };
 
     // 기존 사주 계산 로직 사용
@@ -60,7 +61,8 @@ export const formatPartnerSajuForDB = (partnerInfo: PartnerBirthInfo, sajuData: 
 export const convertSajuResultToSajuInfo = (
   sajuResult: SajuResult,
   birthYear: number,
-  gender: 'male' | 'female' | number
+  gender: 'male' | 'female' | number,
+  birthDate: Date
 ): SajuInfo => {
   const genderNum = typeof gender === 'number' ? gender : gender === 'male' ? 0 : 1;
   return {
@@ -69,7 +71,8 @@ export const convertSajuResultToSajuInfo = (
     dayGanji: SajuUtils.getHangulToHanjaString(sajuResult.dayHangulGanji),
     timeGanji: SajuUtils.getHangulToHanjaString(sajuResult.timeHangulGanji),
     birthYear,
-    gender: genderNum
+    gender: genderNum,
+    birthDate
   };
 };
 
