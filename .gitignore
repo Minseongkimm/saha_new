@@ -89,3 +89,6 @@ AuthKey_*.p8
 
 # Internal documentation (서비스 로직 노출 방지)
 docs/chat_prompt_structure.md
+
+# 마크다운 문서는 깃허브에 올리지 않음
+*.md

@@ -15,6 +15,7 @@ import { supabase } from './src/utils/database/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { initIAP } from './src/utils/payments/iapClient';
 import { AppConfigProvider } from './src/contexts/AppConfigContext';
+import { registerPushToken, subscribeTokenRefresh } from './src/services/notifications/pushTokenService';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -89,6 +90,21 @@ function App() {
       linkingSubscription?.remove();
     };
   }, []);
+
+  // 로그인된 유저의 FCM 푸시 토큰 등록 및 갱신 구독
+  useEffect(() => {
+    const userId = session?.user?.id;
+    if (!userId) {
+      return;
+    }
+
+    registerPushToken(userId).catch(error => {
+      console.error('푸시 토큰 등록 중 오류:', error);
+    });
+
+    const unsubscribe = subscribeTokenRefresh(userId);
+    return unsubscribe;
+  }, [session?.user?.id]);
 
   if (loading) {
     return null; // 로딩 중
