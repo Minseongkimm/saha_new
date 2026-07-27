@@ -256,6 +256,16 @@ export class SajuUtils {
   }
 
   /**
+   * 특정 연도의 년주(년간지) 계산 (임의의 연도에 대해 일반적으로 동작)
+   * 그 해 6월 1일 기준으로 계산하여 입춘 경계 모호성을 피한다.
+   * @param year 연도
+   * @return 년주 간지 (예: '甲辰')
+   */
+  static getYearGanji(year: number): string {
+    return this.calcYearGanji(year, 6, 1);
+  }
+
+  /**
    * 오늘 날짜를 간지로 변환
    * @param date 날짜 (YYYY-MM-DD 형식, 한국 시간 기준으로 전달되는 문자열)
    * @return 오늘의 간지 정보
