@@ -300,9 +300,11 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
             <Text style={styles.saveButtonText}>
               {returnToChat
                 ? '저장하고 대화로 돌아가기'
-                : isEditMode || returnToSajuInfo
+                : isEditMode
                   ? '수정 완료'
-                  : '저장하고 채팅 시작'}
+                  : returnToSajuInfo
+                    ? '작성 완료'
+                    : '저장하고 채팅 시작'}
             </Text>
           )}
         </TouchableOpacity>

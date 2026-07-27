@@ -15,7 +15,7 @@ import { supabase } from './src/utils/database/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { initIAP } from './src/utils/payments/iapClient';
 import { AppConfigProvider } from './src/contexts/AppConfigContext';
-import { registerPushToken, subscribeTokenRefresh } from './src/services/notifications/pushTokenService';
+import { registerTokenIfPermitted, subscribeTokenRefresh } from './src/services/notifications/pushTokenService';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -91,14 +91,15 @@ function App() {
     };
   }, []);
 
-  // 로그인된 유저의 FCM 푸시 토큰 등록 및 갱신 구독
+  // 로그인된 유저의 FCM 푸시 토큰 등록(권한이 이미 있는 경우만, 팝업 없음) 및 갱신 구독
+  // 알림 권한 요청 자체는 사주 정보 입력 완료 시점(BirthInfoScreen)의 프라이머에서 이루어짐
   useEffect(() => {
     const userId = session?.user?.id;
     if (!userId) {
       return;
     }
 
-    registerPushToken(userId).catch(error => {
+    registerTokenIfPermitted(userId).catch(error => {
       console.error('푸시 토큰 등록 중 오류:', error);
     });
 

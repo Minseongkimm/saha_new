@@ -23,6 +23,10 @@ import { SajuCache } from '../../utils/saju/sajuCache';
 import { TodayFortuneCache } from '../../utils/today-fortune/todayFortuneCache';
 import { clearAllNewYearFortuneCache } from '../../utils/new-year-fortune/newYearFortuneCache';
 import { convertSajuResultToDbFormat } from '../../utils/saju/calculatedSajuUtils';
+import {
+  getNotificationPermissionStatus,
+  registerPushToken,
+} from '../../services/notifications/pushTokenService';
 
 interface BirthInfoScreenProps {
   navigation: {
@@ -323,21 +327,46 @@ interface SajuResult {
       await clearAllNewYearFortuneCache(userId);
 
       // 저장 성공 시 redirectTo가 있으면 해당 화면으로, 없으면 MainTabs로 이동
-      setTimeout(() => {
-        try {
-          const returnToChat = route.params?.returnToChat;
-          const redirectTo = route.params?.redirectTo;
-          if (returnToChat) {
-            navigation.replace('ChatRoom', returnToChat);
-          } else if (redirectTo) {
-            navigation.replace(redirectTo);
-          } else {
-            navigation.replace('MainTabs');
+      const goToNextScreen = () => {
+        setTimeout(() => {
+          try {
+            const returnToChat = route.params?.returnToChat;
+            const redirectTo = route.params?.redirectTo;
+            if (returnToChat) {
+              navigation.replace('ChatRoom', returnToChat);
+            } else if (redirectTo) {
+              navigation.replace(redirectTo);
+            } else {
+              navigation.replace('MainTabs');
+            }
+          } catch (error) {
+            console.error('네비게이션 에러:', error);
           }
-        } catch (error) {
-          console.error('네비게이션 에러:', error);
-        }
-      }, 100);
+        }, 100);
+      };
+
+      // 사주 입력 완료 시점에 알림 권한을 처음 물어봄 (아직 한 번도 요청한 적 없을 때만)
+      const permissionStatus = await getNotificationPermissionStatus();
+      if (permissionStatus === 'not-determined') {
+        Alert.alert(
+          '당신의 사주가 말하는 순간들,\n놓치지 않게 해드릴까요?',
+          '',
+          [
+            { text: '다음에', style: 'cancel', onPress: goToNextScreen },
+            {
+              text: '받을래요',
+              onPress: () => {
+                registerPushToken(userId).catch(error => {
+                  console.error('푸시 토큰 등록 중 오류:', error);
+                });
+                goToNextScreen();
+              },
+            },
+          ],
+        );
+      } else {
+        goToNextScreen();
+      }
 
     } catch (error) {
       Alert.alert('오류', '생년월일 정보 저장에 실패했습니다.');

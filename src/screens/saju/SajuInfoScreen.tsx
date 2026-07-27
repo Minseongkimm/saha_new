@@ -79,6 +79,14 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
     loadUserBirthInfo();
   }, []);
 
+  // 상대방 추가/수정 후 이 화면으로 돌아왔을 때 목록 최신화
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadPartnerInfos();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const loadUserBirthInfo = async () => {
     try {
       setLoading(true);
@@ -441,6 +449,12 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
     });
   };
 
+  const handleAddPartner = () => {
+    navigation.navigate('PartnerInput', {
+      returnToSajuInfo: true,
+    });
+  };
+
   const handleDeletePartner = (partner: PartnerSaju) => {
     Alert.alert(
       '상대방 정보 삭제',
@@ -620,9 +634,17 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
           <View style={styles.sectionHeader}>
             <View>
               <Text style={styles.sectionEyebrow}>상대방 정보</Text>
-              <Text style={styles.sectionTitle}>저장된 상대방</Text>
+              <Text style={styles.sectionTitle}>상대방 정보</Text>
             </View>
-            <Text style={styles.partnerCount}>{partners.length}명</Text>
+            <View style={styles.partnerHeaderRight}>
+              <Text style={styles.partnerCount}>{partners.length}명</Text>
+              <TouchableOpacity
+                style={styles.partnerAddButton}
+                onPress={handleAddPartner}
+              >
+                <Text style={styles.partnerAddButtonText}>추가</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {partners.length === 0 ? (
@@ -1024,11 +1046,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1d1d1f',
   },
+  partnerHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: IS_IPAD ? 12 : 8,
+  },
   partnerCount: {
     fontSize: IS_IPAD ? 16 : 12,
     color: '#6b7280',
     fontWeight: '600',
     paddingBottom: IS_IPAD ? 3 : 2,
+  },
+  partnerAddButton: {
+    borderRadius: IS_IPAD ? 14 : 11,
+    backgroundColor: Colors.primaryColor,
+    paddingHorizontal: IS_IPAD ? 16 : 12,
+    paddingVertical: IS_IPAD ? 8 : 6,
+  },
+  partnerAddButtonText: {
+    fontSize: IS_IPAD ? 14 : 12,
+    color: 'white',
+    fontWeight: '700',
   },
   partnerList: {
     gap: IS_IPAD ? 14 : 10,

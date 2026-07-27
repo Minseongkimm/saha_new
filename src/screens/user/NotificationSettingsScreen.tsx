@@ -13,11 +13,21 @@ import {
 } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { supabase } from '../../utils/database/supabaseClient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/Ionicons';
 import SabaLoader from '../../components/common/SabaLoader';
 import { safeGoBack } from '../../utils/navigation/safeGoBack';
 import { isIPad } from '../../utils/platform';
+import {
+  getNotificationPermissionStatus,
+  openSystemNotificationSettings,
+  requestNotificationPermission,
+  registerPushToken,
+} from '../../services/notifications/pushTokenService';
+import {
+  getNotificationPreferences,
+  upsertNotificationPreferences,
+  NotificationPreferences,
+} from '../../services/notifications/notificationPreferencesService';
 
 const IS_IPAD = isIPad();
 
@@ -25,18 +35,20 @@ interface NotificationSettingsScreenProps {
   navigation: any;
 }
 
+type OsPermissionStatus = 'authorized' | 'denied' | 'not-determined';
+
 const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({ navigation }) => {
-  const [notificationSettings, setNotificationSettings] = useState({
-    allNotifications: true,
-    chatNotifications: true,
-    dailyFortuneNotifications: true,
+  const [notificationSettings, setNotificationSettings] = useState<NotificationPreferences>({
+    all_notifications: true,
+    chat_notifications: true,
+    daily_fortune_notifications: true,
   });
+  const [osPermission, setOsPermission] = useState<OsPermissionStatus>('not-determined');
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
-  
+
   const statusBarHeight = Platform.OS === 'android' ? (StatusBar.currentHeight || 0) + 8 : 10;
 
-  // 설정 로드
   useEffect(() => {
     loadNotificationSettings();
   }, []);
@@ -44,8 +56,7 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
   const loadNotificationSettings = async () => {
     try {
       setLoading(true);
-      
-      // 사용자 ID 가져오기
+
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       if (authError || !user) {
         safeGoBack(navigation);
@@ -53,11 +64,13 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
       }
       setUserId(user.id);
 
-      // AsyncStorage에서 알림 설정 불러오기
-      const savedSettings = await AsyncStorage.getItem(`notification_settings_${user.id}`);
-      if (savedSettings) {
-        setNotificationSettings(JSON.parse(savedSettings));
-      }
+      const [permissionStatus, preferences] = await Promise.all([
+        getNotificationPermissionStatus(),
+        getNotificationPreferences(user.id),
+      ]);
+
+      setOsPermission(permissionStatus);
+      setNotificationSettings(preferences);
     } catch (error) {
       console.error('Error loading notification settings:', error);
     } finally {
@@ -65,40 +78,57 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
     }
   };
 
-  const toggleSetting = async (key: keyof typeof notificationSettings) => {
-    let newSettings;
-    
-    if (key === 'allNotifications') {
-      // 전체 알림 토글 시 모든 알림을 같은 값으로 설정
-      const newValue = !notificationSettings.allNotifications;
+  // OS 권한이 거부된 상태면 앱에서 재요청 불가 → 시스템 설정으로 안내
+  const promptOpenSystemSettings = () => {
+    Alert.alert(
+      '알림 권한이 꺼져 있어요',
+      '기기 설정에서 사바 앱의 알림을 허용해주세요.',
+      [
+        { text: '취소', style: 'cancel' },
+        { text: '설정으로 이동', onPress: () => openSystemNotificationSettings() },
+      ],
+    );
+  };
+
+  const toggleSetting = async (key: keyof NotificationPreferences) => {
+    if (!userId) return;
+
+    // OS 권한이 아직 없는 상태에서 켜려는 경우: 시스템 권한부터 요청
+    if (osPermission === 'not-determined') {
+      const granted = await requestNotificationPermission();
+      const newStatus: OsPermissionStatus = granted ? 'authorized' : 'denied';
+      setOsPermission(newStatus);
+      if (!granted) return;
+      await registerPushToken(userId);
+    } else if (osPermission === 'denied') {
+      promptOpenSystemSettings();
+      return;
+    }
+
+    let newSettings: NotificationPreferences;
+
+    if (key === 'all_notifications') {
+      const newValue = !notificationSettings.all_notifications;
       newSettings = {
-        allNotifications: newValue,
-        chatNotifications: newValue,
-        dailyFortuneNotifications: newValue,
+        all_notifications: newValue,
+        chat_notifications: newValue,
+        daily_fortune_notifications: newValue,
       };
     } else {
-      // 개별 알림 토글 시
       newSettings = {
         ...notificationSettings,
-        [key]: !notificationSettings[key]
+        [key]: !notificationSettings[key],
       };
-      
-      // 개별 알림이 모두 꺼져있을 때만 전체 알림 OFF
-      // 하나라도 켜져있으면 전체 알림 ON
-      const anyIndividualOn = newSettings.chatNotifications || newSettings.dailyFortuneNotifications;
-      newSettings.allNotifications = anyIndividualOn;
+      const anyIndividualOn = newSettings.chat_notifications || newSettings.daily_fortune_notifications;
+      newSettings.all_notifications = anyIndividualOn;
     }
-    
+
     setNotificationSettings(newSettings);
-    
-    // AsyncStorage에 저장
-    if (userId) {
-      try {
-        await AsyncStorage.setItem(`notification_settings_${userId}`, JSON.stringify(newSettings));
-      } catch (error) {
-        console.error('Error saving notification settings:', error);
-        Alert.alert('오류', '설정 저장에 실패했습니다.');
-      }
+
+    try {
+      await upsertNotificationPreferences(userId, newSettings);
+    } catch {
+      Alert.alert('오류', '설정 저장에 실패했습니다.');
     }
   };
 
@@ -139,10 +169,10 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
               <Text style={styles.settingDescription}>모든 알림을 한 번에 제어합니다</Text>
             </View>
             <Switch
-              value={notificationSettings.allNotifications}
-              onValueChange={() => toggleSetting('allNotifications')}
+              value={osPermission === 'authorized' && notificationSettings.all_notifications}
+              onValueChange={() => toggleSetting('all_notifications')}
               trackColor={{ false: '#e0e0e0', true: Colors.primaryColor }}
-              thumbColor={notificationSettings.allNotifications ? 'white' : '#f4f3f4'}
+              thumbColor={notificationSettings.all_notifications ? 'white' : '#f4f3f4'}
             />
           </View>
 
@@ -152,10 +182,10 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
               <Text style={styles.settingDescription}>새로운 메시지 알림을 받습니다</Text>
             </View>
             <Switch
-              value={notificationSettings.chatNotifications}
-              onValueChange={() => toggleSetting('chatNotifications')}
+              value={osPermission === 'authorized' && notificationSettings.chat_notifications}
+              onValueChange={() => toggleSetting('chat_notifications')}
               trackColor={{ false: '#e0e0e0', true: Colors.primaryColor }}
-              thumbColor={notificationSettings.chatNotifications ? 'white' : '#f4f3f4'}
+              thumbColor={notificationSettings.chat_notifications ? 'white' : '#f4f3f4'}
             />
           </View>
 
@@ -165,13 +195,21 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
               <Text style={styles.settingDescription}>매일 오늘의 운세를 알려드립니다</Text>
             </View>
             <Switch
-              value={notificationSettings.dailyFortuneNotifications}
-              onValueChange={() => toggleSetting('dailyFortuneNotifications')}
+              value={osPermission === 'authorized' && notificationSettings.daily_fortune_notifications}
+              onValueChange={() => toggleSetting('daily_fortune_notifications')}
               trackColor={{ false: '#e0e0e0', true: Colors.primaryColor }}
-              thumbColor={notificationSettings.dailyFortuneNotifications ? 'white' : '#f4f3f4'}
+              thumbColor={notificationSettings.daily_fortune_notifications ? 'white' : '#f4f3f4'}
             />
           </View>
         </View>
+
+        {osPermission === 'denied' && (
+          <View style={styles.infoSection}>
+            <Text style={[styles.infoText, { color: '#e74c3c' }]}>
+              기기 알림 권한이 꺼져있어요. 스위치를 켜면 설정 화면으로 안내해드려요.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.infoSection}>
           <Text style={styles.infoText}>
