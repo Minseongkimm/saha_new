@@ -4,6 +4,7 @@
 
 import { supabase } from '../../utils/database/supabaseClient';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../config/env';
+import { createSSEDataLineExtractor } from './sseLineBuffer';
 
 const EDGE_FUNCTIONS = {
   TRADITIONAL_SAJU: 'traditional-saju-stream',
@@ -82,27 +83,24 @@ export async function streamTraditionalSaju(
     
     let fullText = '';
     let lastPosition = 0;
-    
+    const extractDataLines = createSSEDataLineExtractor();
+
     xhr.onprogress = () => {
       const newData = xhr.responseText.substring(lastPosition);
       lastPosition = xhr.responseText.length;
-      
-      const lines = newData.split('\n');
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
-          
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              fullText += content;
-              onChunk(content);
-            }
-          } catch (e) {
-            // 파싱 에러 무시
+
+      for (const data of extractDataLines(newData)) {
+        if (data === '[DONE]') continue;
+
+        try {
+          const parsed = JSON.parse(data);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            fullText += content;
+            onChunk(content);
           }
+        } catch (e) {
+          // 파싱 에러 무시 (완결된 줄인데도 실패하면 실제로 잘못된 JSON)
         }
       }
     };
@@ -141,27 +139,24 @@ export async function streamNewYearFortune(
     
     let fullText = '';
     let lastPosition = 0;
-    
+    const extractDataLines = createSSEDataLineExtractor();
+
     xhr.onprogress = () => {
       const newData = xhr.responseText.substring(lastPosition);
       lastPosition = xhr.responseText.length;
-      
-      const lines = newData.split('\n');
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
-          
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              fullText += content;
-              onChunk(content);
-            }
-          } catch (e) {
-            // 파싱 에러 무시
+
+      for (const data of extractDataLines(newData)) {
+        if (data === '[DONE]') continue;
+
+        try {
+          const parsed = JSON.parse(data);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            fullText += content;
+            onChunk(content);
           }
+        } catch (e) {
+          // 파싱 에러 무시 (완결된 줄인데도 실패하면 실제로 잘못된 JSON)
         }
       }
     };
@@ -203,27 +198,24 @@ export async function streamChat(
     
     let fullText = '';
     let lastPosition = 0;
-    
+    const extractDataLines = createSSEDataLineExtractor();
+
     xhr.onprogress = () => {
       const newData = xhr.responseText.substring(lastPosition);
       lastPosition = xhr.responseText.length;
-      
-      const lines = newData.split('\n');
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
-          
-            try {
-              const parsed = JSON.parse(data);
-              const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              fullText += content;
-              onChunk(content);
-            }
-          } catch (e) {
-            // 파싱 에러 무시
+
+      for (const data of extractDataLines(newData)) {
+        if (data === '[DONE]') continue;
+
+        try {
+          const parsed = JSON.parse(data);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            fullText += content;
+            onChunk(content);
           }
+        } catch (e) {
+          // 파싱 에러 무시 (완결된 줄인데도 실패하면 실제로 잘못된 JSON)
         }
       }
     };
@@ -267,27 +259,24 @@ export async function streamTodayFortune(
     
     let fullText = '';
     let lastPosition = 0;
-    
+    const extractDataLines = createSSEDataLineExtractor();
+
     xhr.onprogress = () => {
       const newData = xhr.responseText.substring(lastPosition);
       lastPosition = xhr.responseText.length;
-      
-      const lines = newData.split('\n');
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6).trim();
-          if (data === '[DONE]') continue;
-          
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              fullText += content;
-              onChunk(content);
-            }
-          } catch (e) {
-            // 파싱 에러 무시
+
+      for (const data of extractDataLines(newData)) {
+        if (data === '[DONE]') continue;
+
+        try {
+          const parsed = JSON.parse(data);
+          const content = parsed.choices?.[0]?.delta?.content;
+          if (content) {
+            fullText += content;
+            onChunk(content);
           }
+        } catch (e) {
+          // 파싱 에러 무시 (완결된 줄인데도 실패하면 실제로 잘못된 JSON)
         }
       }
     };
