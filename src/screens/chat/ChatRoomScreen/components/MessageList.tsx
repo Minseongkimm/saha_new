@@ -112,6 +112,8 @@ const MessageList: React.FC<MessageListProps> = ({
       keyExtractor={(item) => item.id || item.created_at}
       style={styles.messagesList}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       onContentSizeChange={() => {
         if (shouldAutoScroll) {
           scrollToBottom(false);
@@ -122,7 +124,6 @@ const MessageList: React.FC<MessageListProps> = ({
           scrollToBottom(false);
         }
       }}
-      onScroll={updateAutoScrollFromPosition}
       scrollEventThrottle={16}
       onScrollBeginDrag={() => setShouldAutoScroll(false)}
       onScrollEndDrag={updateAutoScrollFromPosition}

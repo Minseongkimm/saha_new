@@ -635,21 +635,19 @@ const ChatConversationBody: React.FC<ChatConversationBodyProps> = ({
   inputWrapperStyle,
 }) => {
   const messageList = (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.messageListTouchArea}>
-        <MessageList
-          messages={messages}
-          isAiResponding={isAiResponding}
-          expert={expert}
-          flatListRef={flatListRef}
-          shouldAutoScroll={shouldAutoScroll}
-          setShouldAutoScroll={setShouldAutoScroll}
-          scrollToBottom={scrollToBottom}
-          loading={loading}
-          onMessageActionPress={onMessageActionPress}
-        />
-      </View>
-    </TouchableWithoutFeedback>
+    <View style={styles.messageListTouchArea}>
+      <MessageList
+        messages={messages}
+        isAiResponding={isAiResponding}
+        expert={expert}
+        flatListRef={flatListRef}
+        shouldAutoScroll={shouldAutoScroll}
+        setShouldAutoScroll={setShouldAutoScroll}
+        scrollToBottom={scrollToBottom}
+        loading={loading}
+        onMessageActionPress={onMessageActionPress}
+      />
+    </View>
   );
 
   return (
