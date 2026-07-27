@@ -13,7 +13,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import { supabase } from '../../utils/database/supabaseClient';
-import { calculateSaju } from '../../utils/saju/ganji_local';
+import { calculateSaju, SajuResult } from '../../utils/saju/ganji_local';
 import { RouteProp } from '@react-navigation/native';
 import { RootStackParamList } from '../../types/navigation';
 import { Colors } from '../../constants/colors';
@@ -178,7 +178,8 @@ function BirthInfoScreen({ navigation, route }: BirthInfoScreenProps) {
         hour,
         minute,
         isLunar: formData.calendarType === '음력',
-        isLeapMonth: formData.isLeapMonth
+        isLeapMonth: formData.isLeapMonth,
+        gender: formData.gender === '남성' ? 0 : 1
       });
     } catch (error) {
       let errorMessage = '알 수 없는 오류가 발생했습니다.';
@@ -193,26 +194,6 @@ function BirthInfoScreen({ navigation, route }: BirthInfoScreenProps) {
     handleSaveWithSaju(sajuResult);
   };
 
-interface SajuResult {
-  yearHangulGanji: string;   // 년주 한글 간지
-  monthHangulGanji: string;  // 월주 한글 간지
-  dayHangulGanji: string;    // 일주 한글 간지
-  timeHangulGanji: string;   // 시주 한글 간지
-  
-  stemSasin: string[];       // 천간 십신 [시, 일, 월, 년]
-  branchSasin: string[];     // 지지 십신 [시, 일, 월, 년]
-  sibun: string[];          // 십이운성 [시, 일, 월, 년]
-  
-  // 고급 사주 요소들
-  sinsal: { [key: string]: string[] };      // 신살 정보
-  gongmang: string;                         // 공망
-  daewoon: any[];                           // 대운 리스트
-  fiveProperties: { [key: string]: string }; // 오행 정보
-  jijiAmjangan: { [key: string]: string };   // 지지암장간
-  sal: { [key: string]: string[] };         // 살(殺) 정보
-  guin: { [key: string]: string[] };        // 귀인 정보
-  jijiRelations: { [key: string]: string[] }; // 지지 관계 (삼합, 육합, 삼형, 육충)
-}
 
 
   const handleSaveWithSaju = async (sajuResult: SajuResult) => {

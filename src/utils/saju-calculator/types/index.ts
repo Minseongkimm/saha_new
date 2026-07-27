@@ -10,6 +10,7 @@ export interface SajuInfo {
   timeGanji: string;    // 시주 (예: "庚午")
   gender: number;       // 0: 남자, 1: 여자
   birthYear: number;    // 출생년도
+  birthDate: Date;      // 출생 일시 (대운수 계산용 - 절기까지의 정밀 일수 산출에 사용)
 }
 
 // 사주 분석 결과

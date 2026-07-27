@@ -4,6 +4,7 @@
  */
 
 import { SajuUtils } from '../saju-calculator/utils/SajuUtils';
+import { SAMHAP_GROUPS, isYukhap, isChung, isHyeong } from '../saju-calculator/constants/branch_relations';
 
 /**
  * 신년운세 결과 인터페이스
@@ -88,7 +89,7 @@ export class NewYearFortuneCalculator {
   }
 
   /**
-   * 해당 연도의 간지 정보 가져오기
+   * 해당 연도의 간지 정보 가져오기 (임의의 연도에 대해 일반적으로 동작)
    */
   private getYearGanjiInfo(year: number): {
     ganji: string;
@@ -97,18 +98,49 @@ export class NewYearFortuneCalculator {
     animal: string;
     description: string;
   } {
-    // 년도별 간지 매핑 (2024-2030)
-    const yearGanjiMap: Record<number, { ganji: string; name: string; element: string; animal: string; description: string }> = {
-      2024: { ganji: '甲辰', name: '갑진년', element: '木', animal: '청룡', description: '청룡의 해. 변화와 발전의 기운' },
-      2025: { ganji: '乙巳', name: '을사년', element: '木', animal: '청뱀', description: '청목뱀의 해. 지혜와 성장의 기운' },
-      2026: { ganji: '丙午', name: '병오년', element: '火', animal: '적마', description: '적마의 해. 열정과 도약의 기운' },
-      2027: { ganji: '丁未', name: '정미년', element: '火', animal: '홍양', description: '홍양의 해. 안정과 결실의 기운' },
-      2028: { ganji: '戊申', name: '무신년', element: '土', animal: '황원숭이', description: '황원숭이의 해. 창의와 변화의 기운' },
-      2029: { ganji: '己酉', name: '기유년', element: '土', animal: '황닭', description: '황닭의 해. 성실과 결실의 기운' },
-      2030: { ganji: '庚戌', name: '경술년', element: '金', animal: '백구', description: '백구의 해. 충성과 발전의 기운' },
+    const ganji = SajuUtils.getYearGanji(year);
+    const gan = ganji[0];
+    const ji = ganji[1];
+
+    // 천간별 색상 (오행 기준: 갑을=청, 병정=적, 무기=황, 경신=백, 임계=흑)
+    const stemColor: Record<string, string> = {
+      '甲': '청', '乙': '청',
+      '丙': '적', '丁': '적',
+      '戊': '황', '己': '황',
+      '庚': '백', '辛': '백',
+      '壬': '흑', '癸': '흑',
     };
 
-    return yearGanjiMap[year] || yearGanjiMap[2025];
+    // 지지별 동물 (12지신)
+    const branchAnimal: Record<string, string> = {
+      '子': '쥐', '丑': '소', '寅': '호랑이', '卯': '토끼',
+      '辰': '용', '巳': '뱀', '午': '말', '未': '양',
+      '申': '원숭이', '酉': '닭', '戌': '개', '亥': '돼지',
+    };
+
+    // 천간별 오행 (한자 표기)
+    const stemElement: Record<string, string> = {
+      '甲': '木', '乙': '木',
+      '丙': '火', '丁': '火',
+      '戊': '土', '己': '土',
+      '庚': '金', '辛': '金',
+      '壬': '水', '癸': '水',
+    };
+
+    const elementDescription: Record<string, string> = {
+      '木': '변화와 성장의 기운',
+      '火': '열정과 도약의 기운',
+      '土': '안정과 결실의 기운',
+      '金': '결단과 결실의 기운',
+      '水': '지혜와 유연함의 기운',
+    };
+
+    const animal = `${stemColor[gan]}${branchAnimal[ji]}`;
+    const element = stemElement[gan];
+    const name = `${SajuUtils.getHanjaToHangulString(ganji)}년`;
+    const description = `${animal}의 해. ${elementDescription[element]}`;
+
+    return { ganji, name, element, animal, description };
   }
 
 
@@ -156,59 +188,25 @@ export class NewYearFortuneCalculator {
    * 지지 상호작용 분석
    */
   private analyzeJiInteraction(myJi: string, yearJi: string): InteractionResult {
-    // 삼합 관계
-    const samhap: Record<string, string[]> = {
-      '寅午戌': ['寅', '午', '戌'], // 화국
-      '申子辰': ['申', '子', '辰'], // 수국
-      '巳酉丑': ['巳', '酉', '丑'], // 금국
-      '亥卯未': ['亥', '卯', '未'], // 목국
-    };
-
-    // 육합 관계
-    const yukhap: Record<string, string> = {
-      '子': '丑', '丑': '子',
-      '寅': '亥', '亥': '寅',
-      '卯': '戌', '戌': '卯',
-      '辰': '酉', '酉': '辰',
-      '巳': '申', '申': '巳',
-      '午': '未', '未': '午',
-    };
-
-    // 충 관계
-    const chung: Record<string, string> = {
-      '子': '午', '午': '子',
-      '丑': '未', '未': '丑',
-      '寅': '申', '申': '寅',
-      '卯': '酉', '酉': '卯',
-      '辰': '戌', '戌': '辰',
-      '巳': '亥', '亥': '巳',
-    };
-
-    // 형 관계
-    const hyung: Record<string, string[]> = {
-      '寅': ['巳', '申'], '巳': ['申', '寅'], '申': ['寅', '巳'],
-      '丑': ['戌', '未'], '戌': ['未', '丑'], '未': ['丑', '戌'],
-    };
-
     // 육합
-    if (yukhap[myJi] === yearJi) {
+    if (isYukhap(myJi, yearJi)) {
       return { type: '육합', score: 20, description: '조화로운 결합. 협력과 발전의 해' };
     }
 
-    // 삼합 체크
-    for (const group of Object.values(samhap)) {
-      if (group.includes(myJi) && group.includes(yearJi)) {
+    // 삼합 (반합 포함: 그룹에 둘 다 속하면 성립)
+    for (const { group } of SAMHAP_GROUPS) {
+      if (group.includes(myJi as any) && group.includes(yearJi as any) && myJi !== yearJi) {
         return { type: '삼합', score: 15, description: '강력한 합. 큰 성과의 해' };
       }
     }
 
     // 충
-    if (chung[myJi] === yearJi) {
+    if (isChung(myJi, yearJi)) {
       return { type: '충', score: -20, description: '충돌과 변화. 신중함이 필요한 해' };
     }
 
     // 형
-    if (hyung[myJi]?.includes(yearJi)) {
+    if (isHyeong(myJi, yearJi) || isHyeong(yearJi, myJi)) {
       return { type: '형', score: -10, description: '불편함과 마찰. 조심스러운 해' };
     }
 

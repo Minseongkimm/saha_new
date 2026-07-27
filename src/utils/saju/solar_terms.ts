@@ -148,3 +148,28 @@ export function getMonthBranchIndexBySolarTerms(year: number, month: number, day
   return getMonthBranchIndexFallback(year, month, day);
 }
 
+// lunar-javascript의 절기 시각은 북경시(UTC+8) 기준으로 계산되어 있음(라이브러리 내부 주석 "北京时间").
+// KST(UTC+9)로 들어온 생일 시각을 그대로 넘기면 birthDate만 KST 값이 되어 절기 시각과 프레임이
+// 어긋나므로(1시간 오차), 라이브러리에 넘기기 전 -1시간 보정하여 같은 기준시로 맞춘다.
+const KST_TO_LIBRARY_OFFSET_MS = -60 * 60 * 1000;
+
+/**
+ * 생일로부터 순행(다음 절)/역행(이전 절)까지의 정밀 일수를 계산합니다.
+ * 전통 대운수 계산 규칙(3일 = 1년)의 입력값으로 사용됩니다.
+ * 주의: 24절기 전체가 아니라 월지를 정하는 "절(節)" 12개(입춘·경칩·청명·입하·망종·소서·
+ * 입추·백로·한로·입동·대설·소한)만을 기준으로 한다. "기(氣)"(우수·춘분·곡우 등)는 대운수
+ * 계산에서 제외해야 하며, 이를 섞으면 절 사이 간격(24일 전후)이 반토막 나서 대운수가 크게 틀어진다.
+ * lunar-javascript의 분 단위 시각(subtractMinute)을 사용하므로 시/분까지 반영된 소수 일수를 반환합니다.
+ */
+export function getDaysToAdjacentSolarTerm(birthDate: Date, direction: 1 | -1): number {
+  const birthSolar = Solar.fromDate(new Date(birthDate.getTime() + KST_TO_LIBRARY_OFFSET_MS));
+  const lunar = birthSolar.getLunar();
+  const jieQi = direction === 1 ? lunar.getNextJie(false) : lunar.getPrevJie(false);
+  const termSolar = jieQi.getSolar();
+  const minutes =
+    direction === 1
+      ? termSolar.subtractMinute(birthSolar)
+      : birthSolar.subtractMinute(termSolar);
+  return Math.abs(minutes) / (24 * 60);
+}
+

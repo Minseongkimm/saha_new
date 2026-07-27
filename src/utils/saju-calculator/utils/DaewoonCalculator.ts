@@ -4,6 +4,7 @@
  */
 
 import { DaewoonInfo, DaewoonAnalysis } from '../types';
+import { getDaysToAdjacentSolarTerm } from '../../saju/solar_terms';
 
 export class DaewoonCalculator {
   private tenArray = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
@@ -67,14 +68,21 @@ export class DaewoonCalculator {
 
   /**
    * 첫 대운 나이 계산
-   * @param birthDate 출생일
-   * @param direction 대운 방향
+   * 전통 명리학 규칙(삼명통회): 생일로부터 순행 시 다음 절, 역행 시 이전 절까지의
+   * 일수를 3일=1년 기준으로 환산한다. 이때 나머지를 그냥 반올림하는 것이 아니라
+   * "나머지가 8개월 이상이면 올림, 8개월 미만이면 버림"이라는 비대칭 규칙을 쓴다.
+   * (예: 4년6월1일→4년(올림 안 함), 1년10월7일→2년(10개월≥8개월이므로 올림))
+   * 0세도 유효한 값이다 (절기 당일 출생 등 나머지가 8개월 미만이면 정수 부분 그대로).
+   * @param birthDate 출생 일시
+   * @param direction 대운 방향 (1: 순행, -1: 역행)
    * @return 첫 대운 나이
    */
-  calculateFirstAge(birthDate: string, direction: number): number {
-    // 절기 기준으로 첫 대운 나이 계산
-    // 실제 구현에서는 절기 데이터베이스가 필요
-    return direction === 1 ? 0 : 0; // 순행/역행 모두 0으로 설정
+  calculateFirstAge(birthDate: Date, direction: 1 | -1): number {
+    const days = getDaysToAdjacentSolarTerm(birthDate, direction);
+    const years = days / 3;
+    const wholeYears = Math.floor(years);
+    const remainderMonths = (years - wholeYears) * 12;
+    return remainderMonths >= 8 ? wholeYears + 1 : wholeYears;
   }
 
   /**
@@ -161,59 +169,23 @@ export class DaewoonCalculator {
   }
 
   /**
-   * 정확한 대운 계산 (9세부터 시작)
+   * 정확한 대운 계산 (절기 기준 대운수부터 시작)
    * @param yearPillar 년주
    * @param monthPillar 월주
    * @param birthYear 출생년도
    * @param gender 성별
+   * @param birthDate 출생 일시 (대운수 계산에 사용)
    * @return 대운 리스트
    */
   calculateAccurateDaewoon(
     yearPillar: string,
     monthPillar: string,
     birthYear: number,
-    gender: number
+    gender: number,
+    birthDate: Date
   ): DaewoonInfo[] {
-    // 9세부터 시작하는 정확한 대운 계산
-    return this.calculateDaewoon(yearPillar, monthPillar, birthYear, gender, 9);
-  }
-
-  /**
-   * 첫 대운 나이 계산
-   * @param yearPillar 년주
-   * @param monthPillar 월주
-   * @param gender 성별
-   * @return 첫 대운 나이
-   */
-  calculateFirstDaewoonAge(yearPillar: string, monthPillar: string, gender: number): number {
-    // 기본적으로 9세부터 시작하지만, 정확한 계산을 위해 추가 로직 필요
-    // 여기서는 기본값 9세를 사용하되, 필요시 더 정교한 계산 추가 가능
-    
-    const yearGan = yearPillar[0];
-    const monthGan = monthPillar[0];
-    
-    // 간단한 첫 대운 나이 계산 (실제로는 더 복잡한 계산이 필요)
-    let firstAge = 9;
-    
-    // 년간과 월간의 관계에 따른 조정
-    const yearGanIndex = this.tenArray.indexOf(yearGan);
-    const monthGanIndex = this.tenArray.indexOf(monthGan);
-    
-    // 간단한 조정 로직 (실제로는 더 정교한 계산 필요)
-    if (gender === 0) { // 남자
-      if (yearGanIndex > monthGanIndex) {
-        firstAge = 8;
-      } else if (yearGanIndex < monthGanIndex) {
-        firstAge = 10;
-      }
-    } else { // 여자
-      if (yearGanIndex > monthGanIndex) {
-        firstAge = 10;
-      } else if (yearGanIndex < monthGanIndex) {
-        firstAge = 8;
-      }
-    }
-    
-    return firstAge;
+    const direction = this.getDaewoonDirection(yearPillar, gender);
+    const firstAge = this.calculateFirstAge(birthDate, direction as 1 | -1);
+    return this.calculateDaewoon(yearPillar, monthPillar, birthYear, gender, firstAge);
   }
 }

@@ -5,102 +5,69 @@
 
 import { SinsalType } from '../types';
 
+// 12지지 (子~亥) - 12신살 순환 계산에 사용
+const TWELVE_JI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+
+// 12신살 기준 삼합 그룹과 겁살 시작 지지
+const TWELVE_SINSAL_GROUPS: { branches: string[]; gyeopsalStart: string }[] = [
+  { branches: ['申', '子', '辰'], gyeopsalStart: '巳' },
+  { branches: ['亥', '卯', '未'], gyeopsalStart: '申' },
+  { branches: ['寅', '午', '戌'], gyeopsalStart: '亥' },
+  { branches: ['巳', '酉', '丑'], gyeopsalStart: '寅' }
+];
+const TWELVE_SINSAL_ORDER = [
+  '겁살', '재살', '천살', '지살', '년살', '월살',
+  '망신살', '장성살', '반안살', '역마살', '육해살', '화개살'
+];
+
+// 년지 기준 12신살 맵 - 화개살/장성살은 12신살 체계의 일부이므로 이 표에서 파생시킨다.
+const getYearBasedTwelveSinsalMap = (yearJi: string): { [ji: string]: string } => {
+  const group = TWELVE_SINSAL_GROUPS.find(g => g.branches.includes(yearJi));
+  if (!group) return {};
+  const startIdx = TWELVE_JI.indexOf(group.gyeopsalStart);
+  const map: { [ji: string]: string } = {};
+  for (let i = 0; i < 12; i++) {
+    map[TWELVE_JI[(startIdx + i) % 12]] = TWELVE_SINSAL_ORDER[i];
+  }
+  return map;
+};
+
 export class SinsalCalculator {
   /**
-   * 화개살 계산
-   * @param dayGanji 일간지
+   * 화개살 계산 (12신살 - 년지 기준 삼합 그룹의 마지막 지지)
+   * @param yearGanji 년간지
    * @param targetGanji 대상 간지
    * @return 화개살 여부
    */
-  calculateHwagaeSal(dayGanji: string, targetGanji: string): string | null {
-    const dayGan = dayGanji[0];
-    const targetJi = targetGanji[1];
-    
-    // 화개살 계산 (일간의 오행과 상극인 지지)
-    const hwagaeMap: { [key: string]: string[] } = {
-      '甲': ['申', '酉'],  // 갑목은 금(신유)이 화개살
-      '乙': ['申', '酉'],  // 을목은 금(신유)이 화개살
-      '丙': ['亥', '子'],  // 병화는 수(해자)가 화개살
-      '丁': ['亥', '子'],  // 정화는 수(해자)가 화개살
-      '戊': ['寅', '卯'],  // 무토는 목(인묘)이 화개살
-      '己': ['寅', '卯'],  // 기토는 목(인묘)이 화개살
-      '庚': ['巳', '午'],  // 경금은 화(사오)가 화개살
-      '辛': ['巳', '午'],  // 신금은 화(사오)가 화개살
-      '壬': ['辰', '戌', '丑', '未'],  // 임수는 토(진술축미)가 화개살
-      '癸': ['辰', '戌', '丑', '未']   // 계수는 토(진술축미)가 화개살
-    };
-
-    const hwagaeJis = hwagaeMap[dayGan];
-    if (hwagaeJis && hwagaeJis.includes(targetJi)) {
-      return '화개살';
-    }
-    return null;
+  calculateHwagaeSal(yearGanji: string, targetGanji: string): string | null {
+    const map = getYearBasedTwelveSinsalMap(yearGanji[1]);
+    return map[targetGanji[1]] === '화개살' ? '화개살' : null;
   }
 
   /**
-   * 장성살 계산
-   * @param dayGanji 일간지
+   * 장성살 계산 (12신살 - 년지 기준 삼합 그룹의 가운데 지지)
+   * @param yearGanji 년간지
    * @param targetGanji 대상 간지
    * @return 장성살 여부
    */
-  calculateJangseongSal(dayGanji: string, targetGanji: string): string | null {
-    const dayGan = dayGanji[0];
-    const targetJi = targetGanji[1];
-    
-    // 장성살 계산 (일간의 오행과 같은 오행의 지지)
-    const jangseongMap: { [key: string]: string[] } = {
-      '甲': ['寅', '卯'],  // 갑목은 목(인묘)이 장성살
-      '乙': ['寅', '卯'],  // 을목은 목(인묘)이 장성살
-      '丙': ['巳', '午'],  // 병화는 화(사오)가 장성살
-      '丁': ['巳', '午'],  // 정화는 화(사오)가 장성살
-      '戊': ['辰', '戌', '丑', '未'],  // 무토는 토(진술축미)가 장성살
-      '己': ['辰', '戌', '丑', '未'],  // 기토는 토(진술축미)가 장성살
-      '庚': ['申', '酉'],  // 경금은 금(신유)이 장성살
-      '辛': ['申', '酉'],  // 신금은 금(신유)이 장성살
-      '壬': ['亥', '子'],  // 임수는 수(해자)가 장성살
-      '癸': ['亥', '子']   // 계수는 수(해자)가 장성살
-    };
-
-    const jangseongJis = jangseongMap[dayGan];
-    if (jangseongJis && jangseongJis.includes(targetJi)) {
-      return '장성살';
-    }
-    return null;
+  calculateJangseongSal(yearGanji: string, targetGanji: string): string | null {
+    const map = getYearBasedTwelveSinsalMap(yearGanji[1]);
+    return map[targetGanji[1]] === '장성살' ? '장성살' : null;
   }
 
   /**
-   * 백호살 계산
-   * @param dayGanji 일간지
+   * 백호살 계산 - 甲辰·乙未·丙戌·丁丑·戊辰·壬戌·癸丑, 이 7개 간지 중 하나와
+   * 대상 주(柱)의 간지가 정확히 일치하면 백호살이다 (일간과는 무관).
    * @param targetGanji 대상 간지
    * @return 백호살 여부
    */
-  calculateBaekhoSal(dayGanji: string, targetGanji: string): string | null {
-    const dayGan = dayGanji[0];
-    const targetJi = targetGanji[1];
-    
-    // 백호살 계산 (일간의 오행을 생하는 지지)
-    const baekhoMap: { [key: string]: string[] } = {
-      '甲': ['亥', '子'],  // 갑목은 수(해자)가 백호살
-      '乙': ['亥', '子'],  // 을목은 수(해자)가 백호살
-      '丙': ['寅', '卯'],  // 병화는 목(인묘)이 백호살
-      '丁': ['寅', '卯'],  // 정화는 목(인묘)이 백호살
-      '戊': ['巳', '午'],  // 무토는 화(사오)가 백호살
-      '己': ['巳', '午'],  // 기토는 화(사오)가 백호살
-      '庚': ['辰', '戌', '丑', '未'],  // 경금은 토(진술축미)가 백호살
-      '辛': ['辰', '戌', '丑', '未'],  // 신금은 토(진술축미)가 백호살
-      '壬': ['申', '酉'],  // 임수는 금(신유)가 백호살
-      '癸': ['申', '酉']   // 계수는 금(신유)가 백호살
-    };
-
-    const baekhoJis = baekhoMap[dayGan];
-    if (baekhoJis && baekhoJis.includes(targetJi)) {
-      return '백호살';
-    }
-    return null;
+  calculateBaekhoSal(targetGanji: string): string | null {
+    const BAEKHO_PILLARS = ['甲辰', '乙未', '丙戌', '丁丑', '戊辰', '壬戌', '癸丑'];
+    return BAEKHO_PILLARS.includes(targetGanji) ? '백호살' : null;
   }
 
   /**
-   * 양인살 계산
+   * 양인살 계산 (일간 기준 - 겁재에 해당하는 단일 지지)
    * @param dayGanji 일간지
    * @param targetGanji 대상 간지
    * @return 양인살 여부
@@ -108,30 +75,17 @@ export class SinsalCalculator {
   calculateYanginSal(dayGanji: string, targetGanji: string): string | null {
     const dayGan = dayGanji[0];
     const targetJi = targetGanji[1];
-    
-    // 양인살 계산 (일간의 오행을 극하는 지지)
-    const yanginMap: { [key: string]: string[] } = {
-      '甲': ['辰', '戌', '丑', '未'],  // 갑목은 토(진술축미)가 양인살
-      '乙': ['辰', '戌', '丑', '未'],  // 을목은 토(진술축미)가 양인살
-      '丙': ['申', '酉'],  // 병화는 금(신유)이 양인살
-      '丁': ['申', '酉'],  // 정화는 금(신유)이 양인살
-      '戊': ['亥', '子'],  // 무토는 수(해자)가 양인살
-      '己': ['亥', '子'],  // 기토는 수(해자)가 양인살
-      '庚': ['寅', '卯'],  // 경금은 목(인묘)이 양인살
-      '辛': ['寅', '卯'],  // 신금은 목(인묘)이 양인살
-      '壬': ['巳', '午'],  // 임수는 화(사오)가 양인살
-      '癸': ['巳', '午']   // 계수는 화(사오)가 양인살
+
+    const yanginMap: { [key: string]: string } = {
+      '甲': '卯', '乙': '辰', '丙': '午', '丁': '未', '戊': '午',
+      '己': '未', '庚': '酉', '辛': '戌', '壬': '子', '癸': '丑'
     };
 
-    const yanginJis = yanginMap[dayGan];
-    if (yanginJis && yanginJis.includes(targetJi)) {
-      return '양인살';
-    }
-    return null;
+    return yanginMap[dayGan] === targetJi ? '양인살' : null;
   }
 
   /**
-   * 복성귀인 계산
+   * 복성귀인 계산 (일간 기준)
    * @param dayGanji 일간지
    * @param targetGanji 대상 간지
    * @return 복성귀인 여부
@@ -139,19 +93,11 @@ export class SinsalCalculator {
   calculateBokseongGuin(dayGanji: string, targetGanji: string): string | null {
     const dayGan = dayGanji[0];
     const targetJi = targetGanji[1];
-    
-    // 복성귀인 계산 (일간의 오행과 상생하는 지지)
+
     const bokseongMap: { [key: string]: string[] } = {
-      '甲': ['巳', '午'],  // 갑목은 화(사오)가 복성귀인
-      '乙': ['巳', '午'],  // 을목은 화(사오)가 복성귀인
-      '丙': ['辰', '戌', '丑', '未'],  // 병화는 토(진술축미)가 복성귀인
-      '丁': ['辰', '戌', '丑', '未'],  // 정화는 토(진술축미)가 복성귀인
-      '戊': ['申', '酉'],  // 무토는 금(신유)가 복성귀인
-      '己': ['申', '酉'],  // 기토는 금(신유)가 복성귀인
-      '庚': ['亥', '子'],  // 경금은 수(해자)가 복성귀인
-      '辛': ['亥', '子'],  // 신금은 수(해자)가 복성귀인
-      '壬': ['寅', '卯'],  // 임수는 목(인묘)가 복성귀인
-      '癸': ['寅', '卯']   // 계수는 목(인묘)가 복성귀인
+      '甲': ['子', '午'], '乙': ['丑', '未'], '丙': ['寅', '申'], '丁': ['卯', '酉'],
+      '戊': ['辰', '戌'], '己': ['巳', '亥'], '庚': ['午', '子'], '辛': ['未', '丑'],
+      '壬': ['申', '寅'], '癸': ['酉', '卯']
     };
 
     const bokseongJis = bokseongMap[dayGan];
@@ -162,7 +108,7 @@ export class SinsalCalculator {
   }
 
   /**
-   * 천주귀인 계산
+   * 천주귀인 계산 (일간 기준 - 식신의 건록 위치인 단일 지지)
    * @param dayGanji 일간지
    * @param targetGanji 대상 간지
    * @return 천주귀인 여부
@@ -170,55 +116,43 @@ export class SinsalCalculator {
   calculateCheonjuGuin(dayGanji: string, targetGanji: string): string | null {
     const dayGan = dayGanji[0];
     const targetJi = targetGanji[1];
-    
-    // 천주귀인 계산 (일간의 오행과 상극당하는 지지)
-    const cheonjuMap: { [key: string]: string[] } = {
-      '甲': ['申', '酉'],  // 갑목은 금(신유)이 천주귀인
-      '乙': ['申', '酉'],  // 을목은 금(신유)이 천주귀인
-      '丙': ['亥', '子'],  // 병화는 수(해자)가 천주귀인
-      '丁': ['亥', '子'],  // 정화는 수(해자)가 천주귀인
-      '戊': ['寅', '卯'],  // 무토는 목(인묘)이 천주귀인
-      '己': ['寅', '卯'],  // 기토는 목(인묘)이 천주귀인
-      '庚': ['巳', '午'],  // 경금은 화(사오)가 천주귀인
-      '辛': ['巳', '午'],  // 신금은 화(사오)가 천주귀인
-      '壬': ['辰', '戌', '丑', '未'],  // 임수는 토(진술축미)가 천주귀인
-      '癸': ['辰', '戌', '丑', '未']   // 계수는 토(진술축미)가 천주귀인
+
+    const cheonjuMap: { [key: string]: string } = {
+      '甲': '巳', '乙': '午', '丙': '巳', '丁': '午', '戊': '申',
+      '己': '酉', '庚': '亥', '辛': '子', '壬': '寅', '癸': '卯'
     };
 
-    const cheonjuJis = cheonjuMap[dayGan];
-    if (cheonjuJis && cheonjuJis.includes(targetJi)) {
-      return '천주귀인';
-    }
-    return null;
+    return cheonjuMap[dayGan] === targetJi ? '천주귀인' : null;
   }
 
   /**
    * 전통 신살 종합 분석
+   * @param yearGanji 년간지
    * @param dayGanji 일간지
    * @param targetGanji 대상 간지
    * @return 모든 전통 신살
    */
-  analyzeTraditionalSinsal(dayGanji: string, targetGanji: string): string[] {
+  analyzeTraditionalSinsal(yearGanji: string, dayGanji: string, targetGanji: string): string[] {
     const sinsalList: string[] = [];
-    
-    const hwagae = this.calculateHwagaeSal(dayGanji, targetGanji);
+
+    const hwagae = this.calculateHwagaeSal(yearGanji, targetGanji);
     if (hwagae) sinsalList.push(hwagae);
-    
-    const jangseong = this.calculateJangseongSal(dayGanji, targetGanji);
+
+    const jangseong = this.calculateJangseongSal(yearGanji, targetGanji);
     if (jangseong) sinsalList.push(jangseong);
-    
-    const baekho = this.calculateBaekhoSal(dayGanji, targetGanji);
+
+    const baekho = this.calculateBaekhoSal(targetGanji);
     if (baekho) sinsalList.push(baekho);
-    
+
     const yangin = this.calculateYanginSal(dayGanji, targetGanji);
     if (yangin) sinsalList.push(yangin);
-    
+
     const bokseong = this.calculateBokseongGuin(dayGanji, targetGanji);
     if (bokseong) sinsalList.push(bokseong);
-    
+
     const cheonju = this.calculateCheonjuGuin(dayGanji, targetGanji);
     if (cheonju) sinsalList.push(cheonju);
-    
+
     return sinsalList;
   }
 
@@ -243,7 +177,7 @@ export class SinsalCalculator {
 
     // 각 주별로 신살 계산
     pillars.forEach((pillar, index) => {
-      const pillarSinsal = this.analyzeTraditionalSinsal(dayGanji, pillar);
+      const pillarSinsal = this.analyzeTraditionalSinsal(yearGanji, dayGanji, pillar);
       sinsal[pillarNames[index]] = pillarSinsal;
     });
 

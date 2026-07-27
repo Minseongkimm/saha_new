@@ -7,6 +7,7 @@ import { SajuUtils } from '../saju-calculator/utils/SajuUtils';
 import { FiveElement } from '../saju-calculator/types';
 import { getKoreanDateString } from '../date/koreanDate';
 import { isHyeong, isPa, isHae } from '../saju-calculator/constants/branch_relations';
+import { SinsalCalculator } from '../saju-calculator/utils/SinsalCalculator';
 
 export interface UserSajuData {
   yearGanji: string;
@@ -98,6 +99,8 @@ export interface TodayFortuneResult {
 }
 
 export class TodayFortuneCalculator {
+  private sinsalCalculator = new SinsalCalculator();
+
   /**
    * 오늘의 운세 계산 메인 메서드
    */
@@ -118,7 +121,7 @@ export class TodayFortuneCalculator {
     // 2. 상호작용 분석
     const ganInteraction = this.analyzeGanInteraction(todayGanji.dayGanji[0], userSajuData.dayGanji[0]);
     const jiInteraction = this.analyzeJiInteraction(todayGanji.dayGanji[1], userSajuData.jijiRelations);
-    const sinsalInteraction = this.analyzeSinsalInteraction(todayGanji.dayGanji, userSajuData.sinsal);
+    const sinsalInteraction = this.analyzeSinsalInteraction(todayGanji.dayGanji, userSajuData.sinsal, userSajuData);
     const tenGodInteraction = this.analyzeTenGod(todayGanji.dayGanji[0], userSajuData.dayGanji[0]);
     const detailedJiRelations = this.analyzeJiDetails(todayGanji.dayGanji[1], userSajuData);
     const fiveElementBalance = this.analyzeFiveElementBalance(todayGanji.dayGanji[0], userSajuData);
@@ -133,7 +136,7 @@ export class TodayFortuneCalculator {
     // - jiDetailScore: 형/파/해 등의 지지 디테일 관계에 따른 감점/보정
     const ganjiScore = Math.round(Math.min((ganInteraction.score + jiInteraction.score) * 0.5, 25)); // 50% 비중, 최대 25점
     const sinsalScore = Math.round(Math.min(sinsalInteraction.score * 0.25, 13)); // 25% 비중, 최대 13점
-    const guinScore = Math.round(Math.min(this.calculateGuinScore(todayGanji.dayGanji, userSajuData.guin) * 0.15, 8)); // 15% 비중, 최대 8점
+    const guinScore = Math.round(Math.min(this.calculateGuinScore(todayGanji.dayGanji, userSajuData.guin, userSajuData) * 0.15, 8)); // 15% 비중, 최대 8점
     const tenGodScore = Math.round(Math.min(tenGodInteraction.score * 0.2, 6)); // 경미 반영
     const balanceScore = Math.round(Math.min(Math.max(fiveElementBalance?.score ?? 0, -10) * 0.2, 2)); // -2~+2
     const jiDetailScore = Math.round(Math.max(Math.min(detailedJiRelations.score, 5), -10)); // 안전 제한
@@ -348,40 +351,38 @@ export class TodayFortuneCalculator {
   /**
    * 신살 상호작용 분석
    */
-  private analyzeSinsalInteraction(todayGanji: string, sinsal: any): SinsalResult {
-    const todayGan = todayGanji[0];
-    const todayJi = todayGanji[1];
+  private analyzeSinsalInteraction(todayGanji: string, sinsal: any, userSaju: UserSajuData): SinsalResult {
     let score = 0;
     const activated: string[] = [];
-    
+
     // 모든 신살을 하나의 배열로 합치기
     const allSinsal = Object.values(sinsal).flat();
-    
+
     // 긍정적 신살 발동 확인 (귀인은 제외하고 신살만)
     // 신살은 부정적 요소만 계산
-    
-    // 부정적 신살 발동 확인
-    if (allSinsal.includes("장성살") && this.isSinsalActivated(todayJi, "장성살")) {
+
+    // 부정적 신살 발동 확인 (원국에 이미 있는 신살이, 오늘 간지 기준으로도 다시 성립하는지 확인)
+    if (allSinsal.includes("장성살") && this.isSinsalActivated(todayGanji, "장성살", userSaju)) {
       score -= 15;
       activated.push("장성살");
     }
-    if (allSinsal.includes("화개살") && this.isSinsalActivated(todayJi, "화개살")) {
+    if (allSinsal.includes("화개살") && this.isSinsalActivated(todayGanji, "화개살", userSaju)) {
       score -= 10;
       activated.push("화개살");
     }
-    if (allSinsal.includes("백호살") && this.isSinsalActivated(todayJi, "백호살")) {
+    if (allSinsal.includes("백호살") && this.isSinsalActivated(todayGanji, "백호살", userSaju)) {
       score -= 10;
       activated.push("백호살");
     }
-    if (allSinsal.includes("양인살") && this.isSinsalActivated(todayJi, "양인살")) {
+    if (allSinsal.includes("양인살") && this.isSinsalActivated(todayGanji, "양인살", userSaju)) {
       score -= 8;
       activated.push("양인살");
     }
-    
-    const description = activated.length > 0 
+
+    const description = activated.length > 0
       ? `오늘의 간지로 인해 ${activated.join(', ')}이 발동됩니다.`
       : "특별한 신살 발동이 없습니다.";
-    
+
     return { activated, score, description };
   }
 
@@ -427,18 +428,17 @@ export class TodayFortuneCalculator {
    * 직업운 점수 계산
    */
   private calculateCareerScore(baseScore: number, todayGanji: any, userSaju: UserSajuData, date: string): number {
-    // 전통 구조를 따르기 위해, 모든 보정은 오늘 일진과 원국의 관계(신살/오행/합충)만 사용한다.
+    // 전통 구조를 따르기 위해, 모든 보정은 오늘 일진과 원국의 관계(십신/오행/합충)만 사용한다.
     let adjustment = 0;
 
-    // 편관살/정관살 발동
-    const allSinsal = Object.values(userSaju.sinsal).flat();
-    if (allSinsal.includes("편관살") && this.isSinsalActivated(todayGanji.dayGanji[1], "편관살")) {
+    // 오늘 천간이 내 일간 기준 편관/정관(관성)에 해당하면 직업운 보너스
+    const tenGod = this.analyzeTenGod(todayGanji.dayGanji[0], userSaju.dayGanji[0]);
+    if (tenGod.label === '편관') {
       adjustment += 12;
-    }
-    if (allSinsal.includes("정관살") && this.isSinsalActivated(todayGanji.dayGanji[1], "정관살")) {
+    } else if (tenGod.label === '정관') {
       adjustment += 15;
     }
-    
+
     // 천간 상생이면 직업운 보너스
     const todayProperty = SajuUtils.getProperty(todayGanji.dayGanji[0]);
     const myProperty = SajuUtils.getProperty(userSaju.dayGanji[0]);
@@ -478,18 +478,17 @@ export class TodayFortuneCalculator {
    * 재물운 점수 계산
    */
   private calculateWealthScore(baseScore: number, todayGanji: any, userSaju: UserSajuData, date: string): number {
-    // 전통 구조를 따르기 위해, 보정은 오늘 일지와 재물 관련 신살/오행 관계만 사용한다.
+    // 전통 구조를 따르기 위해, 보정은 오늘 일간과 재물 관련 십신(재성)/오행 관계만 사용한다.
     let adjustment = 0;
 
-    // 정재살/편재살 발동
-    const allSinsal = Object.values(userSaju.sinsal).flat();
-    if (allSinsal.includes("정재살") && this.isSinsalActivated(todayGanji.dayGanji[1], "정재살")) {
-      adjustment += 18; // 정재살은 재물운에 매우 유리
+    // 오늘 천간이 내 일간 기준 정재/편재(재성)에 해당하면 재물운 보너스
+    const tenGod = this.analyzeTenGod(todayGanji.dayGanji[0], userSaju.dayGanji[0]);
+    if (tenGod.label === '정재') {
+      adjustment += 18; // 정재는 재물운에 매우 유리
+    } else if (tenGod.label === '편재') {
+      adjustment += 15; // 편재도 재물운에 유리
     }
-    if (allSinsal.includes("편재살") && this.isSinsalActivated(todayGanji.dayGanji[1], "편재살")) {
-      adjustment += 15; // 편재살도 재물운에 유리
-    }
-    
+
     // 오행 상극이면 재물운 하락
     const todayProperty = SajuUtils.getProperty(todayGanji.dayGanji[0]);
     const myProperty = SajuUtils.getProperty(userSaju.dayGanji[0]);
@@ -578,50 +577,91 @@ export class TodayFortuneCalculator {
     return pairJi ? chungList.some(item => item.includes(pairJi)) : false;
   }
 
-  private isGuinActivated(todayJi: string, guinType: string): boolean {
-    // 귀인 발동 확인 로직 (정확한 조건 매칭)
-    const guinMap: { [key: string]: string[] } = {
-      '천을귀인': ['丑', '未', '子', '申', '亥', '酉', '午', '寅', '卯', '巳'],
-      '월령': ['寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥', '子', '丑'],
-      '천덕귀인': ['辰', '戌', '丑', '未'],
-      '월덕귀인': ['辰', '戌', '丑', '未'],
-      '복성귀인': ['巳', '午'],
-      '천주귀인': ['申', '酉']
+  /**
+   * 귀인 발동 확인 - 일간(또는 월지)을 기준으로 하는 정확한 전통 귀인표를 사용한다.
+   * (ganji_local.ts의 calculateGuin과 동일한 전통 표를 오늘 일진 판정에 재사용)
+   */
+  private isGuinActivated(todayGanji: string, guinType: string, userSaju: UserSajuData): boolean {
+    const todayGan = todayGanji[0];
+    const todayJi = todayGanji[1];
+    const dayStemHangul = SajuUtils.getHanjaToHangulChar(userSaju.dayGanji[0]);
+    const monthJi = userSaju.monthGanji[1];
+
+    const cheonEulGuinMap: { [key: string]: string[] } = {
+      '갑': ['丑', '未'], '을': ['子', '申'], '병': ['亥', '酉'], '정': ['戌', '亥'],
+      '무': ['丑', '未'], '기': ['申', '子'], '경': ['未', '丑'], '신': ['午', '寅'],
+      '임': ['卯', '巳'], '계': ['辰', '巳']
     };
-    
-    // 정확한 귀인 조건 확인
-    const validJis = guinMap[guinType];
-    if (!validJis) return false;
-    
-    return validJis.includes(todayJi);
+    const bokSeongGuinMap: { [key: string]: string[] } = {
+      '갑': ['子', '午'], '을': ['丑', '未'], '병': ['寅', '申'], '정': ['卯', '酉'],
+      '무': ['辰', '戌'], '기': ['巳', '亥'], '경': ['午', '子'], '신': ['未', '丑'],
+      '임': ['申', '寅'], '계': ['酉', '卯']
+    };
+    const cheonjuGuinMap: { [key: string]: string } = {
+      '갑': '巳', '을': '午', '병': '巳', '정': '午', '무': '申',
+      '기': '酉', '경': '亥', '신': '子', '임': '寅', '계': '卯'
+    };
+    // 천덕귀인 (월지 기준 - 12개월 각각에 고정된 천간 또는 지지 하나)
+    const cheonDeokGuinByMonthJi: { [key: string]: string } = {
+      '寅': '丁', '卯': '申', '辰': '壬', '巳': '辛', '午': '亥', '未': '甲',
+      '申': '癸', '酉': '寅', '戌': '丙', '亥': '乙', '子': '巳', '丑': '庚'
+    };
+    // 월덕귀인 (월지의 삼합 그룹 기준 - 화국/수국/금국/목국별 천간 하나)
+    const wolDeokGuinByMonthGroup: { branches: string[]; stem: string }[] = [
+      { branches: ['寅', '午', '戌'], stem: '丙' },
+      { branches: ['申', '子', '辰'], stem: '壬' },
+      { branches: ['巳', '酉', '丑'], stem: '庚' },
+      { branches: ['亥', '卯', '未'], stem: '甲' }
+    ];
+
+    switch (guinType) {
+      case '천을귀인':
+        return (cheonEulGuinMap[dayStemHangul] || []).includes(todayJi);
+      case '복성귀인':
+        return (bokSeongGuinMap[dayStemHangul] || []).includes(todayJi);
+      case '천주귀인':
+        return cheonjuGuinMap[dayStemHangul] === todayJi;
+      case '천덕귀인': {
+        const value = cheonDeokGuinByMonthJi[monthJi];
+        return value !== undefined && (value === todayGan || value === todayJi);
+      }
+      case '월덕귀인': {
+        const stem = wolDeokGuinByMonthGroup.find(g => g.branches.includes(monthJi))?.stem;
+        return stem === todayGan;
+      }
+      default:
+        // 문창귀인/학당귀인/태극귀인 등은 일진 발동 판정 대상이 아니므로 미판정
+        return false;
+    }
   }
 
-  private isSinsalActivated(todayJi: string, sinsalType: string): boolean {
-    // 신살 발동 확인 로직 (간단화)
-    const sinsalMap: { [key: string]: string[] } = {
-      '장성살': ['寅', '卯'],
-      '화개살': ['申', '酉'],
-      '백호살': ['寅'],
-      '양인살': ['辰', '戌', '丑', '未'],
-      '편관살': ['申'],
-      '정관살': ['寅'],
-      '정재살': ['巳', '午'],
-      '편재살': ['寅']
-    };
-    
-    return sinsalMap[sinsalType]?.includes(todayJi) || false;
+  /**
+   * 신살 발동 확인 - SinsalCalculator와 동일한 전통 표를 오늘 일진 판정에 재사용한다.
+   */
+  private isSinsalActivated(todayGanji: string, sinsalType: string, userSaju: UserSajuData): boolean {
+    switch (sinsalType) {
+      case '장성살':
+        return this.sinsalCalculator.calculateJangseongSal(userSaju.yearGanji, todayGanji) !== null;
+      case '화개살':
+        return this.sinsalCalculator.calculateHwagaeSal(userSaju.yearGanji, todayGanji) !== null;
+      case '백호살':
+        return this.sinsalCalculator.calculateBaekhoSal(todayGanji) !== null;
+      case '양인살':
+        return this.sinsalCalculator.calculateYanginSal(userSaju.dayGanji, todayGanji) !== null;
+      default:
+        return false;
+    }
   }
 
   /**
    * 귀인 점수 계산 (15% 비중)
    */
-  private calculateGuinScore(todayGanji: string, guinData: { [key: string]: string[] }): number {
-    const todayJi = todayGanji[1];
+  private calculateGuinScore(todayGanji: string, guinData: { [key: string]: string[] }, userSaju: UserSajuData): number {
     let score = 0;
-    
+
     // 각 귀인별 점수 계산
     Object.entries(guinData).forEach(([guinType, guinList]) => {
-      if (guinList.length > 0 && this.isGuinActivated(todayJi, guinType)) {
+      if (guinList.length > 0 && this.isGuinActivated(todayGanji, guinType, userSaju)) {
         switch (guinType) {
           case '천을귀인':
             score += 15; // 가장 강력한 귀인

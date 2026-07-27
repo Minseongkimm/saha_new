@@ -39,6 +39,8 @@ export class SajuUtils {
    * @return 암장간 천간들
    */
   static getJijiAmJangan(ji: string): string {
+    // 표기 순서: 초기 → 중기 → 정기
+    // 未 항목에 을(乙)이 빠져 "丁己" 2글자만 나오던 버그 수정 (정확히는 丁乙己 3글자)
     const amjanganMap: { [key: string]: string } = {
       '子': '壬癸',
       '丑': '癸辛己',
@@ -47,7 +49,7 @@ export class SajuUtils {
       '辰': '乙癸戊',
       '巳': '戊庚丙',
       '午': '丙己丁',
-      '未': '丁己',
+      '未': '丁乙己',
       '申': '戊壬庚',
       '酉': '庚辛',
       '戌': '辛丁戊',
@@ -251,6 +253,16 @@ export class SajuUtils {
       ganjiList.push(gan + ji);
     }
     return ganjiList;
+  }
+
+  /**
+   * 특정 연도의 년주(년간지) 계산 (임의의 연도에 대해 일반적으로 동작)
+   * 그 해 6월 1일 기준으로 계산하여 입춘 경계 모호성을 피한다.
+   * @param year 연도
+   * @return 년주 간지 (예: '甲辰')
+   */
+  static getYearGanji(year: number): string {
+    return this.calcYearGanji(year, 6, 1);
   }
 
   /**

@@ -289,6 +289,7 @@ const SajuInfoScreen: React.FC<SajuInfoScreenProps> = ({ navigation }) => {
         minute: sajuInfo.timeUnknown || !sajuInfo.birthMinute ? 0 : parseInt(sajuInfo.birthMinute),
         isLunar: sajuInfo.calendarType === '음력',
         isLeapMonth: sajuInfo.isLeapMonth,
+        gender: sajuInfo.gender === '남성' ? 0 : 1,
       });
 
       const birthInfoData = {

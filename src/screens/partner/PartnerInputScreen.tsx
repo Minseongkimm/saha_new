@@ -81,6 +81,7 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
             .eq('user_id', user.id)
             .single();
           if (data) {
+            const userGender = data.gender === 'male' ? 'male' : 'female';
             const userSajuInput = {
               year: Number(data.year),
               month: Number(data.month),
@@ -89,12 +90,14 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
               minute: data.isTimeUnknown ? null : Number(data.minute ?? 0),
               isLunar: Boolean(data.isLunar),
               isLeapMonth: Boolean(data.isLeapMonth),
+              gender: userGender === 'male' ? 0 : 1,
             };
             const userSajuResult: SajuResult = calculateSaju(userSajuInput);
             userSajuInfo = convertSajuResultToSajuInfo(
               userSajuResult,
               Number(data.year),
-              data.gender === 'male' ? 'male' : 'female'
+              userGender,
+              userSajuResult.birthDate ?? new Date(Number(data.year), Number(data.month) - 1, Number(data.day))
             );
           }
         }
@@ -103,7 +106,12 @@ const PartnerInputScreen = ({ navigation, route }: PartnerInputScreenProps) => {
       const partnerSajuInfo: SajuInfo = convertSajuResultToSajuInfo(
         partnerSajuData,
         parseInt(partnerInfo.birthYear),
-        partnerInfo.gender || 'male'
+        partnerInfo.gender || 'male',
+        partnerSajuData.birthDate ?? new Date(
+          parseInt(partnerInfo.birthYear),
+          parseInt(partnerInfo.birthMonth) - 1,
+          parseInt(partnerInfo.birthDay)
+        )
       );
 
       const compatibilityResult = userSajuInfo

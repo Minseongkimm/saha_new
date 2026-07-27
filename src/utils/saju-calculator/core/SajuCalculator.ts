@@ -45,9 +45,10 @@ export class SajuCalculator {
       sajuInfo.yearGanji,
       sajuInfo.monthGanji,
       sajuInfo.birthYear,
-      sajuInfo.gender
+      sajuInfo.gender,
+      sajuInfo.birthDate
     );
-    
+
     // 오행 분석
     const fiveProperties = this.calculateFiveProperties(sajuInfo);
     
@@ -82,27 +83,25 @@ export class SajuCalculator {
       timeSinsal: []
     };
 
-    // 괴강살 계산 (월주와 시주가 괴강살인지 확인)
-    const isGwaegang = this.calculateGwaegangSal(sajuInfo.monthGanji, sajuInfo.timeGanji);
-    if (isGwaegang) {
-      sinsal.monthSinsal.push('괴강살');
-      sinsal.timeSinsal.push('괴강살');
+    // 괴강살 계산 (일주가 庚辰·庚戌·壬辰·戊戌 중 하나인지 확인)
+    if (this.calculateGwaegangSal(sajuInfo.dayGanji)) {
+      sinsal.daySinsal.push('괴강살');
     }
 
     // 각 주별로 신살 계산
     pillars.forEach((pillar, index) => {
       const pillarSinsal: string[] = [];
-      
-      // 화개살 계산
-      const hwagae = this.sinsalCalculator.calculateHwagaeSal(sajuInfo.dayGanji, pillar);
+
+      // 화개살 계산 (12신살 - 년지 기준)
+      const hwagae = this.sinsalCalculator.calculateHwagaeSal(sajuInfo.yearGanji, pillar);
       if (hwagae) pillarSinsal.push(hwagae);
-      
-      // 장성살 계산
-      const jangseong = this.sinsalCalculator.calculateJangseongSal(sajuInfo.dayGanji, pillar);
+
+      // 장성살 계산 (12신살 - 년지 기준)
+      const jangseong = this.sinsalCalculator.calculateJangseongSal(sajuInfo.yearGanji, pillar);
       if (jangseong) pillarSinsal.push(jangseong);
-      
+
       // 백호살 계산
-      const baekho = this.sinsalCalculator.calculateBaekhoSal(sajuInfo.dayGanji, pillar);
+      const baekho = this.sinsalCalculator.calculateBaekhoSal(pillar);
       if (baekho) pillarSinsal.push(baekho);
       
       // 양인살 계산 (SinsalCalculator 사용)
@@ -124,20 +123,12 @@ export class SajuCalculator {
   }
 
   /**
-   * 괴강살 계산
-   * @param monthGanji 월주 간지
-   * @param timeGanji 시주 간지
+   * 괴강살 계산 - 일주(日柱)가 庚辰·庚戌·壬辰·戊戌 중 하나면 해당
+   * @param dayGanji 일주 간지
    * @return 괴강살 여부
    */
-  private calculateGwaegangSal(monthGanji: string, timeGanji: string): boolean {
-    const gwaegangPairs = [
-      ['壬辰', '戊戌'], ['庚戌', '庚辰'], ['戊戌', '壬辰'], ['庚辰', '庚戌']
-    ];
-    
-    return gwaegangPairs.some(pair => 
-      (pair[0] === monthGanji && pair[1] === timeGanji) ||
-      (pair[0] === timeGanji && pair[1] === monthGanji)
-    );
+  private calculateGwaegangSal(dayGanji: string): boolean {
+    return ['庚辰', '庚戌', '壬辰', '戊戌'].includes(dayGanji);
   }
 
 
@@ -259,7 +250,8 @@ export class SajuCalculator {
       sajuInfo.yearGanji,
       sajuInfo.monthGanji,
       sajuInfo.birthYear,
-      sajuInfo.gender
+      sajuInfo.gender,
+      sajuInfo.birthDate
     );
     return this.daewoonCalculator.getCurrentDaewoon(daewoonList, currentAge);
   }
@@ -838,7 +830,7 @@ export class SajuCalculator {
    */
   private analyzeDaewoonInteraction(sajuInfo1: SajuInfo, sajuInfo2: SajuInfo): { [key: string]: any } {
     const getDaewoon = (s: SajuInfo) => this.daewoonCalculator.calculateAccurateDaewoon(
-      s.yearGanji, s.monthGanji, s.birthYear, s.gender
+      s.yearGanji, s.monthGanji, s.birthYear, s.gender, s.birthDate
     );
     const d1 = getDaewoon(sajuInfo1);
     const d2 = getDaewoon(sajuInfo2);
@@ -985,7 +977,7 @@ export class SajuCalculator {
     const allSinsal: { [key: string]: string[] } = {};
 
     pillars.forEach((pillar, index) => {
-      const sinsalList = this.sinsalCalculator.analyzeTraditionalSinsal(sajuInfo.dayGanji, pillar);
+      const sinsalList = this.sinsalCalculator.analyzeTraditionalSinsal(sajuInfo.yearGanji, sajuInfo.dayGanji, pillar);
       if (sinsalList.length > 0) {
         allSinsal[pillarNames[index]] = sinsalList;
       }
