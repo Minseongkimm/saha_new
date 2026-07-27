@@ -53,6 +53,14 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
     loadNotificationSettings();
   }, []);
 
+  // 다른 화면(채팅 프라이머 등)에서 권한을 허용하고 돌아왔을 때 최신 상태 반영
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadNotificationSettings();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const loadNotificationSettings = async () => {
     try {
       setLoading(true);
@@ -93,6 +101,11 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
   const toggleSetting = async (key: keyof NotificationPreferences) => {
     if (!userId) return;
 
+    // 스위치가 화면에 "꺼진 것"처럼 보였던 이유가 OS 권한 미허용 때문이었다면,
+    // 내부 저장값(notificationSettings)이 true여도 사용자에게는 꺼진 상태로 보였던 것.
+    // 이 경우 스위치를 누른 의도는 항상 "켜기"이므로, 저장된 값을 반전시키지 않고 무조건 켠다.
+    const wasVisuallyOffDueToPermission = osPermission !== 'authorized';
+
     // OS 권한이 아직 없는 상태에서 켜려는 경우: 시스템 권한부터 요청
     if (osPermission === 'not-determined') {
       const granted = await requestNotificationPermission();
@@ -108,16 +121,17 @@ const NotificationSettingsScreen: React.FC<NotificationSettingsScreenProps> = ({
     let newSettings: NotificationPreferences;
 
     if (key === 'all_notifications') {
-      const newValue = !notificationSettings.all_notifications;
+      const newValue = wasVisuallyOffDueToPermission ? true : !notificationSettings.all_notifications;
       newSettings = {
         all_notifications: newValue,
         chat_notifications: newValue,
         daily_fortune_notifications: newValue,
       };
     } else {
+      const newValue = wasVisuallyOffDueToPermission ? true : !notificationSettings[key];
       newSettings = {
         ...notificationSettings,
-        [key]: !notificationSettings[key],
+        [key]: newValue,
       };
       const anyIndividualOn = newSettings.chat_notifications || newSettings.daily_fortune_notifications;
       newSettings.all_notifications = anyIndividualOn;

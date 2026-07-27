@@ -21,6 +21,8 @@ import { sendUserMessage } from './sendUserMessage';
 import { prepareMessagesForAI } from './prepareMessagesForAI';
 import { processAiResponse } from './processAiResponse';
 import { updateFreeMessageId } from './updateFreeMessageId';
+import { supabase } from '../../../../../utils/database/supabaseClient';
+import { maybeShowPushPrimer } from '../../../../../services/notifications/pushTokenService';
 
 interface SendMessageCoreParams {
   roomId: string;
@@ -93,6 +95,15 @@ export async function sendMessageCore(params: SendMessageCoreParams): Promise<vo
       partnerData
     });
     
+    // AI 첫 답변을 받은 직후 알림 권한을 아직 안 물어본 유저에게만 프라이머 표시
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user?.id) {
+        maybeShowPushPrimer(user.id).catch(error => {
+          console.error('알림 프라이머 표시 중 오류:', error);
+        });
+      }
+    });
+
     const didUseFreeMessage = initialFreeMessageInfo?.available ?? false;
     if (didUseFreeMessage && aiMessageId && userMessageId) {
       await updateFreeMessageId(roomId, userMessageId, aiMessageId);

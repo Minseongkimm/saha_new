@@ -349,12 +349,11 @@ interface SajuResult {
       const permissionStatus = await getNotificationPermissionStatus();
       if (permissionStatus === 'not-determined') {
         Alert.alert(
-          '당신의 사주가 말하는 순간들,\n놓치지 않게 해드릴까요?',
-          '',
+          '사주가 알려주는 순간들,\n알림으로 전해드릴게요',
+          '다음 화면에서 알림을 허용해주세요.',
           [
-            { text: '다음에', style: 'cancel', onPress: goToNextScreen },
             {
-              text: '받을래요',
+              text: '확인',
               onPress: () => {
                 registerPushToken(userId).catch(error => {
                   console.error('푸시 토큰 등록 중 오류:', error);

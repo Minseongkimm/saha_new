@@ -1,7 +1,8 @@
-import { Platform, Linking, PermissionsAndroid } from 'react-native';
+import { Platform, Linking, PermissionsAndroid, Alert } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../utils/database/supabaseClient';
+import { upsertNotificationPreferences } from './notificationPreferencesService';
 
 // Android는 "한 번도 요청 안 함"과 "거부됨"을 시스템 API로 구분할 수 없어서
 // 직접 요청 여부를 기록해둬야 함 (iOS는 hasPermission()의 NOT_DETERMINED로 구분 가능)
@@ -89,6 +90,17 @@ export const registerPushToken = async (userId: string): Promise<void> => {
   }
 
   await saveTokenToSupabase(userId, token);
+
+  // 권한을 새로 허용한 것이므로 알림 수신 의사가 있다고 보고 전체 알림 설정을 켜준다
+  try {
+    await upsertNotificationPreferences(userId, {
+      all_notifications: true,
+      chat_notifications: true,
+      daily_fortune_notifications: true,
+    });
+  } catch (error) {
+    console.error('알림 설정 초기화 중 오류:', error);
+  }
 };
 
 // 이미 OS 알림 권한이 허용된 경우에만 조용히 토큰을 등록(팝업 없음).
@@ -105,6 +117,31 @@ export const registerTokenIfPermitted = async (userId: string): Promise<void> =>
   }
 
   await saveTokenToSupabase(userId, token);
+};
+
+// 알림 권한을 아직 한 번도 물어본 적 없을 때(not-determined)만 프라이머 모달 표시.
+// 사주 입력 완료 화면, 채팅 첫 답변 수신 등 "가치를 보여준 직후" 시점에서 호출.
+// 이미 요청된 적 있으면(허용/거부 무관) 아무 것도 하지 않아 재요청하지 않음.
+export const maybeShowPushPrimer = async (userId: string): Promise<void> => {
+  const status = await getNotificationPermissionStatus();
+  if (status !== 'not-determined') {
+    return;
+  }
+
+  Alert.alert(
+    '사주가 알려주는 순간들,\n알림으로 전해드릴게요',
+    '다음 화면에서 알림을 허용해주세요.',
+    [
+      {
+        text: '확인',
+        onPress: () => {
+          registerPushToken(userId).catch(error => {
+            console.error('푸시 토큰 등록 중 오류:', error);
+          });
+        },
+      },
+    ],
+  );
 };
 
 // 토큰 갱신 리스너 (FCM 토큰은 주기적으로 재발급될 수 있음)
