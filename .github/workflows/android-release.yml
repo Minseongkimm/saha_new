@@ -30,7 +30,7 @@ jobs:
           java-version: 17
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --legacy-peer-deps
 
       # src/config/env.ts는 git에 안 올라가 있어서(.gitignore) CI에서 시크릿으로 복원
       # 값 등록: base64로 인코딩해서 ANDROID_ENV_TS_BASE64 시크릿에 저장
