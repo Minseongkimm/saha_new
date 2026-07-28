@@ -36,20 +36,30 @@ export const TOKEN_COSTS: Record<string, { input: number; output: number }> = {
   },
 };
 
+// 캐시된 입력 토큰 할인율. OpenAI가 gpt-5.6 계열의 정확한 할인율을 공개하지
+// 않아서, 예전 gpt-4o 기준 통상치(50%)로 근사함 - 실측이 아니라 추정치.
+const CACHED_INPUT_DISCOUNT = 0.5;
+
 /**
  * 토큰 비용 계산
  * @param model - 사용된 모델명
- * @param promptTokens - 입력 토큰 수
+ * @param promptTokens - 입력 토큰 수 (캐시된 토큰 포함 전체)
  * @param completionTokens - 출력 토큰 수
+ * @param cachedTokens - promptTokens 중 캐시로 처리된 토큰 수 (할인 적용용)
  * @returns 계산된 비용 (USD)
  */
 export function calculateTokenCost(
   model: string,
   promptTokens: number,
   completionTokens: number,
+  cachedTokens: number = 0,
 ): number {
   const costs = TOKEN_COSTS[model] || TOKEN_COSTS["gpt-4o"];
-  const inputCost = promptTokens * costs.input;
+  const safeCachedTokens = Math.min(cachedTokens, promptTokens);
+  const uncachedPromptTokens = promptTokens - safeCachedTokens;
+
+  const inputCost = uncachedPromptTokens * costs.input +
+    safeCachedTokens * costs.input * (1 - CACHED_INPUT_DISCOUNT);
   const outputCost = completionTokens * costs.output;
 
   return Math.round((inputCost + outputCost) * 1000000) / 1000000; // 소수점 6자리까지
@@ -57,21 +67,24 @@ export function calculateTokenCost(
 
 /**
  * 토큰 사용량 정보를 포맷팅
- * @param usage - OpenAI usage 객체
+ * @param usage - OpenAI usage 객체 (prompt_tokens_details.cached_tokens 있으면 할인 반영)
  * @param model - 사용된 모델명
  * @returns 포맷팅된 토큰 정보
  */
 export function formatTokenUsage(usage: any, model: string) {
+  const cachedTokens = usage.prompt_tokens_details?.cached_tokens ?? 0;
   const cost = calculateTokenCost(
     model,
     usage.prompt_tokens,
     usage.completion_tokens,
+    cachedTokens,
   );
 
   return {
     promptTokens: usage.prompt_tokens,
     completionTokens: usage.completion_tokens,
     totalTokens: usage.total_tokens,
+    cachedTokens,
     costUsd: cost,
     model: model,
   };
