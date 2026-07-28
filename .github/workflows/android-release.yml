@@ -43,6 +43,12 @@ jobs:
       - name: Restore release keystore
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/saha-release.keystore
 
+      # google-services.json도 git에 없어서(.gitignore) 시크릿으로 복원
+      # (API 키가 커밋되어 GitHub secret scanning에 걸린 뒤 .gitignore로 옮김)
+      #   base64 -i android/app/google-services.json | gh secret set ANDROID_GOOGLE_SERVICES_JSON_BASE64
+      - name: Restore google-services.json
+        run: echo "${{ secrets.ANDROID_GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > android/app/google-services.json
+
       # versionCode는 build.gradle에 적힌 값 + 이 워크플로우 실행 횟수(run_number)로 계산해서
       # 항상 이전 업로드보다 커지도록 함 (Play는 versionCode가 항상 증가해야 업로드 허용)
       # -Pandroid.injected.version.code 오버라이드가 이 프로젝트에선 안 먹혀서(defaultConfig에 리터럴로

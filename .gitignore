@@ -69,6 +69,9 @@ yarn-error.log
 # Environment variables
 src/config/env.ts
 
+# Firebase (API 키 포함, GitHub secret scanning에서 노출 감지됨 - CI에서 시크릿으로 복원)
+android/app/google-services.json
+
 # Supabase
 supabase/.env.local
 supabase/.temp/
