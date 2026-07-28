@@ -1607,6 +1607,8 @@ Deno.serve(async (req: Request) => {
       topP: AI_CONFIG.TOP_P,
       frequencyPenalty: AI_CONFIG.FREQUENCY_PENALTY,
       presencePenalty: AI_CONFIG.PRESENCE_PENALTY,
+      // 같은 방의 요청이 같은 캐시 서버로 몰리도록 유도 (캐시 히트율 개선 시도)
+      promptCacheKey: roomId,
     });
 
     // 스트리밍 완료 후 토큰 정보 추출을 위한 래퍼

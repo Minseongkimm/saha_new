@@ -16,6 +16,9 @@ export interface OpenAIStreamingConfig {
   topP?: number;
   frequencyPenalty?: number;
   presencePenalty?: number;
+  // 같은 그룹(예: 채팅방)의 요청을 같은 캐시 서버로 몰아달라는 힌트.
+  // gpt-5.6+에서 프롬프트 캐싱 히트율을 올리기 위해 OpenAI가 권장하는 값.
+  promptCacheKey?: string;
 }
 
 export async function createOpenAIStream(
@@ -30,6 +33,7 @@ export async function createOpenAIStream(
     topP = 1.0,
     frequencyPenalty = 0.0,
     presencePenalty = 0.0,
+    promptCacheKey,
   } = config;
 
   if (!apiKey) {
@@ -44,6 +48,10 @@ export async function createOpenAIStream(
     // 캐시 히트 여부(prompt_tokens_details.cached_tokens)를 실측하기 위해 필요
     stream_options: { include_usage: true },
   };
+
+  if (promptCacheKey) {
+    requestBody.prompt_cache_key = promptCacheKey;
+  }
 
   if (isGpt5Family) {
     requestBody.max_completion_tokens = maxTokens;
