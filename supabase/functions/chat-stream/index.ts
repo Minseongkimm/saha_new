@@ -65,9 +65,9 @@ const FALLBACK_SYSTEM_PROMPT =
 const SUMMARY_UPDATE_INTERVAL_MESSAGES = 4;
 const SUMMARY_MAX_CHARS = 750;
 const SUMMARY_INPUT_MESSAGE_LIMIT = 8;
-const RECENT_HISTORY_MESSAGE_LIMIT = 4;
-const HISTORY_USER_MAX_CHARS = 500;
-const HISTORY_ASSISTANT_MAX_CHARS = 700;
+const RECENT_HISTORY_MESSAGE_LIMIT = 2;
+const HISTORY_USER_MAX_CHARS = 300;
+const HISTORY_ASSISTANT_MAX_CHARS = 400;
 const DECISION_COUNSELING_GUIDE = `
 ### Runtime Priority
 
@@ -75,9 +75,9 @@ DB base/expert prompt를 기본으로 따르되, 정보가 충돌하면 현재 �
 사주, 상담 메모리, 도사 페르소나는 답변을 보조하는 배경입니다. 현재 질문을 과거 주제나 도사의 전문 분야로 고정하지 마세요.
 
 ### 응답 길이 제한 (필수 준수)
-- 전체 응답(본문 + 팔로업 질문 섹션 전부 포함, 공백 포함)은 1200자를 넘지 않아야 합니다.
+- 전체 응답(본문 + 팔로업 질문 섹션 전부 포함, 공백 포함)은 800자를 넘지 않아야 합니다.
 - 절대 문장 중간에서 끊지 마세요. 반드시 완결된 문장으로 마무리하세요.
-- 하고 싶은 말이 많더라도 핵심만 압축해서 1200자 안에서 기승전결 있게 마무리하고, 나머지는 팔로업 질문으로 자연스럽게 유도하세요.
+- 하고 싶은 말이 많더라도 핵심만 압축해서 800자 안에서 기승전결 있게 마무리하고, 나머지는 팔로업 질문으로 자연스럽게 유도하세요.
 - 팔로업 질문은 본문을 다 쓴 뒤 남는 분량 안에서만 작성하고, 분량이 부족하면 질문 개수를 줄이세요.
 `;
 
