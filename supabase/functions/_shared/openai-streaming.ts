@@ -41,6 +41,8 @@ export async function createOpenAIStream(
     model,
     messages,
     stream: true,
+    // 캐시 히트 여부(prompt_tokens_details.cached_tokens)를 실측하기 위해 필요
+    stream_options: { include_usage: true },
   };
 
   if (isGpt5Family) {

@@ -33,6 +33,8 @@ interface OpenAIUsage {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  prompt_tokens_details?: { cached_tokens?: number };
+  cache_write_tokens?: number;
 }
 
 interface StreamSummaryUpdateParams {
@@ -963,6 +965,7 @@ function transformToSSEWithTokenTracking(
       let buffer = "";
       let responseText = "";
       let finishReason: string | null = null;
+      let realUsage: OpenAIUsage | null = null;
 
       try {
         while (true) {
@@ -980,10 +983,10 @@ function transformToSSEWithTokenTracking(
                 },
               );
             }
-            // 스트리밍 완료 후 텍스트 길이 기반으로 토큰 추정 및 last_message 갱신
+            // 스트리밍 완료 후 last_message 갱신 + 토큰 사용량 기록
             const completedMessageCount = currentMessageCount + 1;
             try {
-              // 프롬프트 텍스트 길이 계산
+              // 프롬프트 텍스트 길이 계산 (실제 usage를 못 받았을 때의 대체용)
               const promptText = openaiMessages.map((m) => m.content).join(" ");
               const estimatedPromptTokens = Math.ceil(promptText.length / 4);
               const estimatedCompletionTokens = Math.ceil(
@@ -996,7 +999,36 @@ function transformToSSEWithTokenTracking(
                 total_tokens: estimatedPromptTokens + estimatedCompletionTokens,
               };
 
-              await updateTokenUsage(supabase, roomId, estimatedUsage, model);
+              if (realUsage) {
+                const cachedTokens =
+                  realUsage.prompt_tokens_details?.cached_tokens ?? 0;
+                const cacheHitRatioPercent = realUsage.prompt_tokens > 0
+                  ? Math.round((cachedTokens / realUsage.prompt_tokens) * 100)
+                  : 0;
+                log("info", "[캐시 테스트] 실제 usage 수신", {
+                  roomId,
+                  model,
+                  promptTokens: realUsage.prompt_tokens,
+                  completionTokens: realUsage.completion_tokens,
+                  cachedTokens,
+                  cacheWriteTokens: realUsage.cache_write_tokens ?? 0,
+                  cacheHitRatioPercent,
+                  estimatedPromptTokens, // 실측치와 우리 어림값(길이/4) 비교용
+                });
+              } else {
+                log(
+                  "warn",
+                  "[캐시 테스트] 실제 usage 못 받음 - 추정치로 대체",
+                  { roomId, model },
+                );
+              }
+
+              await updateTokenUsage(
+                supabase,
+                roomId,
+                realUsage ?? estimatedUsage,
+                model,
+              );
 
               // last_message, last_message_at, total_message_count 갱신
               const preview = responseText.length > 40
@@ -1057,6 +1089,10 @@ function transformToSSEWithTokenTracking(
                 }
                 if (piece) {
                   responseText += piece as string;
+                }
+                // stream_options.include_usage=true일 때 마지막 청크(choices: [])에 usage가 실림
+                if (jsonData?.usage) {
+                  realUsage = jsonData.usage as OpenAIUsage;
                 }
               } catch (_) {
                 // Ignore JSON parse errors for keep-alive chunks
