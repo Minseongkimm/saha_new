@@ -5,6 +5,7 @@
   "scripts": {
     "android": "react-native run-android",
     "android:wireless": "scripts/android-wireless.sh",
+    "android:wireless:reconnect": "scripts/android-wireless.sh --reconnect",
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
