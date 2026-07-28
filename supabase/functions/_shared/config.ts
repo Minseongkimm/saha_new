@@ -16,7 +16,7 @@ export const AI_CONFIG = {
   TOP_P: 1.0,
   FREQUENCY_PENALTY: 0.0,
   PRESENCE_PENALTY: 0.0,
-  MAX_TOKENS: 1200, // 800자 응답 목표 + 팔로업 질문 여유분 (한글은 글자당 토큰 소비가 커서 여유를 둠, 단 비용 상한은 타이트하게)
+  MAX_TOKENS: 1800, // 1200자 응답 목표 + 팔로업 질문 여유분 (한글은 글자당 토큰 소비가 커서 여유를 둠, 단 비용 상한은 타이트하게)
   TRADITIONAL_SAJU_MAX_TOKENS: 2500, // 정통사주는 상세 해석이 필요하므로 더 높은 토큰 제한
   NEW_YEAR_FORTUNE_MAX_TOKENS: 2500, // 신년운세는 JSON 형식의 긴 응답이 필요하므로 더 높은 토큰 제한
 
